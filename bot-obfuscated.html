@@ -13,57 +13,23 @@
         body { font-family: 'Inter', sans-serif; background-color: #111827; }
         @keyframes pulse-once { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.9; } 100% { transform: scale(1); opacity: 1; } }
         .tick-flash { animation: pulse-once 0.1s ease-out; }
-        .contract-type-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: bold;
-            margin-left: 5px;
-        }
-        .stop-button-active {
-            background-color: #dc2626 !important;
-            border: 2px solid #fca5a5 !important;
-            animation: pulse-once 0.5s infinite;
-        }
-        .start-button-active {
-            background-color: #16a34a !important;
-            border: 2px solid #86efac !important;
-            animation: pulse-once 0.5s;
-        }
-        .token-container { position: relative; }
-        .token-visibility-toggle {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #9ca3af;
-            cursor: pointer;
-            font-size: 14px;
-        }
+        .stop-button-active { background-color: #dc2626 !important; border: 2px solid #fca5a5 !important; animation: pulse-once 0.5s infinite; }
+        .start-button-active { background-color: #16a34a !important; border: 2px solid #86efac !important; animation: pulse-once 0.5s; }
         .trade-completed { border: 3px solid #10b981 !important; background-color: #064e3b !important; }
-        .instant-win-detected {
-            animation: pulse-once 0.5s infinite;
-            border: 3px solid #00ff00 !important;
-            box-shadow: 0 0 20px #00ff00 !important;
-        }
+        .instant-win-detected { animation: pulse-once 0.5s infinite; border: 3px solid #00ff00 !important; box-shadow: 0 0 20px #00ff00 !important; }
         .profit-green { color: #10B981 !important; text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
         .profit-red { color: #ef4444 !important; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-        .probability-high { color: #10b981; }
-        .probability-medium { color: #f59e0b; }
-        .probability-low { color: #ef4444; }
         
         /* Auth Overlay */
         #auth-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(17, 24, 39, 0.95);
-            z-index: 100;
+            background: rgba(17, 24, 39, 0.98);
+            z-index: 1000;
             display: flex;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(8px);
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -71,24 +37,31 @@
 <body class="min-h-screen p-4 sm:p-8 flex items-start justify-center">
 
     <div id="auth-overlay">
-        <div class="bg-gray-800 p-8 rounded-xl border border-gray-700 w-full max-w-md shadow-2xl">
-            <h2 class="text-2xl font-bold text-green-400 mb-6 text-center">Bot Login</h2>
+        <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-extrabold text-green-400">DigitMartchStar</h2>
+                <p class="text-gray-400 text-sm mt-2">Please authenticate to continue</p>
+            </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">API Token</label>
-                    <input type="password" id="loginToken" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none" placeholder="Enter Deriv API Token">
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 ml-1">Deriv API Token</label>
+                    <input type="password" id="loginToken" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none transition" placeholder="Paste your token here">
                 </div>
-                <button onclick="handleLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition">Enter App</button>
+                <button onclick="handleLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition transform active:scale-95">
+                    UNLOCK BOT
+                </button>
+                <p class="text-[10px] text-gray-500 text-center">Your token is stored locally and never shared.</p>
             </div>
         </div>
     </div>
 
     <div class="w-full max-w-5xl bg-gray-800 text-gray-100 shadow-2xl rounded-xl p-5 md:p-6">
+        
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-700 pb-4">
             <div>
-                <h1 class="text-2xl font-extrabold text-green-400 flex items-center">
-                    DigitMartchStar 
-                    <span id="status-badge" class="ml-3 text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white">OFFLINE</span>
+                <h1 class="text-2xl font-black text-green-400 flex items-center tracking-tight">
+                    DIGITMARTCHSTAR
+                    <span id="status-badge" class="ml-3 text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-bold uppercase">OFFLINE</span>
                 </h1>
                 <div class="flex gap-2 mt-1">
                     <span id="contract-type-badge" class="text-[10px] bg-purple-600 px-2 py-0.5 rounded-full font-bold">DIGITMATCH</span>
@@ -96,23 +69,24 @@
                 </div>
             </div>
             
-            <div class="flex items-center gap-3">
-                <button id="soundToggle" onclick="toggleSound()" class="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg border border-gray-600 transition flex items-center gap-2">
-                    🔊 <span id="soundText">Sound ON</span>
+            <div class="flex items-center gap-2">
+                <button id="soundToggle" onclick="toggleSound()" class="text-xs bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg border border-gray-600 transition flex items-center gap-2 font-bold">
+                    🔊 <span id="soundText">SOUND ON</span>
                 </button>
-                <button onclick="handleLogout()" class="text-sm bg-red-900/50 hover:bg-red-800 text-red-200 px-3 py-1.5 rounded-lg border border-red-700 transition">
-                    Logout
+                <button onclick="handleLogout()" class="text-xs bg-red-900/30 hover:bg-red-800 text-red-400 px-4 py-2 rounded-lg border border-red-900/50 transition font-bold">
+                    LOGOUT
                 </button>
             </div>
         </div>
 
         <div class="flex flex-col md:flex-row gap-4 mb-6">
             <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-3">
-                <div class="col-span-2 lg:col-span-3 mb-1">
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Account Type</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="setAccountMode('demo')" id="btn-demo" class="py-2 rounded-md bg-blue-600 text-white text-sm font-bold border-2 border-blue-400">DEMO</button>
-                        <button onclick="setAccountMode('real')" id="btn-real" class="py-2 rounded-md bg-gray-700 text-gray-400 text-sm font-bold border-2 border-transparent">REAL</button>
+                
+                <div class="col-span-2 lg:col-span-3 mb-2">
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Trading Environment</label>
+                    <div class="grid grid-cols-2 gap-2 bg-gray-900 p-1 rounded-xl border border-gray-700">
+                        <button onclick="setAccountMode('demo')" id="btn-demo" class="py-2.5 rounded-lg bg-blue-600 text-white text-xs font-black shadow-lg transition">DEMO</button>
+                        <button onclick="setAccountMode('real')" id="btn-real" class="py-2.5 rounded-lg bg-transparent text-gray-500 text-xs font-black transition">REAL</button>
                     </div>
                 </div>
 
@@ -173,16 +147,16 @@
                             <p class="text-[10px] font-semibold text-yellow-500 uppercase">⚡ STATUS</p>
                             <p id="metricTradeResult" class="text-xs font-bold text-gray-400">READY</p>
                         </div>
-                        <p id="metricPreviousResult" class="text-sm font-bold text-gray-300">Waiting...</p>
+                        <p id="metricPreviousResult" class="text-sm font-bold text-gray-300">Waiting for ticks...</p>
                     </div>
 
                     <div class="bg-gray-700 rounded-lg p-2 col-span-3">
                          <div class="flex justify-between text-[10px] mb-1">
-                            <span class="text-lime-400">NET P/L</span>
+                            <span class="text-lime-400 font-bold">NET P/L</span>
                             <span id="metricTotalProfit" class="font-bold">$0.00</span>
                          </div>
                          <div class="w-full bg-gray-800 rounded-full h-1.5">
-                            <div id="executionBar" class="bg-green-600 h-1.5 rounded-full" style="width: 0%"></div>
+                            <div id="executionBar" class="bg-green-600 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
                          </div>
                     </div>
                 </div>
@@ -190,29 +164,34 @@
         </div>
         
         <div class="flex justify-center mb-5">
-            <button id="toggleButton" onclick="toggleBot()" class="w-full md:w-1/2 px-6 py-3 bg-green-600 text-white font-bold text-lg rounded-lg shadow-xl hover:bg-green-700 transition">
+            <button id="toggleButton" onclick="toggleBot()" class="w-full md:w-1/2 px-6 py-4 bg-green-600 text-white font-black text-xl rounded-xl shadow-2xl hover:bg-green-700 transition transform active:scale-95">
                 START BOT
             </button>
         </div>
 
         <div id="log-column" class="w-full flex flex-col">
-            <h2 class="text-sm font-bold text-gray-300 mb-2 border-b border-gray-700 pb-1">Live Trade Log</h2>
-            <div id="log-area" class="h-60 bg-gray-900 text-lime-400 p-2.5 rounded-lg overflow-y-scroll text-[10px] whitespace-pre-wrap shadow-inner">
-                [SYSTEM] Ready to trade. Choose account and press START.
+            <h2 class="text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest">Live Trade Activity</h2>
+            <div id="log-area" class="h-64 bg-gray-900 text-lime-400 p-4 rounded-xl overflow-y-scroll text-[10px] font-mono whitespace-pre-wrap shadow-inner border border-gray-700">
+                [SYSTEM] Bot initialized. Choose account and press START.
             </div>
         </div>
     </div>
 
     <script>
-        // AUTHENTICATION LOGIC
+        // APP CONFIGURATION
+        const CONFIG = {
+            APP_ID: 117144 // Your App ID applied here
+        };
+
+        // AUTHENTICATION & LOGIN
         function handleLogin() {
             const token = document.getElementById('loginToken').value.trim();
-            if (token) {
+            if (token.length > 5) {
                 localStorage.setItem('derivToken', token);
                 document.getElementById('auth-overlay').style.display = 'none';
-                log('🔓 User authenticated successfully', 'SYSTEM');
+                log('🔓 Access Granted. API Session started.', 'SYSTEM');
             } else {
-                alert('Please enter a valid API token.');
+                alert('Invalid API Token format.');
             }
         }
 
@@ -221,7 +200,7 @@
             location.reload();
         }
 
-        // Check if token exists on load
+        // Check auth on load
         window.onload = () => {
             const savedToken = localStorage.getItem('derivToken');
             if (savedToken) {
@@ -239,43 +218,35 @@
             const badge = document.getElementById('account-type-badge');
 
             if (mode === 'real') {
-                btnReal.className = "py-2 rounded-md bg-red-600 text-white text-sm font-bold border-2 border-red-400";
-                btnDemo.className = "py-2 rounded-md bg-gray-700 text-gray-400 text-sm font-bold border-2 border-transparent";
+                btnReal.className = "py-2.5 rounded-lg bg-red-600 text-white text-xs font-black shadow-lg transition";
+                btnDemo.className = "py-2.5 rounded-lg bg-transparent text-gray-500 text-xs font-black transition";
                 badge.textContent = "REAL ACCOUNT";
                 badge.className = "text-[10px] bg-red-600 px-2 py-0.5 rounded-full font-bold";
             } else {
-                btnDemo.className = "py-2 rounded-md bg-blue-600 text-white text-sm font-bold border-2 border-blue-400";
-                btnReal.className = "py-2 rounded-md bg-gray-700 text-gray-400 text-sm font-bold border-2 border-transparent";
+                btnDemo.className = "py-2.5 rounded-lg bg-blue-600 text-white text-xs font-black shadow-lg transition";
+                btnReal.className = "py-2.5 rounded-lg bg-transparent text-gray-500 text-xs font-black transition";
                 badge.textContent = "DEMO ACCOUNT";
                 badge.className = "text-[10px] bg-blue-600 px-2 py-0.5 rounded-full font-bold";
             }
             log(`🔄 Switched to ${mode.toUpperCase()} mode`, 'SYSTEM');
         }
 
-        // GLOBAL STATE (Keeping existing logic intact)
+        // BOT STATE
         window.ws = null;
         window.req_id = 0;
         window.isBotRunning = false;
         window.soundEnabled = true;
-        window.baseStake = 1.0;
-        window.currentStake = 1.0;
-        window.multiplier = 1.15;
-        window.maxTrades = 10;
         window.tradeCount = 0;
-        window.martingaleStep = 0;
         window.startingBalance = 0.0;
         window.currentBalance = 0.0;
         window.netProfit = 0.0;
-        window.lastTick = null;
         window.executionLock = false;
         window.nextTradeAllowed = true;
         window.stopAfterWin = false;
-        window.tickQueue = [];
 
-        // UI Helpers
         function toggleSound() {
             window.soundEnabled = !window.soundEnabled;
-            document.getElementById('soundText').textContent = window.soundEnabled ? 'Sound ON' : 'Sound OFF';
+            document.getElementById('soundText').textContent = window.soundEnabled ? 'SOUND ON' : 'SOUND OFF';
             log(`🔊 Sound ${window.soundEnabled ? 'ENABLED' : 'DISABLED'}`, 'INFO');
         }
 
@@ -286,19 +257,16 @@
             return formattedPrice.charAt(formattedPrice.length - 1);
         }
 
-        function getNextReqId() { return ++window.req_id; }
-
         function log(message, type = 'INFO') {
             const logArea = document.getElementById('log-area');
             const timestamp = new Date().toLocaleTimeString();
             let color = 'text-lime-400';
-            if (type === 'ERROR' || type === 'CRITICAL') color = 'text-red-500';
+            if (type === 'ERROR') color = 'text-red-500';
             if (type === 'WIN' || type === 'SYSTEM') color = 'text-white';
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
         }
 
-        // BOT CORE (Maintains your "Instant Tick Execution" logic)
         function toggleBot() {
             if (window.isBotRunning) stopBot();
             else startBot();
@@ -306,7 +274,7 @@
 
         function startBot() {
             const token = localStorage.getItem('derivToken');
-            if (!token) return alert("Login first!");
+            if (!token) return;
 
             resetState();
             window.isBotRunning = true;
@@ -318,15 +286,13 @@
             window.isBotRunning = false;
             updateUI(false);
             if (window.ws) window.ws.close();
-            log('⏹️ Bot stopped', 'SYSTEM');
+            log('⏹️ Execution halted.', 'SYSTEM');
         }
 
         function resetState() {
             window.tradeCount = 0;
-            window.martingaleStep = 0;
             window.netProfit = 0;
             window.startingBalance = 0;
-            window.tickQueue = [];
             window.stopAfterWin = false;
             window.executionLock = false;
             window.nextTradeAllowed = true;
@@ -337,7 +303,7 @@
         function updateUI(running) {
             const btn = document.getElementById('toggleButton');
             btn.textContent = running ? 'STOP BOT' : 'START BOT';
-            btn.className = running ? "w-full md:w-1/2 px-6 py-3 bg-red-600 text-white font-bold rounded-lg stop-button-active" : "w-full md:w-1/2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg";
+            btn.className = running ? "w-full md:w-1/2 px-6 py-4 bg-red-600 text-white font-black text-xl rounded-xl stop-button-active" : "w-full md:w-1/2 px-6 py-4 bg-green-600 text-white font-black text-xl rounded-xl start-button-active";
             
             const controls = document.querySelectorAll('select, input');
             controls.forEach(c => c.disabled = running);
@@ -346,17 +312,21 @@
         }
 
         function connectWebSocket(token) {
-            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+            // Using your App ID in the connection URL
+            window.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${CONFIG.APP_ID}`);
+            
             window.ws.onopen = () => {
-                log(`🔌 Connected (${accountMode.toUpperCase()})`, 'SYSTEM');
+                log(`🔌 Session Connected [${accountMode.toUpperCase()}]`, 'SYSTEM');
                 document.getElementById('status-badge').textContent = 'ONLINE';
-                document.getElementById('status-badge').className = 'ml-3 text-[10px] px-2 py-0.5 rounded-full bg-green-600 text-white';
-                window.ws.send(JSON.stringify({ authorize: token, req_id: getNextReqId() }));
+                document.getElementById('status-badge').className = 'ml-3 text-[10px] px-2 py-0.5 rounded-full bg-green-600 text-white font-bold uppercase';
+                window.ws.send(JSON.stringify({ authorize: token, req_id: ++window.req_id }));
             };
+            
             window.ws.onmessage = (msg) => handleAPIResponse(JSON.parse(msg.data));
+            
             window.ws.onclose = () => {
                 document.getElementById('status-badge').textContent = 'OFFLINE';
-                document.getElementById('status-badge').className = 'ml-3 text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white';
+                document.getElementById('status-badge').className = 'ml-3 text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-bold uppercase';
             };
         }
 
@@ -367,8 +337,8 @@
                 return;
             }
             if (data.msg_type === 'authorize') {
-                window.ws.send(JSON.stringify({ balance: 1, subscribe: 1, req_id: getNextReqId() }));
-                window.ws.send(JSON.stringify({ ticks: document.getElementById('symbol').value, subscribe: 1, req_id: getNextReqId() }));
+                window.ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+                window.ws.send(JSON.stringify({ ticks: document.getElementById('symbol').value, subscribe: 1 }));
             }
             if (data.msg_type === 'balance') {
                 const bal = parseFloat(data.balance.balance);
@@ -376,15 +346,16 @@
                 window.currentBalance = bal;
                 document.getElementById('metricAccountBalance').textContent = `$${bal.toFixed(2)}`;
                 window.netProfit = window.currentBalance - window.startingBalance;
-                document.getElementById('metricTotalProfit').textContent = `$${window.netProfit.toFixed(2)}`;
-                document.getElementById('metricTotalProfit').className = window.netProfit >= 0 ? "font-bold profit-green" : "font-bold profit-red";
+                const pnlElem = document.getElementById('metricTotalProfit');
+                pnlElem.textContent = `$${window.netProfit.toFixed(2)}`;
+                pnlElem.className = window.netProfit >= 0 ? "font-bold profit-green" : "font-bold profit-red";
             }
             if (data.msg_type === 'tick') handleTick(data.tick);
             if (data.msg_type === 'proposal') {
-                window.ws.send(JSON.stringify({ buy: data.proposal.id, price: data.proposal.ask_price, req_id: getNextReqId() }));
+                window.ws.send(JSON.stringify({ buy: data.proposal.id, price: data.proposal.ask_price }));
             }
             if (data.msg_type === 'buy') {
-                log(`✅ Trade #${window.tradeCount} Executed`, 'INFO');
+                log(`⚡ Order #${window.tradeCount} Sent`, 'INFO');
                 window.executionLock = false;
                 window.nextTradeAllowed = true;
             }
@@ -394,16 +365,15 @@
             if (!window.isBotRunning || window.stopAfterWin) return;
             const price = parseFloat(tick.quote);
             const digit = extractLastDigitBySymbol(price);
+            const target = parseInt(document.getElementById('predictedDigit').value);
             
             document.getElementById('metricLiveTick').textContent = price.toFixed(3);
             document.getElementById('metricLastDigit').textContent = `Digit: ${digit}`;
             
-            const target = parseInt(document.getElementById('predictedDigit').value);
-            
             if (parseInt(digit) === target) {
-                log(`🎯 MATCH DETECTED! Digit: ${digit}`, 'WIN');
+                log(`🎯 MATCH! Win on digit ${digit}`, 'WIN');
                 window.stopAfterWin = true;
-                document.getElementById('metricTradeResult').textContent = 'WIN';
+                document.getElementById('metricTradeResult').textContent = 'WIN DETECTED';
                 document.getElementById('trade-result-container').classList.add('trade-completed');
                 setTimeout(stopBot, 1000);
                 return;
@@ -411,7 +381,7 @@
 
             if (window.nextTradeAllowed && !window.executionLock) {
                 if (window.tradeCount >= parseInt(document.getElementById('maxTrades').value)) {
-                    log('🛑 Max trades reached', 'CRITICAL');
+                    log('🛑 Threshold reached.', 'ERROR');
                     stopBot();
                     return;
                 }
@@ -424,25 +394,23 @@
             window.nextTradeAllowed = false;
             window.tradeCount++;
             
-            // Martingale calculation
             const base = parseFloat(document.getElementById('baseStake').value);
             const mult = parseFloat(document.getElementById('multiplier').value);
-            window.currentStake = window.tradeCount === 1 ? base : window.currentStake * mult;
+            const currentStake = window.tradeCount === 1 ? base : base * Math.pow(mult, window.tradeCount - 1);
 
-            document.getElementById('metricPreviousResult').textContent = `Step ${window.tradeCount}: $${window.currentStake.toFixed(2)}`;
+            document.getElementById('metricPreviousResult').textContent = `Executing Step ${window.tradeCount}...`;
             document.getElementById('executionBar').style.width = `${(window.tradeCount / parseInt(document.getElementById('maxTrades').value)) * 100}%`;
 
             window.ws.send(JSON.stringify({
                 proposal: 1,
-                amount: window.currentStake.toFixed(2),
+                amount: currentStake.toFixed(2),
                 basis: "stake",
                 contract_type: "DIGITMATCH",
                 currency: "USD",
                 duration: 1,
                 duration_unit: "t",
                 symbol: document.getElementById('symbol').value,
-                barrier: document.getElementById('predictedDigit').value,
-                req_id: getNextReqId()
+                barrier: document.getElementById('predictedDigit').value
             }));
         }
     </script>
