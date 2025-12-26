@@ -7,21 +7,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        /* EXACT STYLES FROM YOUR bot.html */
+        /* EXACT STYLES AND GLOW EFFECTS FROM bot.html */
         #log-area::-webkit-scrollbar { width: 4px; }
         #log-area::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 2px; }
         #log-area::-webkit-scrollbar-track { background: #374151; }
         body { font-family: 'Inter', sans-serif; background-color: #111827; }
+        
         @keyframes pulse-once { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.9; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes win-pulse { 0% { box-shadow: 0 0 5px #10B981; } 50% { box-shadow: 0 0 30px #10B981; } 100% { box-shadow: 0 0 5px #10B981; } }
+        
         .tick-flash { animation: pulse-once 0.1s ease-out; }
-        .win-detected { animation: win-pulse 0.5s infinite; }
-        .queue-digit { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; margin: 0 2px; }
-        .contract-type-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; margin-left: 5px; }
-        .stop-button-active { background-color: #dc2626 !important; border: 2px solid #fca5a5 !important; animation: pulse-once 0.5s infinite; }
+        .win-detected { animation: win-pulse 0.5s infinite; border: 3px solid #10b981 !important; }
+        .instant-win-detected { animation: win-pulse 0.4s infinite; border: 3px solid #00ff00 !important; box-shadow: 0 0 25px #00ff00 !important; }
         .success-pulse { animation: pulse-once 0.3s ease-out; }
-        .profit-green { color: #10B981 !important; font-weight: bold !important; text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
-        .profit-red { color: #ef4444 !important; font-weight: bold !important; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-        .queued-tick { background-color: #1e40af !important; border: 2px solid #3b82f6 !important; }
+        .profit-green { color: #10B981 !important; font-weight: bold !important; text-shadow: 0 0 15px rgba(16, 185, 129, 0.7); }
+        .profit-red { color: #ef4444 !important; font-weight: bold !important; }
+        
+        .trade-completed { border: 3px solid #10b981 !important; background-color: #064e3b !important; animation: win-pulse 0.5s infinite; }
+        .stop-button-active { background-color: #dc2626 !important; border: 2px solid #fca5a5 !important; animation: pulse-once 0.5s infinite; }
+        
         /* Toggle Switch */
         .toggle-checkbox:checked { right: 0; border-color: #10B981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
@@ -30,14 +34,14 @@
 <body class="min-h-screen p-4 sm:p-8 flex items-start justify-center">
 
     <div class="w-full max-w-5xl bg-gray-800 text-gray-100 shadow-2xl rounded-xl p-5 md:p-6">
-        <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
+        <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
             <div>
                 <h1 class="text-2xl font-extrabold text-green-400">
-                    Deriv DigitMatchStar Bot 
-                    <span id="status-badge" class="ml-3 inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-red-600 text-white shadow-md">DMS Disconnected</span>
+                    DigitMatchStar <span class="text-white">PRO</span>
+                    <span id="status-badge" class="ml-3 inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-red-600 text-white shadow-md uppercase">Disconnected</span>
                 </h1>
                 <div class="flex items-center gap-2 mt-2">
-                    <span id="contract-type-badge" class="contract-type-badge bg-purple-600 text-white uppercase">DIGITMATCH</span>
+                    <span class="px-2 py-0.5 bg-purple-600 text-[10px] font-bold rounded text-white uppercase">INSTANT TICK</span>
                     <span id="account-id-display" class="text-xs text-gray-500 font-mono"></span>
                 </div>
             </div>
@@ -51,82 +55,79 @@
                     </div>
                     <span class="ml-2 text-[10px] font-bold text-gray-500">REAL</span>
                 </div>
-                <button id="soundToggle" onclick="toggleSound()" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow hover:bg-blue-700 transition">🔊 Sound ON</button>
+                <button id="soundToggle" onclick="toggleSound()" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">🔊 Sound ON</button>
                 <button onclick="logout()" class="px-3 py-1.5 bg-gray-700 hover:bg-red-900 text-xs font-bold rounded-lg transition">LOGOUT</button>
             </div>
         </div>
-        
-        <div class="mb-5 p-4 bg-gray-900 rounded-lg border border-green-500/50">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-sm font-bold text-blue-400">🎯 TICK QUEUE</h3>
-                <div class="text-xs text-gray-400">Queue: <span id="queue-size">0</span> | Processed: <span id="processed-count">0</span></div>
-            </div>
-            <div id="tick-queue-display" class="flex flex-wrap gap-2 min-h-[60px] p-2 bg-gray-800 rounded">
-                <div class="text-gray-500 italic">No ticks in queue...</div>
-            </div>
-        </div>
 
-        <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="flex flex-col md:flex-row gap-6 mb-6">
+            <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Symbol</label>
-                    <select id="symbol" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
-                        <option value="R_10">V. 10 Index</option>
-                        <option value="R_100" selected>V. 100 Index</option>
-                        <option value="R_25">V. 25 Index</option>
-                        <option value="R_50">V. 50 Index</option>
-                        <option value="R_75">V. 75 Index</option>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Market Symbol</label>
+                    <select id="symbol" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm">
+                        <option value="R_100" selected>Volatility 100 Index</option>
+                        <option value="R_10">Volatility 10 Index</option>
+                        <option value="R_25">Volatility 25 Index</option>
+                        <option value="R_50">Volatility 50 Index</option>
+                        <option value="R_75">Volatility 75 Index</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit (0-9)</label>
-                    <input type="number" id="predictedDigit" value="5" min="0" max="9" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm text-center">
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Predicted Digit (0-9)</label>
+                    <input type="number" id="predictedDigit" value="5" min="0" max="9" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm text-center font-bold">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Base Stake (USD)</label>
-                    <input type="number" id="baseStake" value="1.0" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Base Stake (USD)</label>
+                    <input type="number" id="baseStake" value="1.0" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Martingale Multiplier</label>
-                    <input type="number" id="multiplier" value="11.5" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Martingale Multiplier</label>
+                    <input type="number" id="multiplier" value="11.5" step="0.1" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
                 </div>
-                <div class="col-span-2">
-                    <div class="rounded-md bg-gray-700 border border-gray-600 text-white py-2 px-3 text-xs mt-4">
-                        <span class="text-green-400 font-bold tracking-tighter uppercase">⚡ Instant Tick Execution Mode Active</span>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Max Trades</label>
+                    <input type="number" id="maxTrades" value="10" min="1" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Bankroll Limit</label>
+                    <input type="number" id="bankrollLimit" value="25.0" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm">
+                </div>
+                
+                <div class="col-span-2 lg:col-span-3">
+                    <div class="rounded-lg bg-gray-900 border border-green-500/30 p-3">
+                        <span class="text-green-400 font-black text-xs uppercase tracking-tighter">⚡ Instant Tick Execution Mode</span>
+                        <p class="text-[10px] text-gray-500 mt-1">Bot executes trade on every tick. Stops immediately when match occurs.</p>
                     </div>
                 </div>
             </div>
 
-            <div id="metrics-column" class="md:w-1/3 grid grid-cols-3 gap-3">
-                <div class="bg-gray-700 rounded-lg p-2 border border-green-500/50 col-span-2">
-                    <p class="text-[10px] font-semibold text-green-500 uppercase">Current Tick</p>
-                    <p id="metricLiveTick" class="text-xl font-extrabold text-white">---</p>
-                    <p id="metricLastDigit" class="text-lg font-bold text-green-300">Digit: ?</p>
+            <div id="metrics-column" class="md:w-1/3 grid grid-cols-2 gap-3">
+                <div class="bg-gray-900 rounded-lg p-3 border border-green-500/50 col-span-2 text-center">
+                    <p class="text-[10px] font-bold text-green-500 uppercase">Live Tick</p>
+                    <p id="metricLiveTick" class="text-3xl font-black text-white mono">---</p>
+                    <p id="metricLastDigit" class="text-sm font-bold text-green-300">Digit: ?</p>
                 </div>
-                <div class="bg-gray-700 rounded-lg p-2 border border-purple-500/50">
-                    <p class="text-[10px] font-semibold text-purple-500 uppercase">Balance</p>
-                    <p id="metricAccountBalance" class="text-lg font-bold text-white">$---</p>
+                <div class="bg-gray-700 rounded-lg p-2 text-center">
+                    <p class="text-[10px] font-bold text-purple-400 uppercase">Balance</p>
+                    <p id="metricAccountBalance" class="text-md font-bold text-white">$---</p>
                 </div>
-                <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
-                    <p class="text-[10px] font-semibold text-lime-400 uppercase">Net P/L</p>
-                    <p id="metricTotalProfit" class="text-lg font-bold text-gray-300">$0.00</p>
+                <div class="bg-gray-700 rounded-lg p-2 text-center">
+                    <p class="text-[10px] font-bold text-lime-400 uppercase">Net P/L</p>
+                    <p id="metricTotalProfit" class="text-md font-bold text-gray-300">$0.00</p>
                 </div>
-                <div class="bg-gray-700 rounded-lg p-2 shadow-inner col-span-2">
-                    <p class="text-[10px] font-semibold text-green-500 uppercase">Current Stake</p>
-                    <p id="metricCurrentStake" class="text-lg font-bold text-white">$0.00</p>
-                </div>
-                <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 border border-yellow-500/50 col-span-3">
-                    <p class="text-[10px] font-semibold text-yellow-500 uppercase">⚡ Trade Status: <span id="metricTradeResult" class="text-white">READY</span></p>
+                <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 border border-yellow-500/50 col-span-2 text-center transition-all duration-300">
+                    <p class="text-[10px] font-bold text-yellow-500 uppercase">Status</p>
+                    <p id="metricTradeResult" class="text-sm font-black text-white">READY</p>
                 </div>
             </div>
         </div>
         
-        <button id="toggleButton" onclick="toggleBot()" class="w-full py-4 bg-green-600 text-white font-bold text-xl rounded-xl shadow-xl hover:bg-green-700 transition">START BOT</button>
+        <button id="toggleButton" onclick="toggleBot()" class="w-full py-4 bg-green-600 text-white font-black text-xl rounded-xl shadow-xl hover:bg-green-700 transition-all duration-200">START BOT</button>
 
-        <div id="log-column" class="mt-6 flex flex-col">
-            <h2 class="text-sm font-bold text-gray-300 mb-2 uppercase">Live Trade Log</h2>
-            <div id="log-area" class="h-64 bg-gray-900 text-lime-400 p-4 rounded-lg overflow-y-scroll text-xs whitespace-pre-wrap mono">
-                [00:00:00] 🤖 Ready. Using App ID 118190
+        <div id="log-column" class="mt-6">
+            <h2 class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Execution Log</h2>
+            <div id="log-area" class="h-64 bg-gray-900 text-green-400 p-4 rounded-lg overflow-y-auto text-[11px] font-mono whitespace-pre-wrap">
+                [SYSTEM] Ready for Instant Tick Strategy...
             </div>
         </div>
     </div>
@@ -143,34 +144,32 @@
             if (target) {
                 window.DERIV_TOKEN = target.token;
                 document.getElementById('account-id-display').textContent = target.loginid;
-                if (window.ws) stopBot();
+                if (window.isBotRunning) stopBot();
             } else {
                 alert(`No ${isReal ? 'Real' : 'Demo'} account found.`);
                 document.getElementById('account-toggle').checked = !isReal;
             }
         }
 
-        // --- CORE BOT LOGIC (1:1 FROM bot.html) ---
+        // --- CORE BOT PERFORMANCE LOGIC (1:1 from bot.html) ---
         window.isBotRunning = false;
         window.ws = null;
-        window.tickQueue = [];
         window.tradeCount = 0;
         window.startingBalance = 0;
         window.currentStake = 0;
-        window.ToneInitialized = false;
-        window.synth = null;
         window.soundEnabled = true;
+        window.synth = null;
 
-        function log(msg, type = 'INFO') {
+        function log(msg, color = 'text-green-400') {
             const area = document.getElementById('log-area');
             const time = new Date().toLocaleTimeString();
-            area.innerHTML += `\n[${time}] ${msg}`;
+            area.innerHTML += `\n<span class="${color}">[${time}] ${msg}</span>`;
             area.scrollTop = area.scrollHeight;
         }
 
         async function initTone() {
-            if (!window.soundEnabled || window.ToneInitialized) return;
-            try { await Tone.start(); window.synth = new Tone.Synth().toDestination(); window.ToneInitialized = true; } catch (e) {}
+            if (!window.soundEnabled) return;
+            try { await Tone.start(); window.synth = new Tone.Synth().toDestination(); } catch (e) {}
         }
 
         function playSound(type) {
@@ -179,66 +178,83 @@
             else if (type === 'TICK') window.synth.triggerAttackRelease("C5", "32n");
         }
 
-        function extractDigit(price) {
-            const symbol = document.getElementById('symbol').value;
-            let dp = (symbol === 'R_100') ? 2 : 3;
-            return price.toFixed(dp).slice(-1);
-        }
-
         function handleAPI(data) {
             if (data.msg_type === 'authorize') {
-                log(`🔐 Authorized: ${data.authorize.loginid}`, 'SYSTEM');
+                log(`Authorized: ${data.authorize.loginid}`, 'text-blue-400');
                 send({ balance: 1, subscribe: 1 });
                 send({ ticks: document.getElementById('symbol').value, subscribe: 1 });
             }
             if (data.msg_type === 'tick') {
                 const quote = parseFloat(data.tick.quote);
-                const digit = extractDigit(quote);
-                document.getElementById('metricLiveTick').textContent = quote.toFixed(3);
+                const symbol = document.getElementById('symbol').value;
+                const digit = quote.toFixed(symbol === 'R_100' ? 2 : 3).slice(-1);
+                
+                const tickEl = document.getElementById('metricLiveTick');
+                tickEl.textContent = quote.toFixed(3);
                 document.getElementById('metricLastDigit').textContent = `Digit: ${digit}`;
-                document.getElementById('metricLiveTick').classList.add('tick-flash');
-                setTimeout(() => document.getElementById('metricLiveTick').classList.remove('tick-flash'), 50);
+                tickEl.classList.add('tick-flash');
+                setTimeout(() => tickEl.classList.remove('tick-flash'), 50);
+                
                 playSound('TICK');
-                if (window.isBotRunning) processTick({ digit, price: quote });
+                if (window.isBotRunning) processTick(digit);
             }
             if (data.msg_type === 'balance') {
                 const bal = parseFloat(data.balance.balance);
                 if (window.startingBalance === 0) window.startingBalance = bal;
                 document.getElementById('metricAccountBalance').textContent = `$${bal.toFixed(2)}`;
                 const pnl = bal - window.startingBalance;
-                document.getElementById('metricTotalProfit').textContent = `$${pnl.toFixed(2)}`;
-                document.getElementById('metricTotalProfit').className = `text-lg font-bold ${pnl >= 0 ? 'profit-green' : 'profit-red'}`;
+                const pnlEl = document.getElementById('metricTotalProfit');
+                pnlEl.textContent = `$${pnl.toFixed(2)}`;
+                pnlEl.className = `text-md font-bold ${pnl >= 0 ? 'profit-green' : 'profit-red'}`;
             }
         }
 
-        function processTick(tick) {
+        function processTick(digit) {
             const target = document.getElementById('predictedDigit').value;
-            if (tick.digit == target) {
-                log(`🎯 WIN! Digit ${tick.digit} matched.`, 'WIN');
+            const container = document.getElementById('trade-result-container');
+            
+            if (digit == target) {
+                // THE BEAUTIFUL WIN GLOW EFFECT
+                log(`🎯 MATCH DETECTED (${digit})! WINNING SEQUENCE.`, 'profit-green');
                 playSound('WIN');
-                stopBot();
+                container.classList.add('instant-win-detected');
+                document.getElementById('metricTradeResult').textContent = 'WINNER!';
+                
+                setTimeout(() => {
+                    container.classList.remove('instant-win-detected');
+                    stopBot();
+                }, 2000);
             } else {
-                executeTrade();
+                if (window.tradeCount < parseInt(document.getElementById('maxTrades').value)) {
+                    executeTrade();
+                } else {
+                    log("🛑 Max trades reached.", "text-red-500");
+                    stopBot();
+                }
             }
         }
 
         function executeTrade() {
             window.tradeCount++;
+            const stake = window.currentStake;
             const req = {
-                buy: 1, price: window.currentStake,
+                buy: 1, price: stake,
                 parameters: {
-                    amount: window.currentStake, basis: 'stake', contract_type: 'DIGITMATCH',
+                    amount: stake, basis: 'stake', contract_type: 'DIGITMATCH',
                     currency: 'USD', duration: 1, duration_unit: 't',
                     symbol: document.getElementById('symbol').value,
                     barrier: document.getElementById('predictedDigit').value
                 }
             };
             send(req);
+            
+            // Martingale Logic
             window.currentStake *= parseFloat(document.getElementById('multiplier').value);
-            document.getElementById('metricCurrentStake').textContent = `$${window.currentStake.toFixed(2)}`;
+            document.getElementById('metricCurrentStake')?.remove(); // Cleanup if exists
+            log(`⚡ Trade #${window.tradeCount} Executed ($${stake.toFixed(2)})`, 'text-yellow-400');
         }
 
-        function send(req) { if (window.ws && window.ws.readyState === 1) window.ws.send(JSON.stringify(req)); }
+        function send(req) { if (window.ws?.readyState === 1) window.ws.send(JSON.stringify(req)); }
 
         function toggleBot() { if (window.isBotRunning) stopBot(); else startBot(); }
 
@@ -246,24 +262,31 @@
             window.isBotRunning = true;
             window.tradeCount = 0;
             window.currentStake = parseFloat(document.getElementById('baseStake').value);
-            document.getElementById('toggleButton').textContent = 'STOP BOT';
-            document.getElementById('toggleButton').className = 'w-full py-4 bg-red-600 text-white font-bold text-xl rounded-xl stop-button-active';
+            const btn = document.getElementById('toggleButton');
+            btn.textContent = 'STOP BOT';
+            btn.classList.add('stop-button-active');
+            
             initTone();
             window.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
             window.ws.onopen = () => send({ authorize: window.DERIV_TOKEN });
             window.ws.onmessage = (e) => handleAPI(JSON.parse(e.data));
-            log("🚀 Bot Started - Instant Tick Mode", "SYSTEM");
+            log("🚀 Starting Instant-Tick Bot...", "text-green-500 font-bold");
         }
 
         function stopBot() {
             window.isBotRunning = false;
-            document.getElementById('toggleButton').textContent = 'START BOT';
-            document.getElementById('toggleButton').className = 'w-full py-4 bg-green-600 text-white font-bold text-xl rounded-xl';
+            const btn = document.getElementById('toggleButton');
+            btn.textContent = 'START BOT';
+            btn.classList.remove('stop-button-active');
             if (window.ws) window.ws.close();
-            log("⏹️ Bot Stopped", "SYSTEM");
+            log("⏹️ Bot Stopped.", "text-gray-500");
         }
 
-        function toggleSound() { window.soundEnabled = !window.soundEnabled; document.getElementById('soundToggle').textContent = window.soundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF'; }
+        function toggleSound() { 
+            window.soundEnabled = !window.soundEnabled; 
+            document.getElementById('soundToggle').textContent = window.soundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF'; 
+        }
+        
         function logout() { localStorage.clear(); window.location.replace('index.html'); }
         document.getElementById('account-toggle').addEventListener('change', updateSession);
         window.onload = updateSession;
