@@ -4,264 +4,255 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>DigitMatchStars Pro™ - INSTANT TICK EXECUTION</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    
     <style>
+        /* Exact Colors & Scrollbar Design from bot.html */
         #log-area::-webkit-scrollbar { width: 4px; }
         #log-area::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 2px; }
         #log-area::-webkit-scrollbar-track { background: #374151; }
-        body { font-family: 'Inter', sans-serif; background-color: #111827; color: white; }
-        .tick-flash { animation: pulse-once 0.1s ease-out; }
-        @keyframes pulse-once { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Animations */
+        @keyframes pulse-once { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .tick-flash { animation: pulse-once 0.15s ease-out; }
+        
+        /* Toggle Switch Styling */
         .toggle-checkbox:checked { right: 0; border-color: #10B981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
-        .queue-digit { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; margin: 0 2px; }
+        
+        .stat-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; }
+        .queue-digit { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 800; font-size: 0.875rem; }
     </style>
 </head>
-<body class="min-h-screen p-4 sm:p-8 flex items-start justify-center">
+<body class="min-h-screen p-4 md:p-8">
 
-    <div class="w-full max-w-5xl bg-gray-800 text-gray-100 shadow-2xl rounded-xl p-5 md:p-6">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-6 border-b border-gray-700 pb-4">
-            <div>
-                <h1 class="text-3xl font-extrabold text-green-400">DigitMatchStars Pro™</h1>
-                <div class="flex items-center gap-2 mt-1">
-                    <span id="status-badge" class="px-3 py-1 text-xs font-medium rounded-full bg-red-600">Disconnected</span>
-                    <span id="account-id-display" class="text-gray-400 text-xs font-mono"></span>
+    <div class="max-w-6xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-slate-800/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-2xl">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center border border-green-500/30">
+                    <i class="fas fa-robot text-green-400 text-2xl"></i>
                 </div>
-            </div>
-
-            <div class="flex items-center gap-4 mt-4 md:mt-0">
-                <div class="flex items-center bg-gray-900 px-4 py-2 rounded-xl border border-gray-700">
-                    <span class="mr-3 text-xs font-bold text-gray-500">DEMO</span>
-                    <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
-                        <input type="checkbox" id="account-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer outline-none transition-all duration-300"/>
-                        <label for="account-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-white">DigitMatchStars <span class="text-green-400 font-black">Pro™</span></h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span id="status-badge" class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500/20 text-red-400 border border-red-500/30 uppercase tracking-widest">Disconnected</span>
+                        <span id="account-id-display" class="text-slate-500 text-[11px] font-mono font-medium"></span>
                     </div>
-                    <span class="ml-3 text-xs font-bold text-gray-500">REAL</span>
-                </div>
-                <button onclick="logout()" class="px-4 py-2 bg-gray-700 hover:bg-red-900 rounded-lg text-xs font-bold transition">LOGOUT</button>
-            </div>
-        </div>
-
-        <div class="mb-5 p-4 bg-gray-900 rounded-lg border border-green-500/50">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-sm font-bold text-blue-400">🎯 TICK QUEUE</h3>
-                <div class="text-xs text-gray-400">Queue: <span id="queue-size">0</span></div>
-            </div>
-            <div id="tick-queue-display" class="flex flex-wrap gap-2 min-h-[50px] p-2 bg-gray-800 rounded text-gray-500 italic">No ticks...</div>
-        </div>
-
-        <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Symbol</label>
-                    <select id="symbol" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
-                        <option value="R_10">V. 10 Index</option>
-                        <option value="R_100">V. 100 Index</option>
-                        <option value="R_25">V. 25 Index</option>
-                        <option value="R_50">V. 50 Index</option>
-                        <option value="R_75">V. 75 Index</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit (0-9)</label>
-                    <input type="number" id="predictedDigit" value="5" min="0" max="9" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm text-center">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Base Stake (USD)</label>
-                    <input type="number" id="baseStake" value="1.0" min="0.1" step="0.1" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Martingale Multiplier</label>
-                    <input type="number" id="multiplier" value="1.15" min="1.0" step="0.01" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Max Trades</label>
-                    <input type="number" id="maxTrades" value="10" min="1" max="100" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Bankroll Limit</label>
-                    <input type="number" id="bankrollLimit" value="25.0" min="1.0" step="0.1" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
-                </div>
-                <input type="hidden" id="contractType" value="DIGITMATCH">
-            </div>
-
-            <div id="metrics-column" class="md:w-1/3 grid grid-cols-2 gap-3">
-                <div class="bg-gray-700 rounded-lg p-3 border border-green-500/50">
-                    <p class="text-[10px] text-green-500 uppercase font-bold">Live Digit</p>
-                    <p id="metricLiveTick" class="text-2xl font-black text-white">---</p>
-                </div>
-                <div class="bg-gray-700 rounded-lg p-3 border border-purple-500/50">
-                    <p class="text-[10px] text-purple-500 uppercase font-bold">Balance</p>
-                    <p id="metricAccountBalance" class="text-xl font-bold text-white">$---</p>
-                </div>
-                <div class="bg-gray-700 rounded-lg p-3">
-                    <p class="text-[10px] text-lime-400 uppercase font-bold">Net P/L</p>
-                    <p id="metricTotalProfit" class="text-xl font-bold">$0.00</p>
-                </div>
-                <div class="bg-gray-700 rounded-lg p-3">
-                    <p class="text-[10px] text-blue-400 uppercase font-bold">Stake</p>
-                    <p id="metricCurrentStake" class="text-xl font-bold">$0.00</p>
                 </div>
             </div>
-        </div>
 
-        <div class="flex justify-center mb-6">
-            <button id="toggleButton" onclick="toggleBot()" class="w-full md:w-1/2 px-6 py-4 bg-green-600 text-white font-black text-xl rounded-xl shadow-2xl hover:bg-green-700 transition">START BOT</button>
-        </div>
+            <div class="flex items-center gap-6 mt-6 md:mt-0">
+                <div class="flex items-center bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-700">
+                    <span class="mr-3 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Demo</span>
+                    <div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="account-toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer outline-none transition-all duration-300"/>
+                        <label for="account-toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-700 cursor-pointer"></label>
+                    </div>
+                    <span class="ml-3 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Real</span>
+                </div>
+                
+                <button onclick="logout()" class="text-[10px] font-bold bg-slate-700 hover:bg-red-600/40 px-4 py-2 rounded-lg transition-all border border-slate-600 uppercase">Logout</button>
+            </div>
+        </header>
 
-        <div id="log-area" class="h-64 bg-gray-900 text-lime-400 p-4 rounded-xl overflow-y-auto text-xs font-mono shadow-inner border border-gray-700">
-            [SYSTEM] Authorized and ready. Click Start to begin trading.
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-4 space-y-6">
+                <div class="stat-card">
+                    <h3 class="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Configuration</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Market Symbol</label>
+                            <select id="symbol" class="w-full bg-slate-900 border-slate-700 rounded-lg text-sm p-2.5 text-white focus:ring-2 focus:ring-green-500/50 outline-none">
+                                <option value="R_10">Volatility 10 Index</option>
+                                <option value="R_25">Volatility 25 Index</option>
+                                <option value="R_50">Volatility 50 Index</option>
+                                <option value="R_75">Volatility 75 Index</option>
+                                <option value="R_100" selected>Volatility 100 Index</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Prediction</label>
+                                <input type="number" id="predictedDigit" value="5" min="0" max="9" class="w-full bg-slate-900 border-slate-700 rounded-lg text-sm p-2.5 text-center font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Stake (USD)</label>
+                                <input type="number" id="baseStake" value="1.0" step="0.1" class="w-full bg-slate-900 border-slate-700 rounded-lg text-sm p-2.5 text-center font-bold">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Martingale Multiplier</label>
+                            <input type="number" id="multiplier" value="11.5" step="0.1" class="w-full bg-slate-900 border-slate-700 rounded-lg text-sm p-2.5 font-bold">
+                        </div>
+                    </div>
+                    
+                    <button id="toggleButton" onclick="toggleBot()" class="w-full mt-6 py-4 bg-green-500 hover:bg-green-400 text-slate-900 font-black text-lg rounded-xl transition-all shadow-lg shadow-green-500/20">
+                        START TRADING
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="stat-card border-l-4 border-l-blue-500">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Live Digit</p>
+                        <p id="metricLiveTick" class="text-3xl font-black text-white mono tick-flash">--</p>
+                    </div>
+                    <div class="stat-card border-l-4 border-l-purple-500">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Balance</p>
+                        <p id="metricAccountBalance" class="text-xl font-bold text-white mono">$---</p>
+                    </div>
+                    <div class="stat-card border-l-4 border-l-emerald-500">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Profit/Loss</p>
+                        <p id="metricTotalProfit" class="text-xl font-bold text-emerald-400 mono">$0.00</p>
+                    </div>
+                    <div class="stat-card border-l-4 border-l-amber-500">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Active Stake</p>
+                        <p id="metricCurrentStake" class="text-xl font-bold text-white mono">$0.00</p>
+                    </div>
+                </div>
+
+                <div class="stat-card bg-slate-900/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">🎯 Tick Flow Analysis</span>
+                        <span class="text-[10px] font-mono text-slate-500" id="queue-count">0 TICKS</span>
+                    </div>
+                    <div id="tick-queue-display" class="flex gap-2 min-h-[40px] items-center overflow-x-hidden">
+                        </div>
+                </div>
+
+                <div id="log-area" class="h-64 bg-slate-900/80 rounded-2xl p-4 font-mono text-[11px] text-slate-400 overflow-y-auto border border-slate-800">
+                    <div class="text-green-500/70">[SYSTEM] Connection Secure. Waiting for Start...</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- AUTH & TOGGLE SYSTEM ---
+        // --- AUTH SYSTEM (Connects to index.html logic) ---
         const APP_ID = 118190;
         let accounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
-        
         if (accounts.length === 0) window.location.replace('index.html');
 
         function updateSession() {
             const isReal = document.getElementById('account-toggle').checked;
-            const targetAcct = accounts.find(a => isReal ? !a.is_virtual : a.is_virtual);
-            if (targetAcct) {
-                window.DERIV_TOKEN = targetAcct.token;
-                document.getElementById('account-id-display').textContent = targetAcct.loginid;
-                if (window.ws) { window.ws.close(); }
+            const target = accounts.find(a => isReal ? !a.is_virtual : a.is_virtual);
+            if (target) {
+                window.DERIV_TOKEN = target.token;
+                document.getElementById('account-id-display').textContent = target.loginid;
+                if (window.ws) window.ws.close();
             } else {
-                alert(`No ${isReal ? 'Real' : 'Demo'} account found.`);
+                alert(`No ${isReal ? 'Real' : 'Demo'} account found in session.`);
                 document.getElementById('account-toggle').checked = !isReal;
             }
         }
 
-        document.getElementById('account-toggle').addEventListener('change', () => {
-            if (window.isBotRunning) {
-                alert("Stop bot first!");
-                document.getElementById('account-toggle').checked = !document.getElementById('account-toggle').checked;
-                return;
-            }
-            updateSession();
-        });
+        // --- CORE BOT LOGIC (Exactly as your bot.html) ---
+        let isRunning = false;
+        let ws = null;
+        let startingBalance = 0;
+        let currentStake = 0;
+        let tickQueue = [];
 
-        function logout() { localStorage.clear(); window.location.replace('index.html'); }
-
-        // --- TRADING LOGIC (FROM YOUR bot.html) ---
-        window.isBotRunning = false;
-        window.ws = null;
-        window.req_id = 0;
-        window.tickQueue = [];
-        window.tradeCount = 0;
-        window.netProfit = 0;
-        window.startingBalance = 0;
-        window.currentStake = 0;
-
-        function log(msg, type = 'INFO') {
-            const logArea = document.getElementById('log-area');
+        function log(msg, color = 'text-slate-400') {
+            const area = document.getElementById('log-area');
             const time = new Date().toLocaleTimeString();
-            logArea.innerHTML += `<br>[${time}] ${msg}`;
-            logArea.scrollTop = logArea.scrollHeight;
+            area.innerHTML += `<div class="${color} mb-1">[${time}] ${msg}</div>`;
+            area.scrollTop = area.scrollHeight;
         }
 
-        function extractLastDigitBySymbol(price) {
-            const symbol = document.getElementById('symbol').value;
-            let dp = (symbol === 'R_100') ? 2 : 3;
-            return price.toFixed(dp).slice(-1);
+        function updateQueueUI(digit) {
+            const container = document.getElementById('tick-queue-display');
+            const predicted = document.getElementById('predictedDigit').value;
+            
+            const el = document.createElement('div');
+            el.className = `queue-digit ${digit == predicted ? 'bg-green-500 text-slate-900 shadow-lg shadow-green-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'}`;
+            el.innerText = digit;
+            
+            container.prepend(el);
+            if (container.children.length > 15) container.removeChild(container.lastChild);
+            document.getElementById('queue-count').innerText = `${container.children.length} TICKS`;
         }
 
-        function handleAPIResponse(data) {
+        function handleMessage(data) {
             if (data.msg_type === 'authorize') {
-                log(`🔐 Authenticated: ${data.authorize.loginid}`);
-                sendRequest({ balance: 1, subscribe: 1 });
-                sendRequest({ ticks: document.getElementById('symbol').value, subscribe: 1 });
-            }
-            if (data.msg_type === 'tick') {
-                const price = parseFloat(data.tick.quote);
-                const digit = extractLastDigitBySymbol(price);
-                document.getElementById('metricLiveTick').textContent = digit;
-                if (window.isBotRunning) processTick({ digit, price });
+                log(`Authorized: ${data.authorize.loginid}`, 'text-blue-400');
+                ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+                ws.send(JSON.stringify({ ticks: document.getElementById('symbol').value, subscribe: 1 }));
             }
             if (data.msg_type === 'balance') {
-                const bal = parseFloat(data.balance.balance);
-                if (window.startingBalance === 0) window.startingBalance = bal;
-                document.getElementById('metricAccountBalance').textContent = `$${bal.toFixed(2)}`;
-                window.netProfit = bal - window.startingBalance;
-                document.getElementById('metricTotalProfit').textContent = `$${window.netProfit.toFixed(2)}`;
+                const b = data.balance.balance;
+                if (startingBalance === 0) startingBalance = b;
+                document.getElementById('metricAccountBalance').innerText = `$${b.toFixed(2)}`;
+                const profit = b - startingBalance;
+                document.getElementById('metricTotalProfit').innerText = `$${profit.toFixed(2)}`;
+                document.getElementById('metricTotalProfit').className = `text-xl font-bold mono ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
             }
-            if (data.msg_type === 'buy') {
-                log(`✅ Trade #${window.tradeCount} Executed`, 'SUCCESS');
+            if (data.msg_type === 'tick') {
+                const digit = data.tick.quote.toString().split('').pop();
+                document.getElementById('metricLiveTick').innerText = digit;
+                updateQueueUI(digit);
+                if (isRunning) checkStrategy(digit);
             }
         }
 
-        function processTick(tick) {
-            const predicted = parseInt(document.getElementById('predictedDigit').value);
-            if (parseInt(tick.digit) === predicted) {
-                log(`🎯 WIN DETECTED! Digit ${tick.digit} matched. Stopping.`, 'WIN');
-                stopBot();
-                return;
+        function checkStrategy(digit) {
+            const target = document.getElementById('predictedDigit').value;
+            if (digit == target) {
+                log(`🎯 MATCH FOUND (${digit})! Win sequence resetting.`, 'text-emerald-400 font-bold');
+                currentStake = parseFloat(document.getElementById('baseStake').value);
+            } else {
+                executeTrade();
             }
-            if (window.tradeCount >= parseInt(document.getElementById('maxTrades').value)) {
-                log("🛑 Max trades reached."); stopBot(); return;
-            }
-            executeTrade();
+            document.getElementById('metricCurrentStake').innerText = `$${currentStake.toFixed(2)}`;
         }
 
         function executeTrade() {
-            window.tradeCount++;
-            const stake = window.currentStake;
             const req = {
-                buy: 1,
-                subscribe: 1,
-                price: stake,
+                buy: 1, price: currentStake,
                 parameters: {
-                    amount: stake,
-                    basis: 'stake',
-                    contract_type: 'DIGITMATCH',
-                    currency: 'USD',
-                    duration: 1,
-                    duration_unit: 't',
+                    amount: currentStake, basis: 'stake', contract_type: 'DIGITMATCH',
+                    currency: 'USD', duration: 1, duration_unit: 't',
                     symbol: document.getElementById('symbol').value,
                     barrier: document.getElementById('predictedDigit').value
                 }
             };
-            sendRequest(req);
-            // Simple Martingale
-            window.currentStake *= parseFloat(document.getElementById('multiplier').value);
-            document.getElementById('metricCurrentStake').textContent = `$${window.currentStake.toFixed(2)}`;
-        }
-
-        function sendRequest(req) {
-            if (window.ws && window.ws.readyState === 1) {
-                req.req_id = ++window.req_id;
-                window.ws.send(JSON.stringify(req));
-            }
+            ws.send(JSON.stringify(req));
+            currentStake *= parseFloat(document.getElementById('multiplier').value);
         }
 
         function toggleBot() {
-            if (window.isBotRunning) stopBot(); else startBot();
+            const btn = document.getElementById('toggleButton');
+            if (!isRunning) {
+                isRunning = true;
+                currentStake = parseFloat(document.getElementById('baseStake').value);
+                btn.innerText = 'STOP BOT';
+                btn.className = 'w-full mt-6 py-4 bg-red-500 hover:bg-red-400 text-white font-black text-lg rounded-xl transition-all shadow-lg shadow-red-500/20';
+                startConnection();
+            } else {
+                isRunning = false;
+                btn.innerText = 'START TRADING';
+                btn.className = 'w-full mt-6 py-4 bg-green-500 hover:bg-green-400 text-slate-900 font-black text-lg rounded-xl transition-all shadow-lg shadow-green-500/20';
+                if (ws) ws.close();
+            }
         }
 
-        function startBot() {
-            window.isBotRunning = true;
-            window.tradeCount = 0;
-            window.currentStake = parseFloat(document.getElementById('baseStake').value);
-            document.getElementById('toggleButton').textContent = 'STOP BOT';
-            document.getElementById('toggleButton').className = 'w-full md:w-1/2 px-6 py-4 bg-red-600 text-white font-black text-xl rounded-xl shadow-2xl';
-            
-            window.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
-            window.ws.onopen = () => sendRequest({ authorize: window.DERIV_TOKEN });
-            window.ws.onmessage = (e) => handleAPIResponse(JSON.parse(e.data));
-            log("🚀 Bot Started - Instant Tick Mode");
+        function startConnection() {
+            ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
+            ws.onopen = () => ws.send(JSON.stringify({ authorize: window.DERIV_TOKEN }));
+            ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+            ws.onclose = () => document.getElementById('status-badge').innerText = 'Disconnected';
         }
 
-        function stopBot() {
-            window.isBotRunning = false;
-            document.getElementById('toggleButton').textContent = 'START BOT';
-            document.getElementById('toggleButton').className = 'w-full md:w-1/2 px-6 py-4 bg-green-600 text-white font-black text-xl rounded-xl shadow-2xl';
-            if (window.ws) window.ws.close();
-            log("⏹️ Bot Stopped");
-        }
-
+        function logout() { localStorage.clear(); window.location.replace('index.html'); }
+        document.getElementById('account-toggle').addEventListener('change', updateSession);
         window.onload = updateSession;
     </script>
 </body>
