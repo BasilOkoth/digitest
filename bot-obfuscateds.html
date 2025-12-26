@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Martingale Bot - AUTH & TOGGLE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        #log-area::-webkit-scrollbar { width: 4px; }
+        #log-area::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 2px; }
+        #log-area::-webkit-scrollbar-track { background: #374151; }
+        body { font-family: 'Inter', sans-serif; background-color: #111827; }
+        .toggle-checkbox:checked { right: 0; border-color: #10B981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl">
+            <div>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
+                    MARTINGALE PRO-TICK
+                </h1>
+                <p class="text-gray-400 text-sm">Secure Authentication Enabled</p>
+            </div>
+            
+            <div class="flex items-center gap-4 mt-4 md:mt-0">
+                <div class="flex items-center bg-gray-900 p-2 rounded-xl border border-gray-700">
+                    <span class="mr-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Demo</span>
+                    <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="account-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer outline-none transition-all duration-300"/>
+                        <label for="account-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                    </div>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Real</span>
+                </div>
+
+                <button id="auth-btn" onclick="handleAuth()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all shadow-lg active:scale-95">
+                    Login with Deriv
+                </button>
+            </div>
+        </header>
+
+        <div id="main-dashboard" class="opacity-50 pointer-events-none">
+            </div>
+    </div>
+
+    <script>
+        // --- AUTHENTICATION LOGIC ---
+        const APP_ID = '117144'; // Replace with your Deriv App ID
+        let accounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
+        let currentAccount = null;
+
+        // Check for tokens in URL after Deriv login redirect
+        function checkUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const newAccounts = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                const token = urlParams.get(`token${i}`);
+                const acct = urlParams.get(`acct${i}`);
+                if (token && acct) {
+                    newAccounts.push({ 
+                        token, 
+                        loginid: acct, 
+                        is_virtual: acct.startsWith('VRTC') 
+                    });
+                }
+            }
+
+            if (newAccounts.length > 0) {
+                localStorage.setItem('deriv_accounts', JSON.stringify(newAccounts));
+                window.history.replaceState({}, document.title, window.location.pathname);
+                location.reload();
+            }
+        }
+
+        function handleAuth() {
+            if (accounts.length > 0) {
+                localStorage.removeItem('deriv_accounts');
+                location.reload();
+            } else {
+                window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}`;
+            }
+        }
+
+        function updateAccountSelection() {
+            const isReal = document.getElementById('account-toggle').checked;
+            currentAccount = accounts.find(a => isReal ? !a.is_virtual : a.is_virtual);
+            
+            if (currentAccount) {
+                document.getElementById('main-dashboard').classList.remove('opacity-50', 'pointer-events-none');
+                document.getElementById('auth-btn').textContent = `Logout (${currentAccount.loginid})`;
+                document.getElementById('auth-btn').classList.replace('bg-blue-600', 'bg-red-600');
+            } else {
+                alert(isReal ? "No Real account found for this login." : "No Demo account found.");
+                document.getElementById('account-toggle').checked = !isReal;
+            }
+        }
+
+        document.getElementById('account-toggle').addEventListener('change', () => {
+            if (window.botRunning) {
+                alert("Please stop the bot before switching accounts.");
+                document.getElementById('account-toggle').checked = !document.getElementById('account-toggle').checked;
+                return;
+            }
+            updateAccountSelection();
+        });
+
+        // --- INTEGRATION WITH YOUR ORIGINAL TRADING LOGIC ---
+        // Modify your original initWebSocket to use currentAccount.token
+        async function initWebSocket() {
+            if (!currentAccount) {
+                alert("Please login first!");
+                return;
+            }
+            
+            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=' + APP_ID);
+            
+            window.ws.onopen = () => {
+                // Use the token from the toggle selection
+                window.ws.send(JSON.stringify({ authorize: currentAccount.token }));
+            };
+
+            // ... [Rest of your original WebSocket and Trading Logic] ...
+        }
+
+        window.onload = () => {
+            checkUrlParams();
+            if (accounts.length > 0) updateAccountSelection();
+        };
+
+        // PASTE THE REST OF YOUR ORIGINAL JAVASCRIPT LOGIC BELOW
+    </script>
+</body>
+</html>
