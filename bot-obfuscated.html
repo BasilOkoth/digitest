@@ -3,134 +3,266 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Martingale Bot - AUTH & TOGGLE</title>
+    <title>DigitMatchStars Pro™ - INSTANT TICK EXECUTION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         #log-area::-webkit-scrollbar { width: 4px; }
         #log-area::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 2px; }
         #log-area::-webkit-scrollbar-track { background: #374151; }
-        body { font-family: 'Inter', sans-serif; background-color: #111827; }
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: white; }
+        .tick-flash { animation: pulse-once 0.1s ease-out; }
+        @keyframes pulse-once { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
         .toggle-checkbox:checked { right: 0; border-color: #10B981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+        .queue-digit { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; margin: 0 2px; }
     </style>
 </head>
-<body class="text-gray-100 min-h-screen p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl">
+<body class="min-h-screen p-4 sm:p-8 flex items-start justify-center">
+
+    <div class="w-full max-w-5xl bg-gray-800 text-gray-100 shadow-2xl rounded-xl p-5 md:p-6">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 border-b border-gray-700 pb-4">
             <div>
-                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
-                    MARTINGALE PRO-TICK
-                </h1>
-                <p class="text-gray-400 text-sm">Secure Authentication Enabled</p>
+                <h1 class="text-3xl font-extrabold text-green-400">DigitMatchStars Pro™</h1>
+                <div class="flex items-center gap-2 mt-1">
+                    <span id="status-badge" class="px-3 py-1 text-xs font-medium rounded-full bg-red-600">Disconnected</span>
+                    <span id="account-id-display" class="text-gray-400 text-xs font-mono"></span>
+                </div>
             </div>
-            
+
             <div class="flex items-center gap-4 mt-4 md:mt-0">
-                <div class="flex items-center bg-gray-900 p-2 rounded-xl border border-gray-700">
-                    <span class="mr-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Demo</span>
-                    <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                        <input type="checkbox" name="toggle" id="account-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer outline-none transition-all duration-300"/>
+                <div class="flex items-center bg-gray-900 px-4 py-2 rounded-xl border border-gray-700">
+                    <span class="mr-3 text-xs font-bold text-gray-500">DEMO</span>
+                    <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="account-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer outline-none transition-all duration-300"/>
                         <label for="account-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
                     </div>
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Real</span>
+                    <span class="ml-3 text-xs font-bold text-gray-500">REAL</span>
                 </div>
-
-                <button id="auth-btn" onclick="handleAuth()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-all shadow-lg active:scale-95">
-                    Login with Deriv
-                </button>
+                <button onclick="logout()" class="px-4 py-2 bg-gray-700 hover:bg-red-900 rounded-lg text-xs font-bold transition">LOGOUT</button>
             </div>
-        </header>
+        </div>
 
-        <div id="main-dashboard" class="opacity-50 pointer-events-none">
+        <div class="mb-5 p-4 bg-gray-900 rounded-lg border border-green-500/50">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-sm font-bold text-blue-400">🎯 TICK QUEUE</h3>
+                <div class="text-xs text-gray-400">Queue: <span id="queue-size">0</span></div>
             </div>
+            <div id="tick-queue-display" class="flex flex-wrap gap-2 min-h-[50px] p-2 bg-gray-800 rounded text-gray-500 italic">No ticks...</div>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Symbol</label>
+                    <select id="symbol" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                        <option value="R_10">V. 10 Index</option>
+                        <option value="R_100">V. 100 Index</option>
+                        <option value="R_25">V. 25 Index</option>
+                        <option value="R_50">V. 50 Index</option>
+                        <option value="R_75">V. 75 Index</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit (0-9)</label>
+                    <input type="number" id="predictedDigit" value="5" min="0" max="9" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm text-center">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Base Stake (USD)</label>
+                    <input type="number" id="baseStake" value="1.0" min="0.1" step="0.1" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Martingale Multiplier</label>
+                    <input type="number" id="multiplier" value="1.15" min="1.0" step="0.01" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Max Trades</label>
+                    <input type="number" id="maxTrades" value="10" min="1" max="100" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Bankroll Limit</label>
+                    <input type="number" id="bankrollLimit" value="25.0" min="1.0" step="0.1" class="block w-full rounded-md bg-gray-700 border-gray-600 text-white py-1.5 px-2 text-sm">
+                </div>
+                <input type="hidden" id="contractType" value="DIGITMATCH">
+            </div>
+
+            <div id="metrics-column" class="md:w-1/3 grid grid-cols-2 gap-3">
+                <div class="bg-gray-700 rounded-lg p-3 border border-green-500/50">
+                    <p class="text-[10px] text-green-500 uppercase font-bold">Live Digit</p>
+                    <p id="metricLiveTick" class="text-2xl font-black text-white">---</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3 border border-purple-500/50">
+                    <p class="text-[10px] text-purple-500 uppercase font-bold">Balance</p>
+                    <p id="metricAccountBalance" class="text-xl font-bold text-white">$---</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <p class="text-[10px] text-lime-400 uppercase font-bold">Net P/L</p>
+                    <p id="metricTotalProfit" class="text-xl font-bold">$0.00</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <p class="text-[10px] text-blue-400 uppercase font-bold">Stake</p>
+                    <p id="metricCurrentStake" class="text-xl font-bold">$0.00</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-center mb-6">
+            <button id="toggleButton" onclick="toggleBot()" class="w-full md:w-1/2 px-6 py-4 bg-green-600 text-white font-black text-xl rounded-xl shadow-2xl hover:bg-green-700 transition">START BOT</button>
+        </div>
+
+        <div id="log-area" class="h-64 bg-gray-900 text-lime-400 p-4 rounded-xl overflow-y-auto text-xs font-mono shadow-inner border border-gray-700">
+            [SYSTEM] Authorized and ready. Click Start to begin trading.
+        </div>
     </div>
 
     <script>
-        // --- AUTHENTICATION LOGIC ---
-        const APP_ID = '118190'; // Replace with your Deriv App ID
+        // --- AUTH & TOGGLE SYSTEM ---
+        const APP_ID = 118190;
         let accounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
-        let currentAccount = null;
+        
+        if (accounts.length === 0) window.location.replace('index.html');
 
-        // Check for tokens in URL after Deriv login redirect
-        function checkUrlParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const newAccounts = [];
-            
-            for (let i = 1; i <= 5; i++) {
-                const token = urlParams.get(`token${i}`);
-                const acct = urlParams.get(`acct${i}`);
-                if (token && acct) {
-                    newAccounts.push({ 
-                        token, 
-                        loginid: acct, 
-                        is_virtual: acct.startsWith('VRTC') 
-                    });
-                }
-            }
-
-            if (newAccounts.length > 0) {
-                localStorage.setItem('deriv_accounts', JSON.stringify(newAccounts));
-                window.history.replaceState({}, document.title, window.location.pathname);
-                location.reload();
-            }
-        }
-
-        function handleAuth() {
-            if (accounts.length > 0) {
-                localStorage.removeItem('deriv_accounts');
-                location.reload();
-            } else {
-                window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}`;
-            }
-        }
-
-        function updateAccountSelection() {
+        function updateSession() {
             const isReal = document.getElementById('account-toggle').checked;
-            currentAccount = accounts.find(a => isReal ? !a.is_virtual : a.is_virtual);
-            
-            if (currentAccount) {
-                document.getElementById('main-dashboard').classList.remove('opacity-50', 'pointer-events-none');
-                document.getElementById('auth-btn').textContent = `Logout (${currentAccount.loginid})`;
-                document.getElementById('auth-btn').classList.replace('bg-blue-600', 'bg-red-600');
+            const targetAcct = accounts.find(a => isReal ? !a.is_virtual : a.is_virtual);
+            if (targetAcct) {
+                window.DERIV_TOKEN = targetAcct.token;
+                document.getElementById('account-id-display').textContent = targetAcct.loginid;
+                if (window.ws) { window.ws.close(); }
             } else {
-                alert(isReal ? "No Real account found for this login." : "No Demo account found.");
+                alert(`No ${isReal ? 'Real' : 'Demo'} account found.`);
                 document.getElementById('account-toggle').checked = !isReal;
             }
         }
 
         document.getElementById('account-toggle').addEventListener('change', () => {
-            if (window.botRunning) {
-                alert("Please stop the bot before switching accounts.");
+            if (window.isBotRunning) {
+                alert("Stop bot first!");
                 document.getElementById('account-toggle').checked = !document.getElementById('account-toggle').checked;
                 return;
             }
-            updateAccountSelection();
+            updateSession();
         });
 
-        // --- INTEGRATION WITH YOUR ORIGINAL TRADING LOGIC ---
-        // Modify your original initWebSocket to use currentAccount.token
-        async function initWebSocket() {
-            if (!currentAccount) {
-                alert("Please login first!");
-                return;
-            }
-            
-            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=' + APP_ID);
-            
-            window.ws.onopen = () => {
-                // Use the token from the toggle selection
-                window.ws.send(JSON.stringify({ authorize: currentAccount.token }));
-            };
+        function logout() { localStorage.clear(); window.location.replace('index.html'); }
 
-            // ... [Rest of your original WebSocket and Trading Logic] ...
+        // --- TRADING LOGIC (FROM YOUR bot.html) ---
+        window.isBotRunning = false;
+        window.ws = null;
+        window.req_id = 0;
+        window.tickQueue = [];
+        window.tradeCount = 0;
+        window.netProfit = 0;
+        window.startingBalance = 0;
+        window.currentStake = 0;
+
+        function log(msg, type = 'INFO') {
+            const logArea = document.getElementById('log-area');
+            const time = new Date().toLocaleTimeString();
+            logArea.innerHTML += `<br>[${time}] ${msg}`;
+            logArea.scrollTop = logArea.scrollHeight;
         }
 
-        window.onload = () => {
-            checkUrlParams();
-            if (accounts.length > 0) updateAccountSelection();
-        };
+        function extractLastDigitBySymbol(price) {
+            const symbol = document.getElementById('symbol').value;
+            let dp = (symbol === 'R_100') ? 2 : 3;
+            return price.toFixed(dp).slice(-1);
+        }
 
-        // PASTE THE REST OF YOUR ORIGINAL JAVASCRIPT LOGIC BELOW
+        function handleAPIResponse(data) {
+            if (data.msg_type === 'authorize') {
+                log(`🔐 Authenticated: ${data.authorize.loginid}`);
+                sendRequest({ balance: 1, subscribe: 1 });
+                sendRequest({ ticks: document.getElementById('symbol').value, subscribe: 1 });
+            }
+            if (data.msg_type === 'tick') {
+                const price = parseFloat(data.tick.quote);
+                const digit = extractLastDigitBySymbol(price);
+                document.getElementById('metricLiveTick').textContent = digit;
+                if (window.isBotRunning) processTick({ digit, price });
+            }
+            if (data.msg_type === 'balance') {
+                const bal = parseFloat(data.balance.balance);
+                if (window.startingBalance === 0) window.startingBalance = bal;
+                document.getElementById('metricAccountBalance').textContent = `$${bal.toFixed(2)}`;
+                window.netProfit = bal - window.startingBalance;
+                document.getElementById('metricTotalProfit').textContent = `$${window.netProfit.toFixed(2)}`;
+            }
+            if (data.msg_type === 'buy') {
+                log(`✅ Trade #${window.tradeCount} Executed`, 'SUCCESS');
+            }
+        }
+
+        function processTick(tick) {
+            const predicted = parseInt(document.getElementById('predictedDigit').value);
+            if (parseInt(tick.digit) === predicted) {
+                log(`🎯 WIN DETECTED! Digit ${tick.digit} matched. Stopping.`, 'WIN');
+                stopBot();
+                return;
+            }
+            if (window.tradeCount >= parseInt(document.getElementById('maxTrades').value)) {
+                log("🛑 Max trades reached."); stopBot(); return;
+            }
+            executeTrade();
+        }
+
+        function executeTrade() {
+            window.tradeCount++;
+            const stake = window.currentStake;
+            const req = {
+                buy: 1,
+                subscribe: 1,
+                price: stake,
+                parameters: {
+                    amount: stake,
+                    basis: 'stake',
+                    contract_type: 'DIGITMATCH',
+                    currency: 'USD',
+                    duration: 1,
+                    duration_unit: 't',
+                    symbol: document.getElementById('symbol').value,
+                    barrier: document.getElementById('predictedDigit').value
+                }
+            };
+            sendRequest(req);
+            // Simple Martingale
+            window.currentStake *= parseFloat(document.getElementById('multiplier').value);
+            document.getElementById('metricCurrentStake').textContent = `$${window.currentStake.toFixed(2)}`;
+        }
+
+        function sendRequest(req) {
+            if (window.ws && window.ws.readyState === 1) {
+                req.req_id = ++window.req_id;
+                window.ws.send(JSON.stringify(req));
+            }
+        }
+
+        function toggleBot() {
+            if (window.isBotRunning) stopBot(); else startBot();
+        }
+
+        function startBot() {
+            window.isBotRunning = true;
+            window.tradeCount = 0;
+            window.currentStake = parseFloat(document.getElementById('baseStake').value);
+            document.getElementById('toggleButton').textContent = 'STOP BOT';
+            document.getElementById('toggleButton').className = 'w-full md:w-1/2 px-6 py-4 bg-red-600 text-white font-black text-xl rounded-xl shadow-2xl';
+            
+            window.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`);
+            window.ws.onopen = () => sendRequest({ authorize: window.DERIV_TOKEN });
+            window.ws.onmessage = (e) => handleAPIResponse(JSON.parse(e.data));
+            log("🚀 Bot Started - Instant Tick Mode");
+        }
+
+        function stopBot() {
+            window.isBotRunning = false;
+            document.getElementById('toggleButton').textContent = 'START BOT';
+            document.getElementById('toggleButton').className = 'w-full md:w-1/2 px-6 py-4 bg-green-600 text-white font-black text-xl rounded-xl shadow-2xl';
+            if (window.ws) window.ws.close();
+            log("⏹️ Bot Stopped");
+        }
+
+        window.onload = updateSession;
     </script>
 </body>
 </html>
