@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DigitMatchStars Pro™ - Official Deriv Trading Bot | 98.7% Win Rate</title>
-    <meta name="description" content="Official Deriv trading bot with instant tick execution. 98.7% verified win rate. Connect via OAuth.">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -15,111 +14,31 @@
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
-            --secondary: #3b82f6;
-            --accent: #8b5cf6;
             --dark: #0f172a;
             --darker: #0a0f1f;
         }
-        
-        body {
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            color: #f8fafc;
-            min-height: 100vh;
-        }
-        
-        .gradient-text {
-            background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            padding: 16px 32px;
-            border-radius: 12px;
-            font-weight: 600;
-            border: none;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .btn-oAuth {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            color: white;
-            padding: 16px 32px;
-            border-radius: 12px;
-            font-weight: 600;
-            border: none;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-content {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(10, 15, 31, 0.95));
-            padding: 40px;
-            border-radius: 24px;
-            max-width: 500px;
-            width: 100%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
+        body { background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%); color: #f8fafc; min-height: 100vh; }
+        .gradient-text { background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 16px 32px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); z-index: 9999; align-items: center; justify-content: center; }
+        .modal-content { background: rgba(15, 23, 42, 0.95); padding: 40px; border-radius: 24px; max-width: 500px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); }
         .auth-step { display: none; }
         .auth-step.active { display: block; }
-
-        .info-message {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: #3b82f6;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        .success-message {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #10b981;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
     </style>
     
     <script>
         // CONFIGURATION
         const CONFIG = {
-            APP_ID: 118190, // Updated App ID
-            REDIRECT_URI: window.location.origin + window.location.pathname,
-            AFFILIATE_URL: "https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/"
+            APP_ID: 118190, // Your verified App ID
+            BOT_FILE: 'bot-obfuscated.html' // Updated target file
         };
 
         (function handleAuthRedirect() {
             const urlParams = new URLSearchParams(window.location.search);
             const accounts = [];
             
-            // Extract tokens for multiple accounts (Real and Demo)
+            // Extract tokens for multiple accounts
             for (let i = 1; i <= 5; i++) {
                 const token = urlParams.get(`token${i}`);
                 const acct = urlParams.get(`acct${i}`);
@@ -127,26 +46,25 @@
                     accounts.push({ 
                         token, 
                         loginid: acct, 
-                        is_virtual: acct.startsWith('VRTC') // Demo logic check
+                        is_virtual: acct.startsWith('VRTC') 
                     });
                 }
             }
 
             if (accounts.length > 0) {
-                // Store account data and redirect to bot
+                // Save session and redirect to obfuscated bot
                 localStorage.setItem('deriv_accounts', JSON.stringify(accounts));
                 
-                // Set default token (prioritize Demo for safety)
+                // Set default token (prioritize Demo VRTC if found)
                 const defaultAcct = accounts.find(a => a.is_virtual) || accounts[0];
                 localStorage.setItem('derivToken', defaultAcct.token);
                 
-                window.location.replace('bot.html');
-                throw new Error("Redirecting to dashboard...");
+                window.location.replace(CONFIG.BOT_FILE);
             }
 
-            // If already logged in, skip to bot
-            if (localStorage.getItem('deriv_accounts') && !urlParams.has('logout')) {
-                window.location.href = 'bot.html';
+            // Auto-login if session exists
+            if (localStorage.getItem('derivToken') && !urlParams.has('logout')) {
+                window.location.href = CONFIG.BOT_FILE;
             }
         })();
     </script>
@@ -164,44 +82,22 @@
 
     <section class="pt-64 pb-20 text-center px-5">
         <h1 class="text-6xl md:text-7xl font-bold mb-6"><span class="gradient-text">Professional</span><br>Trading Bot</h1>
-        <p class="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">Connect your Deriv account via secure OAuth to access the DigitMatch Pro dashboard.</p>
-        <button onclick="openModal()" class="btn-primary text-lg px-12 py-5">Connect via OAuth</button>
+        <p class="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">Instant tick execution with advanced Martingale strategy.</p>
+        <button onclick="startOAuth()" class="btn-primary text-lg px-12 py-5">Connect via OAuth</button>
     </section>
 
     <div id="authModal" class="modal">
-        <div class="modal-content">
-            <button onclick="closeModal()" class="float-right text-white text-2xl transition hover:text-red-500">&times;</button>
-            
-            <div id="choiceStep" class="auth-step active">
-                <h2 class="text-3xl font-bold mb-6 text-center">Connect</h2>
-                <div class="space-y-4">
-                    <div class="glass-card p-6 cursor-pointer hover:border-purple-500 transition-all group" onclick="startOAuth()">
-                        <h3 class="font-bold group-hover:text-purple-400">Connect via OAuth</h3>
-                        <p class="text-sm text-gray-400">Secure login for Real and Demo accounts</p>
-                    </div>
-                    <div class="glass-card p-6 cursor-pointer hover:border-green-500 transition-all group" onclick="showStep('newAccountStep')">
-                        <h3 class="font-bold group-hover:text-green-400">Need an Account?</h3>
-                        <p class="text-sm text-gray-400">Sign up using official affiliate link</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="newAccountStep" class="auth-step">
-                <h2 class="text-3xl font-bold mb-6 text-center">Create Account</h2>
-                <div class="info-message">
-                    <i class="fas fa-info-circle mr-2"></i> 1. Sign up on Deriv using the button below.<br>
-                    <i class="fas fa-check-circle mr-2"></i> 2. Once created, return here to connect.
-                </div>
-                <button onclick="createAccount()" class="btn-primary w-full mb-4">Create Account</button>
-                <button onclick="showStep('choiceStep')" class="w-full text-gray-500 hover:text-white text-sm">Back to Options</button>
-            </div>
+        <div class="modal-content text-center">
+            <h2 class="text-3xl font-bold mb-6">Secure Connect</h2>
+            <p class="text-gray-400 mb-8">You will be redirected to Deriv to securely link your accounts.</p>
+            <button onclick="startOAuth()" class="btn-primary w-full py-4">Confirm & Redirect</button>
+            <button onclick="closeModal()" class="mt-4 text-gray-500 hover:text-white">Cancel</button>
         </div>
     </div>
 
     <script>
-        function openModal() { document.getElementById('authModal').style.display = 'flex'; showStep('choiceStep'); }
+        function openModal() { document.getElementById('authModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('authModal').style.display = 'none'; }
-        function showStep(id) { document.querySelectorAll('.auth-step').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
         function startOAuth() {
             const params = new URLSearchParams({
@@ -210,12 +106,7 @@
                 l: 'en',
                 scope: 'read trade trading_information'
             });
-            // Redirect to official Deriv OAuth page
             window.location.href = `https://oauth.deriv.com/oauth2/authorize?${params.toString()}`;
-        }
-
-        function createAccount() {
-            window.open(CONFIG.AFFILIATE_URL, '_blank');
         }
     </script>
 </body>
