@@ -3,98 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DigitMatchStars Pro™ - Secure Login</title>
+    <title>DigitMatchStars Pro™ - Secure Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --primary: #10b981; --darker: #0a0f1f; }
-        body { background: var(--darker); color: #f8fafc; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 3rem; text-align: center; max-width: 450px; width: 90%; }
-        .btn-auth { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 1rem 2rem; border-radius: 12px; font-weight: 700; width: 100%; transition: transform 0.2s; cursor: pointer; }
-        .btn-auth:active { transform: scale(0.98); }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; background-color: #111827; }</style>
 </head>
-<body>
-
-    <div class="glass-card shadow-2xl">
-        <div class="mb-8">
-            <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-robot text-green-400 text-4xl"></i>
+<body class="flex items-center justify-center min-h-screen p-6">
+    <div class="bg-gray-800 p-8 md:p-12 rounded-3xl border border-gray-700 w-full max-w-md shadow-2xl text-center">
+        <h2 class="text-4xl font-black text-green-400 mb-2 tracking-tighter uppercase">DigitMatchStars</h2>
+        <p class="text-gray-400 mb-8 text-xs uppercase tracking-widest font-bold">Authorized Trading Terminal</p>
+        
+        <div class="space-y-4">
+            <button onclick="login()" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl transition transform active:scale-95 flex items-center justify-center gap-3 shadow-lg">
+                AUTHENTICATE ACCOUNT
+            </button>
+            
+            <div class="relative py-4">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-700"></div></div>
+                <div class="relative flex justify-center text-xs uppercase"><span class="bg-gray-800 px-3 text-gray-500 font-bold">New to DigitMatchStars?</span></div>
             </div>
-            <h1 class="text-3xl font-black mb-2">DigitMatchStars <span class="text-green-400">Pro™</span></h1>
-            <p class="text-gray-400 text-sm">Official Secure Trading Gateway</p>
+
+            <a href="https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl text-center transition transform active:scale-95 shadow-lg">
+                CREATE DERIV ACCOUNT
+            </a>
+            <p class="text-[10px] text-gray-400 px-4 leading-tight italic uppercase">Create account via the link above, then return here to authenticate.</p>
         </div>
-
-        <div id="status-msg" class="text-sm text-blue-400 bg-blue-500/10 p-4 rounded-xl mb-8 hidden">
-            <i class="fas fa-spinner fa-spin mr-2"></i> Authenticating session...
-        </div>
-
-        <button onclick="loginWithDeriv()" class="btn-auth flex items-center justify-center gap-3 text-lg">
-            <img src="https://deriv.com/static/072481745e69e06c3a51f84457616148/deriv-logo.svg" alt="Deriv" class="h-5">
-            Login via Deriv OAuth
-        </button>
-
-        <p class="mt-6 text-xs text-gray-500">
-            Secure connection via Deriv API. No password sharing required.
-        </p>
+        <p class="text-[10px] text-gray-500 mt-10 uppercase tracking-widest font-bold opacity-40">Secured via App ID: 118190</p>
     </div>
 
     <script>
-        const APP_ID = 118190; 
-        const BOT_PAGE = 'bot-obfuscated.html';
+        const APP_ID = 118190;
 
-        // 1. Process URL Parameters from Deriv Redirect
-        function handleRedirect() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const accounts = [];
-            
-            // Loop through potential accounts returned by Deriv
-            for (let i = 1; i <= 5; i++) {
-                const token = urlParams.get(`token${i}`);
-                const acct = urlParams.get(`acct${i}`);
-                if (token && acct) {
-                    accounts.push({ 
-                        token: token, 
-                        loginid: acct, 
-                        is_virtual: acct.startsWith('VRTC') 
-                    });
+        function login() {
+            // Redirect to Deriv OAuth 2.0 flow
+            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv`;
+        }
+
+        function handleDerivRedirect() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('token1')) {
+                const accounts = [];
+                for (let i = 1; i <= 10; i++) {
+                    const token = params.get(`token${i}`);
+                    if (token) {
+                        accounts.push({
+                            token: token,
+                            account: params.get(`acct${i}`),
+                            currency: params.get(`cur${i}`) || 'USD'
+                        });
+                    }
                 }
-            }
-
-            if (accounts.length > 0) {
-                document.getElementById('status-msg').classList.remove('hidden');
-                
-                // Store accounts and tokens securely in localStorage
-                localStorage.setItem('deriv_accounts', JSON.stringify(accounts));
-                
-                // Default to first Demo account if available for safety
-                const defaultAcct = accounts.find(a => a.is_virtual) || accounts[0];
-                localStorage.setItem('derivToken', defaultAcct.token);
-
-                // Immediate redirect to the obfuscated bot page
-                setTimeout(() => {
-                    window.location.replace(BOT_PAGE);
-                }, 500);
+                // Store tokens and immediately move to the bot
+                localStorage.setItem('bot_auth_session', JSON.stringify(accounts));
+                window.location.href = 'bot-obfuscated.html';
             }
         }
-
-        // 2. Initial Auth Request
-        function loginWithDeriv() {
-            const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv`;
-            window.location.href = oauthUrl;
-        }
-
-        // 3. Auto-Login Check
-        window.onload = () => {
-            // Check if we are coming back from Deriv
-            if (window.location.search.includes('token1')) {
-                handleRedirect();
-            } 
-            // If already logged in, go straight to the bot
-            else if (localStorage.getItem('derivToken')) {
-                window.location.replace(BOT_PAGE);
-            }
-        };
+        window.onload = handleDerivRedirect;
     </script>
 </body>
 </html>
