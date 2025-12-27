@@ -1,382 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>DigitMatchStars Pro™ - Secure Access</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigitMatchStars Pro™ - Secure Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <style>
-        #log-area::-webkit-scrollbar { width: 4px; }
-        #log-area::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 2px; }
-        #log-area::-webkit-scrollbar-track { background: #374151; }
-        body { font-family: 'Inter', sans-serif; background-color: #111827; }
-        
-        /* Secure Auth Overlay */
-        #auth-overlay {
-            position: fixed; inset: 0; background: rgba(17, 24, 39, 0.98);
-            z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(12px);
-        }
-
-        @keyframes pulse-once { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.9; } 100% { transform: scale(1); opacity: 1; } }
-        .tick-flash { animation: pulse-once 0.1s ease-out; }
-        .win-detected { animation: pulse-once 0.5s infinite; }
-        .stop-button-active { background-color: #dc2626 !important; border: 2px solid #fca5a5 !important; animation: pulse-once 0.5s infinite; }
-        .start-button-active { background-color: #16a34a !important; border: 2px solid #86efac !important; }
-        .profit-green { color: #10B981 !important; text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
-        .profit-red { color: #ef4444 !important; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-        .instant-win-detected { animation: pulse-once 0.5s infinite; border: 3px solid #00ff00 !important; box-shadow: 0 0 20px #00ff00 !important; }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; background-color: #111827; }</style>
 </head>
-<body class="min-h-screen p-4 md:p-8 flex items-start justify-center">
-
-    <div id="auth-overlay" style="display: none;">
-        <div class="bg-gray-800 p-8 md:p-12 rounded-3xl border border-gray-700 w-full max-w-md shadow-2xl text-center">
-            <h2 class="text-4xl font-black text-green-400 mb-2 tracking-tighter uppercase">DigitMatchStars</h2>
-            <p class="text-gray-400 mb-8 text-xs uppercase tracking-widest font-bold">Pro Trading Terminal</p>
+<body class="flex items-center justify-center min-h-screen p-6">
+    <div class="bg-gray-800 p-8 md:p-12 rounded-3xl border border-gray-700 w-full max-w-md shadow-2xl text-center">
+        <h2 class="text-4xl font-black text-green-400 mb-2 tracking-tighter uppercase">DigitMatchStars</h2>
+        <p class="text-gray-400 mb-8 text-xs uppercase tracking-widest font-bold">Authorized Trading Terminal</p>
+        
+        <div class="space-y-4">
+            <button onclick="login()" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl transition transform active:scale-95 flex items-center justify-center gap-3 shadow-lg">
+                AUTHENTICATE ACCOUNT
+            </button>
             
-            <div class="space-y-4">
-                <button onclick="startOAuth()" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3">
-                    LOGIN WITH DERIV
-                </button>
-                
-                <div class="relative py-4">
-                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-700"></div></div>
-                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-gray-800 px-2 text-gray-500 font-bold">New Trader?</span></div>
-                </div>
-
-                <a href="https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg transition transform active:scale-95 text-center">
-                    CREATE FREE ACCOUNT
-                </a>
+            <div class="relative py-4">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-700"></div></div>
+                <div class="relative flex justify-center text-xs uppercase"><span class="bg-gray-800 px-3 text-gray-500 font-bold">New to DigitMatchStars?</span></div>
             </div>
-            <p class="text-[10px] text-gray-500 mt-8 uppercase tracking-widest font-bold opacity-50">Authorized App ID: 117144</p>
+
+            <a href="https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl text-center transition transform active:scale-95 shadow-lg">
+                CREATE DERIV ACCOUNT
+            </a>
+            <p class="text-[10px] text-gray-400 px-4 leading-tight italic uppercase">Create account via the link above, then return here to authenticate.</p>
         </div>
-    </div>
-
-    <div class="w-full max-w-5xl bg-gray-800 text-gray-100 shadow-2xl rounded-2xl p-6 border border-gray-700">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-700 pb-4">
-            <div>
-                <h1 class="text-2xl font-black text-green-400 tracking-tighter">
-                    DIGITMATCHSTARS PRO
-                    <span id="status-badge" class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-bold uppercase">OFFLINE</span>
-                </h1>
-                <div class="flex gap-2 mt-1">
-                    <span id="account-badge" class="text-[10px] bg-blue-600 px-2 py-0.5 rounded-full font-bold uppercase italic">AWAITING LOGIN</span>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-3">
-                <button id="soundToggle" onclick="toggleSound()" class="px-4 py-2 bg-gray-700 text-white text-[10px] font-black rounded-lg border border-gray-600 hover:bg-gray-600 transition uppercase">
-                    🔊 SOUND ON
-                </button>
-                <button onclick="logout()" class="px-4 py-2 bg-red-900/30 text-red-400 text-[10px] font-black rounded-lg border border-red-900/50 hover:bg-red-900/50 transition uppercase">
-                    LOGOUT
-                </button>
-            </div>
-        </div>
-
-        <div class="flex flex-col md:flex-row gap-6 mb-6">
-            <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-4">
-                
-                <div class="col-span-2 lg:col-span-3">
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Active Trading Account</label>
-                    <select id="accountSelector" onchange="switchAccount()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-green-500 outline-none cursor-pointer">
-                        <option value="">No Accounts Linked</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Symbol</label>
-                    <select id="symbol" class="w-full rounded-xl bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
-                        <option value="R_10">V. 10 Index</option>
-                        <option value="R_100">V. 100 Index</option>
-                        <option value="R_50">V. 50 Index</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Predicted Digit</label>
-                    <input type="number" id="predictedDigit" value="5" min="0" max="9" class="w-full rounded-xl bg-gray-700 border-gray-600 text-white py-2 text-center text-sm font-bold">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Base Stake ($)</label>
-                    <input type="number" id="baseStake" value="1.0" step="0.1" class="w-full rounded-xl bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Multiplier</label>
-                    <input type="number" id="multiplier" value="1.15" step="0.01" class="w-full rounded-xl bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Max Trades</label>
-                    <input type="number" id="maxTrades" value="10" class="w-full rounded-xl bg-gray-700 border-gray-600 text-white py-2 px-3 text-sm font-bold">
-                </div>
-
-                <div class="col-span-2 lg:col-span-3 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-                    <span class="text-green-400 font-black text-xs uppercase tracking-tighter">⚡ INSTANT TICK ENGINE</span>
-                    <p class="text-[10px] text-gray-400 mt-1 uppercase leading-tight font-semibold">Executing Match Trade on every tick. Automatic stop triggered upon successful digit match.</p>
-                </div>
-            </div>
-
-            <div id="metrics-column" class="md:w-1/3 space-y-4">
-                <div class="bg-gray-900 p-5 rounded-2xl border border-gray-700 shadow-inner">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="col-span-2 border-b border-gray-800 pb-3">
-                            <p class="text-[10px] font-bold text-green-500 uppercase">Live Balance</p>
-                            <p id="metricAccountBalance" class="text-3xl font-black text-white">$---</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-bold text-purple-500 uppercase">Live Tick</p>
-                            <p id="metricLiveTick" class="text-xl font-black text-white">---</p>
-                            <p id="metricLastDigit" class="text-xs font-bold text-green-400">DIGIT: ?</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-bold text-lime-500 uppercase">Net P/L</p>
-                            <p id="metricTotalProfit" class="text-xl font-black text-gray-300">$0.00</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="trade-result-container" class="bg-gray-900 p-4 rounded-2xl border border-yellow-500/30">
-                    <p class="text-[10px] font-bold text-yellow-500 uppercase mb-1 italic">Engine Status</p>
-                    <p id="metricTradeResult" class="text-xs font-bold text-gray-400">IDLE - AWAITING START</p>
-                    <div class="w-full bg-gray-700 h-1.5 rounded-full mt-2">
-                        <div id="executionBar" class="bg-green-600 h-1.5 rounded-full shadow-[0_0_10px_#16a34a]" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <button id="toggleButton" onclick="toggleBot()" class="w-full py-5 bg-green-600 text-white font-black text-xl rounded-2xl shadow-2xl hover:bg-green-700 transition transform active:scale-95 mb-6 border-b-4 border-green-800 uppercase tracking-tighter">
-            START TRADING
-        </button>
-
-        <div id="log-area" class="h-48 bg-gray-950 text-lime-400 p-4 rounded-xl overflow-y-auto text-[10px] font-mono border border-gray-800">
-            [SYSTEM] Initialization complete. Authenticate via Deriv OAuth to access the bot features.
-        </div>
+        <p class="text-[10px] text-gray-500 mt-10 uppercase tracking-widest font-bold opacity-40">Secured via App ID: 118190</p>
     </div>
 
     <script>
-        // --- AUTHENTICATION CONFIG ---
-        const CONFIG = { APP_ID: 118190 };
+        const APP_ID = 118190;
 
-        function initAuth() {
+        function login() {
+            // Redirect to Deriv OAuth 2.0 flow
+            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv`;
+        }
+
+        function handleDerivRedirect() {
             const params = new URLSearchParams(window.location.search);
             if (params.has('token1')) {
                 const accounts = [];
                 for (let i = 1; i <= 10; i++) {
-                    if (params.get(`token${i}`)) {
+                    const token = params.get(`token${i}`);
+                    if (token) {
                         accounts.push({
-                            token: params.get(`token${i}`),
+                            token: token,
                             account: params.get(`acct${i}`),
                             currency: params.get(`cur${i}`) || 'USD'
                         });
                     }
                 }
-                localStorage.setItem('dms_accounts', JSON.stringify(accounts));
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-
-            const stored = JSON.parse(localStorage.getItem('dms_accounts'));
-            if (!stored) {
-                document.getElementById('auth-overlay').style.display = 'flex';
-            } else {
-                document.getElementById('auth-overlay').style.display = 'none';
-                populateAccountSelector(stored);
+                // Store tokens and immediately move to the bot
+                localStorage.setItem('bot_auth_session', JSON.stringify(accounts));
+                window.location.href = 'bot-obfuscated.html';
             }
         }
-
-        function startOAuth() {
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${CONFIG.APP_ID}&l=en&brand=deriv`;
-        }
-
-        function populateAccountSelector(accounts) {
-            const selector = document.getElementById('accountSelector');
-            selector.innerHTML = '';
-            accounts.forEach(acc => {
-                const opt = document.createElement('option');
-                opt.value = acc.token;
-                opt.textContent = `${acc.account} (${acc.currency})`;
-                selector.appendChild(opt);
-            });
-            updateAccountBadge();
-        }
-
-        function updateAccountBadge() {
-            const sel = document.getElementById('accountSelector');
-            const badge = document.getElementById('account-badge');
-            const accountText = sel.options[sel.selectedIndex]?.text || "";
-            const isDemo = accountText.includes('VRTC');
-            badge.textContent = isDemo ? "DEMO ACCOUNT ACTIVE" : "REAL ACCOUNT ACTIVE";
-            badge.className = isDemo ? "text-[10px] bg-blue-600 px-2 py-0.5 rounded-full font-bold uppercase" : "text-[10px] bg-red-600 px-2 py-0.5 rounded-full font-bold uppercase shadow-[0_0_5px_red]";
-        }
-
-        function logout() { localStorage.removeItem('dms_accounts'); location.reload(); }
-
-        // --- CORE BOT LOGIC (UNTOUCHED TRADING FEATURES) ---
-        window.isBotRunning = false;
-        window.ws = null;
-        window.startingBalance = 0;
-        window.currentStake = 0;
-        window.tradeCount = 0;
-        window.stopAfterWin = false;
-        window.executionLock = false;
-        window.soundEnabled = true;
-
-        async function initTone() {
-            await Tone.start();
-            window.synth = new Tone.Synth().toDestination();
-        }
-
-        function toggleSound() {
-            window.soundEnabled = !window.soundEnabled;
-            document.getElementById('soundToggle').textContent = window.soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF';
-        }
-
-        function playAudio(type) {
-            if (!window.soundEnabled || !window.synth) return;
-            if (type === 'TICK') window.synth.triggerAttackRelease("C5", "32n");
-            if (type === 'WIN') window.synth.triggerAttackRelease("C6", "8n");
-            if (type === 'LOSS') window.synth.triggerAttackRelease("C3", "16n");
-        }
-
-        function log(msg) {
-            const area = document.getElementById('log-area');
-            const time = new Date().toLocaleTimeString();
-            area.innerHTML += `\n[${time}] <span class="font-bold">${msg}</span>`;
-            area.scrollTop = area.scrollHeight;
-        }
-
-        function toggleBot() {
-            if (window.isBotRunning) stopBot();
-            else startBot();
-        }
-
-        function startBot() {
-            const token = document.getElementById('accountSelector').value;
-            if (!token) return;
-            initTone();
-            window.isBotRunning = true;
-            window.startingBalance = 0;
-            window.tradeCount = 0;
-            window.stopAfterWin = false;
-            window.currentStake = parseFloat(document.getElementById('baseStake').value);
-            updateUI(true);
-            connect(token);
-            log("🚀 ENGINE INITIALIZED: Trading on every tick.");
-        }
-
-        function stopBot() {
-            window.isBotRunning = false;
-            updateUI(false);
-            if (window.ws) window.ws.close();
-            log("⏹️ ENGINE STOPPED.");
-        }
-
-        function updateUI(running) {
-            const btn = document.getElementById('toggleButton');
-            btn.textContent = running ? 'STOP TRADING' : 'START TRADING';
-            btn.className = running ? "w-full py-5 text-white font-black text-xl rounded-2xl shadow-2xl mb-6 stop-button-active uppercase tracking-tighter" : "w-full py-5 bg-green-600 text-white font-black text-xl rounded-2xl shadow-2xl mb-6 border-b-4 border-green-800 uppercase tracking-tighter";
-            document.getElementById('controls-section').querySelectorAll('input, select').forEach(el => el.disabled = running);
-        }
-
-        function connect(token) {
-            window.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${CONFIG.APP_ID}`);
-            window.ws.onopen = () => {
-                document.getElementById('status-badge').textContent = 'ONLINE';
-                document.getElementById('status-badge').className = 'ml-2 text-[10px] px-2 py-0.5 rounded-full bg-green-600 text-white font-bold uppercase';
-                window.ws.send(JSON.stringify({ authorize: token }));
-            };
-            window.ws.onmessage = (msg) => {
-                const data = JSON.parse(msg.data);
-                if (data.msg_type === 'authorize') {
-                    window.ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-                    window.ws.send(JSON.stringify({ ticks: document.getElementById('symbol').value, subscribe: 1 }));
-                }
-                if (data.msg_type === 'balance') {
-                    const b = data.balance.balance;
-                    if (!window.startingBalance) window.startingBalance = b;
-                    document.getElementById('metricAccountBalance').textContent = `$${b.toFixed(2)}`;
-                    const pnl = b - window.startingBalance;
-                    const pElem = document.getElementById('metricTotalProfit');
-                    pElem.textContent = `$${pnl.toFixed(2)}`;
-                    pElem.className = pnl >= 0 ? "text-xl font-black profit-green" : "text-xl font-black profit-red";
-                }
-                if (data.msg_type === 'tick') handleTick(data.tick);
-                if (data.msg_type === 'buy') log(`✅ Trade Executed #${window.tradeCount}`);
-            };
-        }
-
-        function handleTick(tick) {
-            const price = tick.quote;
-            const symbol = document.getElementById('symbol').value;
-            const decimal = symbol === 'R_100' ? 2 : 3;
-            const digit = price.toFixed(decimal).slice(-1);
-            
-            document.getElementById('metricLiveTick').textContent = price.toFixed(decimal);
-            document.getElementById('metricLastDigit').textContent = `DIGIT: ${digit}`;
-            document.getElementById('metricLiveTick').classList.add('tick-flash');
-            setTimeout(() => document.getElementById('metricLiveTick').classList.remove('tick-flash'), 50);
-            
-            playAudio('TICK');
-
-            const predicted = document.getElementById('predictedDigit').value;
-            if (digit === predicted) {
-                log(`🎯 MATCH! Digit ${digit} detected.`);
-                playAudio('WIN');
-                window.stopAfterWin = true;
-                stopBot();
-            } else {
-                if (!window.executionLock && !window.stopAfterWin) executeTrade();
-            }
-        }
-
-        function executeTrade() {
-            window.executionLock = true;
-            window.tradeCount++;
-            
-            const max = parseInt(document.getElementById('maxTrades').value);
-            document.getElementById('executionBar').style.width = `${(window.tradeCount / max) * 100}%`;
-            document.getElementById('metricTradeResult').textContent = `RUNNING TRADE #${window.tradeCount}`;
-
-            const request = {
-                buy: 1,
-                price: window.currentStake,
-                parameters: {
-                    amount: window.currentStake,
-                    basis: 'stake',
-                    contract_type: 'DIGITMATCH',
-                    currency: 'USD',
-                    duration: 1,
-                    duration_unit: 't',
-                    symbol: document.getElementById('symbol').value,
-                    barrier: document.getElementById('predictedDigit').value
-                }
-            };
-            
-            window.ws.send(JSON.stringify(request));
-            
-            // Martingale
-            window.currentStake *= parseFloat(document.getElementById('multiplier').value);
-            
-            setTimeout(() => { window.executionLock = false; }, 400);
-
-            if (window.tradeCount >= max) {
-                log("🛑 MAX TRADES REACHED.");
-                stopBot();
-            }
-        }
-
-        function switchAccount() {
-            if (window.isBotRunning) return;
-            updateAccountBadge();
-            log("🔄 Account Switched Successfully.");
-        }
-
-        window.addEventListener('load', initAuth);
+        window.onload = handleDerivRedirect;
     </script>
 </body>
 </html>
