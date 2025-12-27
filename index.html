@@ -3,118 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deriv Martingale Bot - Smart Trading Automation</title>
+    <title>DigitMatch Pro - Secure Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        * { font-family: 'Inter', sans-serif; }
-        :root {
-            --primary: #10b981;
-            --primary-dark: #059669;
-            --secondary: #3b82f6;
-            --dark: #0f172a;
-            --darker: #0a0f1f;
-            --light: #f8fafc;
-        }
-        body {
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            color: var(--light);
-            min-height: 100vh;
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600;
-            transition: all 0.3s ease; display: inline-block; text-align: center; cursor: pointer;
-        }
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
-        }
-        .btn-secondary {
-            background: linear-gradient(135deg, var(--secondary), #1d4ed8);
-            color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600;
-            transition: all 0.3s ease; display: inline-block; text-align: center;
-        }
+        body { background: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .btn-secondary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
     </style>
 </head>
-<body>
-    <nav class="glass-card fixed w-full z-50">
-        <div class="container mx-auto px-6 py-4">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500"></div>
-                    <span class="text-xl font-bold gradient-text">DigitMatch Pro</span>
-                </div>
-                <div class="flex space-x-4">
-                    <button onclick="signUpAffiliate()" class="btn-secondary text-sm px-6">Sign Up (Affiliate)</button>
-                    <button onclick="loginWithDeriv()" class="btn-primary text-sm px-6">Login to Bot</button>
-                </div>
-            </div>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-4xl w-full grid md:grid-cols-2 gap-8">
+        <div class="glass-card p-10 rounded-2xl text-center">
+            <h2 class="text-3xl font-bold mb-4">New Trader?</h2>
+            <p class="text-gray-400 mb-8">Create your account via our affiliate link to unlock full bot features and support.</p>
+            <button onclick="window.open('https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/', '_blank')" class="btn-secondary w-full">SIGN UP ON DERIV</button>
         </div>
-    </nav>
 
-    <section class="pt-32 pb-20 px-6">
-        <div class="container mx-auto text-center">
-            <h1 class="text-5xl md:text-6xl font-bold mb-6">
-                Automated <span class="gradient-text">DigitMatch</span> Trading
-            </h1>
-            <p class="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-                No manual tokens required. Secure OAuth authentication for Demo and Real accounts.
-            </p>
-            
-            <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                <div class="glass-card p-8 rounded-2xl">
-                    <h3 class="text-2xl font-bold mb-4 text-green-400">New Trader?</h3>
-                    <p class="text-gray-400 mb-6">Create your account using our affiliate link to gain full access to the bot logic and support.</p>
-                    <button onclick="signUpAffiliate()" class="btn-secondary w-full">
-                        CREATE DERIV ACCOUNT
-                    </button>
-                </div>
-
-                <div class="glass-card p-8 rounded-2xl border-green-500/30">
-                    <h3 class="text-2xl font-bold mb-4 text-blue-400">Existing Trader?</h3>
-                    <p class="text-gray-400 mb-6">Log in securely via Deriv OAuth. You will be redirected to the bot interface immediately.</p>
-                    <button onclick="loginWithDeriv()" class="btn-primary w-full">
-                        SECURE LOGIN
-                    </button>
-                </div>
-            </div>
+        <div class="glass-card p-10 rounded-2xl text-center border-green-500/30">
+            <h2 class="text-3xl font-bold mb-4 text-green-400">Ready to Trade?</h2>
+            <p class="text-gray-400 mb-8">Securely connect your Demo or Real account using Deriv OAuth (App ID: 118190).</p>
+            <button onclick="loginWithDeriv()" class="btn-primary w-full shadow-lg shadow-green-900/20">LOGIN TO BOT</button>
         </div>
-    </section>
+    </div>
 
     <script>
-        const APP_ID = '118190';
-        const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
-
-        function signUpAffiliate() {
-            window.open(AFFILIATE_LINK, '_blank');
-        }
-
         function loginWithDeriv() {
-            // Initiates OAuth and redirects back to bot-authenticated.html after success
+            const APP_ID = '118190';
             window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=EN`;
         }
-
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('token1')) {
-                // Redirects authenticated users to the specific bot page
-                window.location.href = 'bot-authenticated.html' + window.location.search;
-            }
-        };
     </script>
 </body>
 </html>
