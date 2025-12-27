@@ -184,7 +184,7 @@
                     DMS Disconnected
                 </span>
                 <span id="contract-type-badge" class="contract-type-badge bg-purple-600 text-white">DIGITMATCH</span>
-                <span id="queue-status-badge" class="contract-type-badge bg-blue-600 text-white">QUEUE: 0</span>
+                <!-- REMOVED: queue-status-badge -->
                 <!-- NEW: Account toggle in header -->
                 <div class="account-toggle-container ml-3">
                     <span class="account-label account-label-demo">DEMO</span>
@@ -202,18 +202,8 @@
             </div>
         </div>
         
-        <!-- TICK QUEUE VISUALIZATION -->
-        <div class="mb-5 p-4 bg-gray-900 rounded-lg border border-green-500/50">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-sm font-bold text-blue-400">🎯 TICK QUEUE</h3>
-                <div class="text-xs text-gray-400">
-                    Queue: <span id="queue-size">0</span> | Processed: <span id="processed-count">0</span>
-                </div>
-            </div>
-            <div id="tick-queue-display" class="flex flex-wrap gap-2 min-h-[60px] p-2 bg-gray-800 rounded">
-                <div class="text-gray-500 italic">No ticks in queue...</div>
-            </div>
-        </div>
+        <!-- TICK QUEUE VISUALIZATION - REMOVED ENTIRELY -->
+        <!-- This entire section has been removed as requested -->
 
         <div class="flex flex-col md:flex-row gap-4 mb-6">
             <div id="controls-section" class="md:w-2/3 grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -400,15 +390,6 @@
             if (derivToken) {
                 console.log('✅ Bot: API token found, allowing access');
                 
-                // Auto-fill the token input field after page loads
-                setTimeout(() => {
-                    const tokenInput = document.getElementById('derivToken');
-                    if (tokenInput && tokenInput.value === '') {
-                        tokenInput.value = derivToken;
-                        console.log('✅ Auto-filled API token from localStorage');
-                    }
-                }, 500);
-                
                 return; // Allow access
             }
             
@@ -511,7 +492,6 @@
         const statusBadge = document.getElementById('status-badge');
         const soundToggleButton = document.getElementById('soundToggle');
         const contractTypeBadge = document.getElementById('contract-type-badge');
-        const queueStatusBadge = document.getElementById('queue-status-badge');
         const contractTypeSelect = document.getElementById('contractType');
         const maxTradesInput = document.getElementById('maxTrades');
         const predictedDigitInput = document.getElementById('predictedDigit');
@@ -599,11 +579,6 @@
             const progressPercent = Math.min(100, (window.tradeCount / maxTrades) * 100);
             document.getElementById('executionBar').style.width = `${progressPercent}%`;
             document.getElementById('metricExecutedTrades').textContent = window.tradeCount;
-            
-            // Update queue display
-            document.getElementById('queue-size').textContent = window.tickQueue.length;
-            document.getElementById('processed-count').textContent = window.stats.tradesExecuted;
-            queueStatusBadge.textContent = `QUEUE: ${window.tickQueue.length}`;
         }
         
         function startQueueProcessor() {
