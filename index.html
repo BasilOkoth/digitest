@@ -48,24 +48,6 @@
             color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600;
             transition: all 0.3s ease; display: inline-block; text-align: center;
         }
-        .feature-card { transition: all 0.3s ease; border: 1px solid rgba(255, 255, 255, 0.05); }
-        .feature-card:hover { transform: translateY(-5px); border-color: rgba(16, 185, 129, 0.3); }
-        .stat-number {
-            font-size: 3rem; font-weight: 800;
-            background: linear-gradient(135deg, #10b981, #3b82f6);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .social-btn {
-            width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
-            border-radius: 50%; background: rgba(255, 255, 255, 0.05); transition: all 0.3s ease;
-        }
-        .social-btn:hover { background: var(--primary); transform: translateY(-3px); }
-        .whatsapp { background: #25D366; color: white; }
-        .telegram { background: #0088cc; color: white; }
-        .disclaimer {
-            background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #ef4444; padding: 10px; border-radius: 5px; font-size: 0.8rem; margin-top: 10px;
-        }
     </style>
 </head>
 <body>
@@ -76,117 +58,63 @@
                     <div class="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500"></div>
                     <span class="text-xl font-bold gradient-text">DigitMatch Pro</span>
                 </div>
-                <div class="hidden md:flex space-x-8">
-                    <a href="#features" class="hover:text-green-400 transition">Features</a>
-                    <a href="#how-it-works" class="hover:text-green-400 transition">How It Works</a>
+                <div class="flex space-x-4">
+                    <button onclick="signUpAffiliate()" class="btn-secondary text-sm px-6">Sign Up (Affiliate)</button>
+                    <button onclick="loginWithDeriv()" class="btn-primary text-sm px-6">Login to Bot</button>
                 </div>
-                <button onclick="loginWithDeriv()" class="btn-primary">Login to Trade</button>
             </div>
         </div>
     </nav>
 
     <section class="pt-32 pb-20 px-6">
-        <div class="container mx-auto">
-            <div class="grid md:grid-cols-2 gap-12 items-center">
-                <div>
-                    <h1 class="text-5xl md:text-6xl font-bold mb-6">
-                        Automated <span class="gradient-text">DigitMatch</span><br>Trading Bot
-                    </h1>
-                    <p class="text-xl text-gray-300 mb-8">
-                        No manual tokens. No complicated setups. Connect your Deriv account securely via OAuth and start trading on every tick instantly.
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4 mb-8">
-                        <button onclick="loginWithDeriv()" class="btn-primary text-lg px-10">
-                            🚀 CONNECT & START BOT
-                        </button>
-                    </div>
-                    <div class="flex items-center space-x-6">
-                        <div class="flex -space-x-3">
-                            <div class="w-10 h-10 rounded-full bg-green-500 border-2 border-dark"></div>
-                            <div class="w-10 h-10 rounded-full bg-blue-500 border-2 border-dark"></div>
-                            <div class="w-10 h-10 rounded-full bg-purple-500 border-2 border-dark"></div>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-green-400">Secure OAuth 2.0 Auth</p>
-                            <p class="text-sm text-gray-400">Powered by Deriv API (App ID: 118190)</p>
-                        </div>
-                    </div>
+        <div class="container mx-auto text-center">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6">
+                Automated <span class="gradient-text">DigitMatch</span> Trading
+            </h1>
+            <p class="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                No manual tokens required. Secure OAuth authentication for Demo and Real accounts.
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div class="glass-card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-4 text-green-400">New Trader?</h3>
+                    <p class="text-gray-400 mb-6">Create your account using our affiliate link to gain full access to the bot logic and support.</p>
+                    <button onclick="signUpAffiliate()" class="btn-secondary w-full">
+                        CREATE DERIV ACCOUNT
+                    </button>
                 </div>
-                
-                <div class="glass-card rounded-2xl p-8 text-center">
-                    <h3 class="text-2xl font-bold mb-4">Community & Support</h3>
-                    <p class="text-gray-400 mb-6">Get the latest updates and signal strategies.</p>
-                    <div class="flex justify-center space-x-6 mb-8">
-                        <a href="https://wa.me/c/254763941520" target="_blank" class="social-btn whatsapp">
-                            <i class="fab fa-whatsapp"></i>
-                        </a>
-                        <a href="https://t.me/yourchannel" target="_blank" class="social-btn telegram">
-                            <i class="fab fa-telegram-plane"></i>
-                        </a>
-                    </div>
-                    <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Verified App ID</p>
-                        <p class="text-xl font-mono text-green-400">118190</p>
-                    </div>
+
+                <div class="glass-card p-8 rounded-2xl border-green-500/30">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-400">Existing Trader?</h3>
+                    <p class="text-gray-400 mb-6">Log in securely via Deriv OAuth. You will be redirected to the bot interface immediately.</p>
+                    <button onclick="loginWithDeriv()" class="btn-primary w-full">
+                        SECURE LOGIN
+                    </button>
                 </div>
             </div>
         </div>
     </section>
-
-    <section id="features" class="py-20 px-6">
-        <div class="container mx-auto grid md:grid-cols-3 gap-8">
-            <div class="feature-card glass-card rounded-xl p-8">
-                <i class="fas fa-key text-green-400 text-3xl mb-4"></i>
-                <h3 class="text-xl font-bold mb-3">No Manual Tokens</h3>
-                <p class="text-gray-400">One-click secure login. We never see your password or tokens.</p>
-            </div>
-            <div class="feature-card glass-card rounded-xl p-8">
-                <i class="fas fa-exchange-alt text-blue-400 text-3xl mb-4"></i>
-                <h3 class="text-xl font-bold mb-3">Demo & Real Accounts</h3>
-                <p class="text-gray-400">Seamlessly switch between virtual and real money within the bot.</p>
-            </div>
-            <div class="feature-card glass-card rounded-xl p-8">
-                <i class="fas fa-bolt text-purple-400 text-3xl mb-4"></i>
-                <h3 class="text-xl font-bold mb-3">Instant Execution</h3>
-                <p class="text-gray-400">High-frequency trading logic that acts on every single tick arrival.</p>
-            </div>
-        </div>
-    </section>
-
-    <footer class="py-12 px-6 border-t border-gray-800 text-center">
-        <p class="text-gray-500 mb-4">© 2024 DigitMatch Pro. Authorized via Deriv OAuth.</p>
-        <div class="disclaimer max-w-2xl mx-auto">
-            ⚠️ <strong>Risk Warning:</strong> Trading involves significant risk. Only trade with money you can afford to lose.
-        </div>
-    </footer>
 
     <script>
         const APP_ID = '118190';
+        const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
+
+        function signUpAffiliate() {
+            window.open(AFFILIATE_LINK, '_blank');
+        }
 
         function loginWithDeriv() {
-            // This redirects the user to Deriv for secure login
-            // After login, Deriv will redirect back to this page with tokens in the URL
-            const redirectUrl = window.location.origin + window.location.pathname.replace('index.html', 'bot.html');
+            // Initiates OAuth and redirects back to bot-authenticated.html after success
             window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=EN`;
         }
 
         window.onload = function() {
-            // Check if user is returning from a successful login
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('token1')) {
-                // If tokens are in the URL, redirect straight to the bot
-                window.location.href = 'bot.html' + window.location.search;
+                // Redirects authenticated users to the specific bot page
+                window.location.href = 'bot-authenticated.html' + window.location.search;
             }
         };
-
-        // Smooth scrolling
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
-            });
-        });
     </script>
 </body>
 </html>
