@@ -1,38 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DigitMatch Pro - Secure Login</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { background: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
-        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
-        .btn-secondary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DigitMatch Pro – Automated Deriv Trading</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
-    <div class="max-w-4xl w-full grid md:grid-cols-2 gap-8">
-        <div class="glass-card p-10 rounded-2xl text-center">
-            <h2 class="text-3xl font-bold mb-4">New Trader?</h2>
-            <p class="text-gray-400 mb-8">Create your account via our affiliate link to unlock full bot features and support.</p>
-            <button onclick="window.open('https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/', '_blank')" class="btn-secondary w-full">SIGN UP ON DERIV</button>
-        </div>
 
-        <div class="glass-card p-10 rounded-2xl text-center border-green-500/30">
-            <h2 class="text-3xl font-bold mb-4 text-green-400">Ready to Trade?</h2>
-            <p class="text-gray-400 mb-8">Securely connect your Demo or Real account using Deriv OAuth (App ID: 118190).</p>
-            <button onclick="loginWithDeriv()" class="btn-primary w-full shadow-lg shadow-green-900/20">LOGIN TO BOT</button>
-        </div>
+<body class="bg-gradient-to-br from-slate-900 to-slate-800 text-white font-[Inter]">
+
+<header class="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
+  <h1 class="text-2xl font-extrabold text-emerald-400">DigitMatch Pro</h1>
+  <a id="loginBtn" class="bg-emerald-500 hover:bg-emerald-600 px-5 py-2 rounded-lg font-bold">
+    Login with Deriv
+  </a>
+</header>
+
+<section class="max-w-7xl mx-auto px-6 py-24 grid md:grid-cols-2 gap-12 items-center">
+  <div>
+    <h2 class="text-5xl font-extrabold mb-6">
+      Automated <span class="text-emerald-400">DigitMatch</span><br/>Trading Bot
+    </h2>
+    <p class="text-gray-300 text-xl mb-8">
+      Trade every tick automatically with smart martingale logic.
+      No manual execution. No guesswork.
+    </p>
+
+    <div class="flex gap-4">
+      <a id="signupBtn"
+         class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold">
+        Create Deriv Account
+      </a>
+      <a href="#"
+         id="loginBtn2"
+         class="border border-gray-500 hover:border-white px-6 py-3 rounded-lg font-bold">
+        Login Existing Account
+      </a>
     </div>
+  </div>
 
-    <script>
-        function loginWithDeriv() {
-            const APP_ID = '118190';
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=EN`;
-        }
-    </script>
+  <div class="bg-slate-900 rounded-xl p-8 border border-emerald-500/30 shadow-xl">
+    <h3 class="text-xl font-bold mb-4">Why Traders Choose This Bot</h3>
+    <ul class="space-y-3 text-gray-300">
+      <li>⚡ Instant tick execution</li>
+      <li>🧠 Smart martingale recovery</li>
+      <li>🛡 Built-in bankroll protection</li>
+      <li>🔐 Secure OAuth (no tokens)</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="text-center text-gray-500 py-8 border-t border-gray-700">
+  © 2025 DigitMatch Pro. Trading involves risk.
+</footer>
+
+<script>
+const APP_ID = 118190;
+const AFFILIATE_CODE = "YOUR_AFFILIATE_ID";   // ← SET THIS
+const BOT_URL = "https://yourdomain.com/bot.html"; // ← SET THIS
+
+const signupURL =
+  `https://deriv.com/signup?app_id=${APP_ID}&affiliate_token=${AFFILIATE_CODE}`;
+
+const oauthURL =
+  `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&scope=read,trade&redirect_uri=${BOT_URL}`;
+
+document.getElementById("signupBtn").href = signupURL;
+document.getElementById("loginBtn").href = oauthURL;
+document.getElementById("loginBtn2").href = oauthURL;
+</script>
+
 </body>
 </html>
