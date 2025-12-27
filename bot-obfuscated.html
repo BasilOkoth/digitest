@@ -370,8 +370,75 @@
 
     <script>
         // ============================================================================
-        // FIXED AUTHENTICATION CHECK - Simple and Flexible
+        // REAL/ACCOUNT TOGGLE FUNCTIONALITY
         // ============================================================================
+        
+        // 1. Initialize tokens from OAuth Login
+        window.DERIV_TOKEN = localStorage.getItem('active_token');
+        let allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
+        
+        // Set initial toggle state based on current token
+        function initializeToggleState() {
+            if (allAccounts.length > 0) {
+                // Find the current account type
+                const currentToken = window.DERIV_TOKEN;
+                const currentAccount = allAccounts.find(acc => acc.token === currentToken);
+                
+                if (currentAccount) {
+                    // VRTC accounts are Demo, others are Real
+                    const isReal = !currentAccount.account.startsWith('VR');
+                    document.getElementById('accTypeToggle').checked = isReal;
+                    log(`Initialized: ${isReal ? 'REAL' : 'DEMO'} account (${currentAccount.account})`, 'SYSTEM');
+                }
+            }
+        }
+
+        // 2. Real/Demo Toggle Logic
+        function switchAccount() {
+            const isRealRequested = document.getElementById('accTypeToggle').checked;
+            
+            // Find account matching the toggle (VRTC = Demo, CR/MLT = Real)
+            const targetAccount = allAccounts.find(acc => 
+                isRealRequested ? !acc.account.startsWith('VR') : acc.account.startsWith('VR')
+            );
+
+            if (targetAccount) {
+                window.DERIV_TOKEN = targetAccount.token;
+                localStorage.setItem('active_token', targetAccount.token);
+                log(`System: Switched to ${isRealRequested ? 'REAL' : 'DEMO'} (${targetAccount.account})`, 'SYSTEM');
+                
+                // If bot is running, stop and restart with new token
+                if (window.isBotRunning) {
+                    stopBot();
+                    setTimeout(() => startBot(), 1000);
+                }
+            } else {
+                alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found. Please login again.`);
+                // Revert toggle position
+                document.getElementById('accTypeToggle').checked = !isRealRequested;
+            }
+        }
+
+        // 3. Updated WebSocket Connection - Force App ID 118190
+        function connectWebSocket() {
+            // Force the use of App ID 118190
+            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=118190');
+            
+            window.ws.onopen = () => {
+                sendRequest({ authorize: window.DERIV_TOKEN, req_id: getNextReqId() });
+            };
+            
+            window.ws.onmessage = (msg) => {
+                const data = JSON.parse(msg.data);
+                handleAPIResponse(data);
+            };
+        }
+        
+        // ============================================================================
+        // ORIGINAL BOT CODE (with OAuth token integration)
+        // ============================================================================
+        
+        // FIXED AUTHENTICATION CHECK - Simple and Flexible
         (function checkAuth() {
             console.log('🔍 Bot: Checking authentication...');
             
@@ -421,8 +488,6 @@
         })();
         
         // GLOBAL STATE
-        // NEW: Pulls token automatically from the OAuth login process
-        window.DERIV_TOKEN = localStorage.getItem('derivToken') || '';
         window.ws = null;
         window.req_id = 0;
         window.isBotRunning = false;
@@ -517,6 +582,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🤖 Bot page loaded successfully');
             
+            // Initialize toggle state
+            initializeToggleState();
+            
             // Load saved settings
             window.soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
             updateSoundButton();
@@ -539,6 +607,7 @@
             log('🤖 Bot initialized. Strategy: Trade on each tick, stop on win!', 'SYSTEM');
             log('🎯 NEW: Instant tick execution - Trade on EVERY tick', 'INSTANT');
             log('✅ FIXED: Digit extraction now correctly handles 2 and 3 decimal places', 'SYSTEM');
+            log('🔄 REAL/DEMO toggle enabled - Switch between accounts in header', 'SYSTEM');
             
             // Start queue processor
             startQueueProcessor();
@@ -996,138 +1065,6 @@
         
         // --- WebSocket Handlers ---
 
-        function connectWebSocket() {
-            if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-                log('WebSocket already connected', 'WARNING');
-                return;
-            }
-
-            // Check if we have a token from localStorage/OAuth
-            if (!window.DERIV_TOKEN) {
-                log('❌ No authentication token found', 'CRITICAL');
-                showNotification('Please authenticate first via the portal', 'error');
-                stopBot();
-                return;
-            }
-            
-            startWebSocketKeepAlive();
-            
-            // NEW: Connection string updated to use App ID 118190
-            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=118190');
-
-            window.ws.onopen = () => {
-                log('🔌 WebSocket connected - INSTANT TICK EXECUTION MODE', 'SYSTEM');
-                statusBadge.textContent = 'Connected';
-                statusBadge.className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-green-600 text-white shadow-md';
-                sendRequest({ authorize: window.DERIV_TOKEN, req_id: getNextReqId() });
-            };
-
-            window.ws.onmessage = (msg) => {
-                try {
-                    const data = JSON.parse(msg.data);
-                    handleAPIResponse(data);
-                    window.lastPingTime = Date.now();
-                } catch (e) {
-                    console.error('WebSocket parse error:', e);
-                }
-            };
-
-            window.ws.onclose = () => {
-                log('🔌 WebSocket disconnected', 'ERROR');
-                statusBadge.textContent = 'Disconnected';
-                statusBadge.className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-red-600 text-white shadow-md';
-                window.ws = null;
-                window.tickSubscriptionSent = false;
-                stopWebSocketKeepAlive();
-                
-                if (window.isBotRunning) {
-                    log('🔄 Reconnecting in 500ms...', 'SYSTEM');
-                    setTimeout(connectWebSocket, 500);
-                }
-            };
-
-            window.ws.onerror = (error) => {
-                log(`❌ WebSocket Error`, 'CRITICAL');
-            };
-        }
-
-        function startWebSocketKeepAlive() {
-            stopWebSocketKeepAlive();
-            window.wsPingInterval = setInterval(() => {
-                if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-                    if (Date.now() - window.lastPingTime > 10000) {
-                        sendRequest({ ping: 1, req_id: getNextReqId() });
-                    }
-                }
-            }, 5000);
-        }
-
-        function stopWebSocketKeepAlive() {
-            if (window.wsPingInterval) {
-                clearInterval(window.wsPingInterval);
-                window.wsPingInterval = null;
-            }
-        }
-
-        function resetAllState() {
-            updateStake('initial');
-            
-            // Reset PnL data
-            window.startingBalance = 0.0;
-            window.currentBalance = 0.0;
-            window.netProfit = 0.0;
-            window.lastBalanceUpdate = 0;
-            
-            const profitElem = document.getElementById('metricTotalProfit');
-            profitElem.textContent = '$0.00';
-            profitElem.className = 'text-lg font-bold text-gray-300';
-            
-            document.getElementById('metricTradeCount').textContent = '0';
-            
-            const balanceElem = document.getElementById('metricAccountBalance');
-            balanceElem.textContent = '$---';
-            balanceElem.className = 'text-lg font-bold text-white';
-            
-            document.getElementById('metricLiveTick').textContent = '---';
-            document.getElementById('metricLastDigit').textContent = 'Digit: ?';
-            
-            window.stats = {
-                totalTicks: 0,
-                tradesExecuted: 0,
-                wins: 0,
-                losses: 0,
-                digitMatches: 0,
-                digitNonMatches: 0
-            };
-            
-            // Clear queue and history
-            window.tickQueue = [];
-            window.digitsHistory = [];
-            
-            window.lastTick = null;
-            window.lastTradeResult = null;
-            window.tradeCount = 0;
-            window.martingaleStep = 0;
-            window.pendingProposals.clear();
-            window.activeContracts.clear();
-            window.tickTimestamps = [];
-            
-            // Reset execution state
-            window.executionLock = false;
-            window.waitingForTradeResult = false;
-            window.nextTradeAllowed = true;
-            window.stopAfterWin = false;
-            window.currentlyProcessingTick = null;
-            
-            const logArea = document.getElementById('log-area');
-            logArea.innerHTML = '[00:00:00] 🤖 Starting INSTANT TICK EXECUTION. Trading on EVERY tick!';
-            
-            updateTradeResultStatus();
-            updateStrategyDisplay();
-            
-            log('🔄 ALL STATE RESET: Starting INSTANT TICK EXECUTION strategy', 'SYSTEM');
-        }
-
         function sendRequest(request) {
             if (window.ws && window.ws.readyState === WebSocket.OPEN) {
                 const message = JSON.stringify(request);
@@ -1364,47 +1301,6 @@
             }, 3000);
         }
 
-        // NEW: Handles the header toggle switch
-        function switchAccount() {
-            // Check for tokens from our dual account system
-            const demoToken = localStorage.getItem('deriv_demo_token');
-            const realToken = localStorage.getItem('deriv_real_token');
-            const isReal = document.getElementById('accTypeToggle').checked;
-            
-            // Try to get token from appropriate account type
-            if (isReal && realToken) {
-                window.DERIV_TOKEN = realToken;
-                localStorage.setItem('active_token', realToken);
-                localStorage.setItem('last_account_type', 'real');
-                log(`Account switched to REAL account`, 'SYSTEM');
-            } else if (!isReal && demoToken) {
-                window.DERIV_TOKEN = demoToken;
-                localStorage.setItem('active_token', demoToken);
-                localStorage.setItem('last_account_type', 'demo');
-                log(`Account switched to DEMO account`, 'SYSTEM');
-            } else {
-                // Fallback to checking both account types
-                const lastAccountType = localStorage.getItem('last_account_type') || 'demo';
-                const availableToken = lastAccountType === 'real' ? realToken : demoToken;
-                
-                if (availableToken) {
-                    window.DERIV_TOKEN = availableToken;
-                    log(`Using ${lastAccountType.toUpperCase()} account token`, 'SYSTEM');
-                } else {
-                    alert(`No ${isReal ? 'Real' : 'Demo'} account token found. Please login via portal.`);
-                    document.getElementById('accTypeToggle').checked = !isReal;
-                    return;
-                }
-            }
-            
-            // Restart bot if it's running
-            if (window.isBotRunning) {
-                log('Restarting bot with new account...', 'SYSTEM');
-                stopBot();
-                setTimeout(() => startBot(), 1000);
-            }
-        }
-
         function toggleBot() {
             if (window.isBotRunning) {
                 stopBot();
@@ -1416,22 +1312,11 @@
         function startBot() {
             if (window.isBotRunning) return;
 
-            // Check if we have a valid token
+            // Check if we have a valid token from the OAuth system
             if (!window.DERIV_TOKEN) {
-                // Try to get token from localStorage
-                const activeToken = localStorage.getItem('active_token') || 
-                                  localStorage.getItem('derivToken') || 
-                                  localStorage.getItem('deriv_demo_token') ||
-                                  localStorage.getItem('deriv_real_token');
-                
-                if (activeToken) {
-                    window.DERIV_TOKEN = activeToken;
-                    log('✅ Using stored authentication token', 'SYSTEM');
-                } else {
-                    log('❌ No authentication token found', 'CRITICAL');
-                    showNotification('Please authenticate via the portal first', 'error');
-                    return;
-                }
+                log('❌ No authentication token found', 'CRITICAL');
+                showNotification('Please authenticate via the portal first', 'error');
+                return;
             }
             
             resetAllState();
@@ -1450,6 +1335,65 @@
                 control.disabled = true;
                 control.classList.add('opacity-50', 'cursor-not-allowed');
             });
+        }
+
+        function resetAllState() {
+            updateStake('initial');
+            
+            // Reset PnL data
+            window.startingBalance = 0.0;
+            window.currentBalance = 0.0;
+            window.netProfit = 0.0;
+            window.lastBalanceUpdate = 0;
+            
+            const profitElem = document.getElementById('metricTotalProfit');
+            profitElem.textContent = '$0.00';
+            profitElem.className = 'text-lg font-bold text-gray-300';
+            
+            document.getElementById('metricTradeCount').textContent = '0';
+            
+            const balanceElem = document.getElementById('metricAccountBalance');
+            balanceElem.textContent = '$---';
+            balanceElem.className = 'text-lg font-bold text-white';
+            
+            document.getElementById('metricLiveTick').textContent = '---';
+            document.getElementById('metricLastDigit').textContent = 'Digit: ?';
+            
+            window.stats = {
+                totalTicks: 0,
+                tradesExecuted: 0,
+                wins: 0,
+                losses: 0,
+                digitMatches: 0,
+                digitNonMatches: 0
+            };
+            
+            // Clear queue and history
+            window.tickQueue = [];
+            window.digitsHistory = [];
+            
+            window.lastTick = null;
+            window.lastTradeResult = null;
+            window.tradeCount = 0;
+            window.martingaleStep = 0;
+            window.pendingProposals.clear();
+            window.activeContracts.clear();
+            window.tickTimestamps = [];
+            
+            // Reset execution state
+            window.executionLock = false;
+            window.waitingForTradeResult = false;
+            window.nextTradeAllowed = true;
+            window.stopAfterWin = false;
+            window.currentlyProcessingTick = null;
+            
+            const logArea = document.getElementById('log-area');
+            logArea.innerHTML = '[00:00:00] 🤖 Starting INSTANT TICK EXECUTION. Trading on EVERY tick!';
+            
+            updateTradeResultStatus();
+            updateStrategyDisplay();
+            
+            log('🔄 ALL STATE RESET: Starting INSTANT TICK EXECUTION strategy', 'SYSTEM');
         }
 
         function stopBot() {
@@ -1485,6 +1429,25 @@
             document.getElementById('status-badge').textContent = 'Disconnected';
             document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-red-600 text-white shadow-md';
             updateTradeResultStatus();
+        }
+        
+        // WebSocket keep-alive functions
+        function startWebSocketKeepAlive() {
+            stopWebSocketKeepAlive();
+            window.wsPingInterval = setInterval(() => {
+                if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+                    if (Date.now() - window.lastPingTime > 10000) {
+                        sendRequest({ ping: 1, req_id: getNextReqId() });
+                    }
+                }
+            }, 5000);
+        }
+
+        function stopWebSocketKeepAlive() {
+            if (window.wsPingInterval) {
+                clearInterval(window.wsPingInterval);
+                window.wsPingInterval = null;
+            }
         }
         
     </script>
