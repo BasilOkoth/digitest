@@ -6,42 +6,153 @@
     <title>DigitMatchStars Pro™ - Secure Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; background-color: #111827; }</style>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #111827;
+            background-image: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 55%);
+        }
+        .glow { text-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
+    </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-6">
-    <div class="bg-gray-800 p-8 md:p-12 rounded-3xl border border-gray-700 w-full max-w-md shadow-2xl text-center">
-        <h2 class="text-4xl font-black text-green-400 mb-2 tracking-tighter uppercase">DigitMatchStars</h2>
-        <p class="text-gray-400 mb-8 text-xs uppercase tracking-widest font-bold">Authorized Trading Terminal</p>
-        
-        <div class="space-y-4">
-            <button onclick="login()" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl transition transform active:scale-95 flex items-center justify-center gap-3 shadow-lg">
-                AUTHENTICATE ACCOUNT
-            </button>
-            
-            <div class="relative py-4">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-700"></div></div>
-                <div class="relative flex justify-center text-xs uppercase"><span class="bg-gray-800 px-3 text-gray-500 font-bold">New to DigitMatchStars?</span></div>
-            </div>
-
-            <a href="https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl text-center transition transform active:scale-95 shadow-lg">
-                CREATE DERIV ACCOUNT
-            </a>
-            <p class="text-[10px] text-gray-400 px-4 leading-tight italic uppercase">Create account via the link above, then return here to authenticate.</p>
+    <div class="bg-gray-800 p-8 md:p-12 rounded-3xl border border-green-500/30 w-full max-w-md shadow-2xl text-center relative overflow-hidden">
+        <!-- Background pattern -->
+        <div class="absolute inset-0 opacity-5">
+            <div class="absolute top-0 left-0 w-32 h-32 border-2 border-green-500 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+            <div class="absolute bottom-0 right-0 w-32 h-32 border-2 border-green-500 rounded-full translate-x-1/2 translate-y-1/2"></div>
         </div>
-        <p class="text-[10px] text-gray-500 mt-10 uppercase tracking-widest font-bold opacity-40">Secured via App ID: 118190</p>
+        
+        <div class="relative z-10">
+            <div class="mb-6">
+                <div class="text-5xl mb-2">🤖</div>
+                <h2 class="text-4xl font-black text-green-400 mb-2 tracking-tighter uppercase glow">DigitMatchStars Pro™</h2>
+                <p class="text-gray-400 mb-2 text-xs uppercase tracking-widest font-bold">INSTANT TICK EXECUTION</p>
+                <p class="text-green-300/80 text-sm font-semibold">Martingale Trading Bot</p>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <button onclick="login()" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-black py-4 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-green-900/30">
+                        🔐 AUTHENTICATE DERIV ACCOUNT
+                    </button>
+                    <p class="text-[10px] text-green-400 mt-2 font-medium">No API Token Required • Automatic Login</p>
+                </div>
+                
+                <div class="relative py-4">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-700"></div></div>
+                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-gray-800 px-3 text-gray-500 font-bold">New to Deriv?</span></div>
+                </div>
+
+                <div>
+                    <a href="https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/" target="_blank" class="block w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-black py-4 rounded-2xl text-center transition-all duration-300 transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-900/30">
+                        📝 CREATE DERIV ACCOUNT
+                    </a>
+                    <p class="text-[10px] text-gray-400 mt-2 px-4 leading-tight">Create account via the link above, then return here to authenticate</p>
+                </div>
+                
+                <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700/50">
+                    <p class="text-gray-300 text-sm font-bold mb-2">⚡ Features:</p>
+                    <div class="grid grid-cols-2 gap-2 text-left">
+                        <div class="flex items-center text-xs text-green-400">
+                            <span class="mr-1">✓</span> Instant Tick Execution
+                        </div>
+                        <div class="flex items-center text-xs text-green-400">
+                            <span class="mr-1">✓</span> Martingale Strategy
+                        </div>
+                        <div class="flex items-center text-xs text-green-400">
+                            <span class="mr-1">✓</span> Demo/Real Toggle
+                        </div>
+                        <div class="flex items-center text-xs text-green-400">
+                            <span class="mr-1">✓</span> Auto-Login
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-6 border-t border-gray-700/50">
+                <div class="flex justify-center items-center space-x-4 mb-3">
+                    <div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <p class="text-[11px] text-gray-400 uppercase tracking-widest font-bold">Secure Connection Established</p>
+                    <div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold opacity-60">App ID: 118190 • Encrypted Session</p>
+            </div>
+        </div>
     </div>
 
     <script>
         const APP_ID = 118190;
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
+        const SCOPE = 'read,trade';
 
         function login() {
+            // Determine account type (demo or real)
+            const accountType = localStorage.getItem('preferred_account_type') || 'demo';
+            const isDemo = accountType === 'demo';
+            
+            // Use different app_id for demo vs real (as per Deriv's requirements)
+            const effectiveAppId = isDemo ? 1089 : APP_ID;
+            
             // Redirect to Deriv OAuth 2.0 flow
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv`;
+            const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${effectiveAppId}&l=en&brand=deriv&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=${SCOPE}`;
+            
+            console.log('Redirecting to OAuth:', oauthUrl);
+            window.location.href = oauthUrl;
         }
 
         function handleDerivRedirect() {
             const params = new URLSearchParams(window.location.search);
+            const hash = window.location.hash.substring(1);
+            const hashParams = new URLSearchParams(hash);
+            
+            console.log('Checking for OAuth response...');
+            console.log('URL params:', Object.fromEntries(params));
+            console.log('Hash params:', Object.fromEntries(hashParams));
+            
+            // Check for token in URL parameters (OAuth response)
+            const token = hashParams.get('access_token') || params.get('token');
+            
+            if (token) {
+                console.log('Token received from OAuth:', token.substring(0, 20) + '...');
+                
+                // Get account type from URL or localStorage
+                const accountType = params.get('account_type') || 
+                                   hashParams.get('account_type') || 
+                                   localStorage.getItem('preferred_account_type') || 
+                                   'demo';
+                
+                // Get additional account info if available
+                const accountInfo = {
+                    token: token,
+                    account_type: accountType,
+                    login_id: params.get('loginid') || hashParams.get('loginid') || 'Unknown',
+                    currency: params.get('currency') || hashParams.get('currency') || 'USD',
+                    timestamp: Date.now()
+                };
+                
+                // Save to localStorage for the bot to use
+                localStorage.setItem('deriv_auth_token', token);
+                localStorage.setItem('deriv_account_type', accountType);
+                localStorage.setItem('deriv_account_info', JSON.stringify(accountInfo));
+                localStorage.setItem('deriv_auth_time', Date.now().toString());
+                
+                console.log('Authentication successful, redirecting to bot...');
+                
+                // Clear URL parameters to prevent token exposure
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Redirect to bot-authentication.html
+                setTimeout(() => {
+                    window.location.href = 'bot-authentication.html'; // UPDATED: Now directs to bot-authentication.html
+                }, 500);
+                
+                return true;
+            }
+            
+            // Also check for old-style token parameters (for backward compatibility)
             if (params.has('token1')) {
+                console.log('Old-style token parameters detected');
                 const accounts = [];
                 for (let i = 1; i <= 10; i++) {
                     const token = params.get(`token${i}`);
@@ -53,12 +164,64 @@
                         });
                     }
                 }
-                // Store tokens and immediately move to the bot
-                localStorage.setItem('bot_auth_session', JSON.stringify(accounts));
-                window.location.href = 'bot-obfuscated.html';
+                
+                if (accounts.length > 0) {
+                    localStorage.setItem('bot_auth_session', JSON.stringify(accounts));
+                    localStorage.setItem('deriv_auth_token', accounts[0].token);
+                    localStorage.setItem('deriv_account_type', 'real'); // Old style usually real accounts
+                    
+                    // Clear URL parameters
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    
+                    setTimeout(() => {
+                        window.location.href = 'bot-authentication.html'; // UPDATED: Now directs to bot-authentication.html
+                    }, 500);
+                    
+                    return true;
+                }
             }
+            
+            // Check for stored session (auto-login)
+            const storedToken = localStorage.getItem('deriv_auth_token');
+            const authTime = parseInt(localStorage.getItem('deriv_auth_time') || '0');
+            const isSessionValid = storedToken && (Date.now() - authTime) < (24 * 60 * 60 * 1000); // 24 hours
+            
+            if (isSessionValid) {
+                console.log('Valid session found, auto-redirecting to bot...');
+                setTimeout(() => {
+                    window.location.href = 'bot-authentication.html'; // UPDATED: Now directs to bot-authentication.html
+                }, 1000);
+            }
+            
+            return false;
         }
-        window.onload = handleDerivRedirect;
+
+        // Handle page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Portal loaded, checking authentication...');
+            
+            // Set default preferred account type to demo
+            if (!localStorage.getItem('preferred_account_type')) {
+                localStorage.setItem('preferred_account_type', 'demo');
+            }
+            
+            // Handle OAuth redirect
+            handleDerivRedirect();
+            
+            // Add click handlers for account type selection
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-account-type]')) {
+                    const accountType = e.target.closest('[data-account-type]').dataset.accountType;
+                    localStorage.setItem('preferred_account_type', accountType);
+                    
+                    // Visual feedback
+                    document.querySelectorAll('[data-account-type]').forEach(el => {
+                        el.classList.remove('border-2', 'border-green-500');
+                    });
+                    e.target.closest('[data-account-type]').classList.add('border-2', 'border-green-500');
+                }
+            });
+        });
     </script>
 </body>
 </html>
