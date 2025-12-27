@@ -3,140 +3,137 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>DigitMatch Pro - Fast Execution</title>
+    <title>Martingale Bot - INSTANT TICK EXECUTION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         #log-area::-webkit-scrollbar { width: 4px; }
         #log-area::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 2px; }
         #log-area::-webkit-scrollbar-track { background: #374151; }
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
-        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        body { font-family: 'Inter', sans-serif; background-color: #111827; }
+        @keyframes pulse-once { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.9; } 100% { transform: scale(1); opacity: 1; } }
+        .tick-flash { animation: pulse-once 0.1s ease-out; }
+        .queue-indicator { animation: pulse-once 0.3s ease-out; }
+        @keyframes win-pulse { 0% { box-shadow: 0 0 5px #10B981; } 50% { box-shadow: 0 0 20px #10B981; } 100% { box-shadow: 0 0 5px #10B981; } }
+        .win-glow { animation: win-pulse 1s infinite; }
         .contract-type-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; margin-left: 5px; }
         .stop-button-active { background-color: #dc2626 !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .profit-green { color: #10B981 !important; font-weight: bold; }
-        .profit-red { color: #ef4444 !important; font-weight: bold; }
     </style>
 </head>
 <body class="min-h-screen p-4 flex items-start justify-center">
 
-    <div class="w-full max-w-5xl glass-card rounded-2xl p-6">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-700 pb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-green-400">DigitMatch Pro</h1>
-                <p class="text-xs text-gray-400">App ID: 118190 | OAuth Mode</p>
+    <div class="w-full max-w-5xl bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-6">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-800 pb-4">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                    <i class="fas fa-robot text-white text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-green-400">DigitMatch Pro</h1>
+                    <p id="display-account" class="text-xs text-gray-500 font-mono">---</p>
+                </div>
             </div>
             
             <div class="flex items-center gap-3">
-                <select id="accType" onchange="switchAccount(this.value)" class="bg-gray-700 text-white rounded-lg px-3 py-1.5 text-sm border border-gray-600 focus:ring-2 focus:ring-green-500">
+                <select id="accType" onchange="switchAccount(this.value)" class="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:ring-2 focus:ring-green-500 outline-none">
                     <option value="demo">Demo Account</option>
                     <option value="real">Real Account</option>
                 </select>
-                <button id="soundToggle" onclick="toggleSound()" class="px-3 py-1.5 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600">🔊 Sound</button>
-                <span id="status-badge" class="px-3 py-1.5 text-xs font-bold rounded-full bg-red-600 text-white shadow-md">Disconnected</span>
+                <button id="soundToggle" onclick="toggleSound()" class="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700 border border-gray-700">🔊 Sound</button>
+                <span id="status-badge" class="px-3 py-2 text-xs font-bold rounded-full bg-red-600 text-white shadow-md">Disconnected</span>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div id="controls-section" class="md:col-span-2 grid grid-cols-2 gap-4">
-                <div class="col-span-2 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-                    <p class="text-xs text-blue-300">Logged in as: <span id="display-account" class="font-bold text-white">---</span></p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Market Symbol</label>
-                    <select id="symbol" class="block w-full rounded-md bg-gray-800 border-gray-700 text-white py-2 px-2 text-sm">
-                        <option value="R_10">V. 10 Index</option>
-                        <option value="R_100">V. 100 Index</option>
-                        <option value="R_25">V. 25 Index</option>
-                        <option value="R_50">V. 50 Index</option>
-                        <option value="R_75">V. 75 Index</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Predicted Digit (0-9)</label>
-                    <input type="number" id="predictedDigit" value="5" min="0" max="9" class="block w-full rounded-md bg-gray-800 border-gray-700 text-white py-2 px-2 text-sm text-center">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Base Stake ($)</label>
-                    <input type="number" id="baseStake" value="1.0" step="0.1" class="block w-full rounded-md bg-gray-800 border-gray-700 text-white py-2 px-2 text-sm">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Martingale Multiplier</label>
-                    <input type="number" id="multiplier" value="1.15" step="0.01" class="block w-full rounded-md bg-gray-800 border-gray-700 text-white py-2 px-2 text-sm">
-                </div>
-
-                <div class="col-span-2">
-                    <div class="p-4 bg-gray-800/50 rounded-xl border border-gray-700">
-                        <p class="text-xs text-green-400 font-bold mb-1">⚡ INSTANT EXECUTION MODE</p>
-                        <p class="text-[10px] text-gray-400">The bot will evaluate every tick. Manual authentication is disabled. Using Deriv OAuth Protocol.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-4">
-                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                    <p class="text-[10px] font-bold text-gray-500 uppercase">Live Balance</p>
-                    <p id="metricAccountBalance" class="text-2xl font-bold">$0.00</p>
-                    <div class="flex justify-between mt-2 pt-2 border-t border-gray-700">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div id="controls-section" class="lg:col-span-4 space-y-4">
+                <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-4 tracking-wider">Trading Parameters</h3>
+                    <div class="space-y-3">
                         <div>
-                            <p class="text-[9px] text-gray-500 uppercase">Net P/L</p>
-                            <p id="metricTotalProfit" class="text-sm font-bold">$0.00</p>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Market Symbol</label>
+                            <select id="symbol" class="block w-full rounded-lg bg-gray-900 border-gray-700 text-white py-2.5 px-3 text-sm">
+                                <option value="R_10">Volatility 10 Index</option>
+                                <option value="R_25">Volatility 25 Index</option>
+                                <option value="R_50">Volatility 50 Index</option>
+                                <option value="R_75">Volatility 75 Index</option>
+                                <option value="R_100">Volatility 100 Index</option>
+                                <option value="1HZ10V">Volatility 10 (1s) Index</option>
+                                <option value="1HZ100V">Volatility 100 (1s) Index</option>
+                            </select>
                         </div>
-                        <div class="text-right">
-                            <p class="text-[9px] text-gray-500 uppercase">Current Tick</p>
-                            <p id="metricLiveTick" class="text-sm font-bold text-green-400">---</p>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Predicted Digit (0-9)</label>
+                            <input type="number" id="predictedDigit" value="5" min="0" max="9" class="block w-full rounded-lg bg-gray-900 border-gray-700 text-white py-2.5 px-3 text-sm text-center">
                         </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                    <p class="text-[10px] font-bold text-gray-500 uppercase">Bot Performance</p>
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <div class="bg-gray-900/50 p-2 rounded text-center">
-                            <p class="text-[9px] text-gray-500">TRADES</p>
-                            <p id="metricTradeCount" class="text-lg font-bold">0</p>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Base Stake ($)</label>
+                            <input type="number" id="baseStake" value="1.0" step="0.1" class="block w-full rounded-lg bg-gray-900 border-gray-700 text-white py-2.5 px-3 text-sm">
                         </div>
-                        <div class="bg-gray-900/50 p-2 rounded text-center">
-                            <p class="text-[9px] text-gray-500">STAKE</p>
-                            <p id="metricCurrentStake" class="text-lg font-bold text-blue-400">$0.00</p>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Martingale Multiplier</label>
+                            <input type="number" id="multiplier" value="1.15" step="0.01" class="block w-full rounded-lg bg-gray-900 border-gray-700 text-white py-2.5 px-3 text-sm">
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="my-6">
-            <button id="toggleButton" onclick="toggleBot()" class="w-full py-4 bg-green-600 text-white font-bold text-xl rounded-xl shadow-lg hover:bg-green-700 transition">
-                START BOT
-            </button>
-        </div>
 
-        <div id="log-column" class="w-full flex flex-col">
-            <h2 class="text-sm font-bold text-gray-500 mb-2 uppercase tracking-widest">Transaction Log</h2>
-            <div id="log-area" class="h-64 bg-gray-950 text-lime-400 p-4 rounded-xl overflow-y-scroll text-[11px] font-mono shadow-inner border border-gray-800">
-                [SYSTEM] Waiting for connection...
+            <div class="lg:col-span-8 space-y-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-800/60 p-4 rounded-xl border border-gray-700">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Balance</p>
+                        <p id="metricAccountBalance" class="text-xl font-bold">$0.00</p>
+                    </div>
+                    <div class="bg-gray-800/60 p-4 rounded-xl border border-gray-700">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Total Profit</p>
+                        <p id="metricTotalProfit" class="text-xl font-bold">$0.00</p>
+                    </div>
+                    <div class="bg-gray-800/60 p-4 rounded-xl border border-gray-700">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Current Stake</p>
+                        <p id="metricCurrentStake" class="text-xl font-bold text-blue-400">$0.00</p>
+                    </div>
+                    <div id="tick-container" class="bg-gray-900 p-4 rounded-xl border border-green-500/30">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Live Tick</p>
+                        <p id="metricLiveTick" class="text-xl font-bold text-green-400 font-mono">---</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900/50 rounded-xl border border-gray-800 p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xs font-bold text-gray-500 uppercase">Transaction Activity</h2>
+                        <span id="metricTradeCount" class="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-400">0 TRADES</span>
+                    </div>
+                    <div id="log-area" class="h-64 bg-black/40 text-green-500 p-4 rounded-lg overflow-y-auto text-[11px] font-mono border border-gray-800/50 whitespace-pre-wrap">
+                        [SYSTEM] Ready to trade.
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="toggleButton" onclick="toggleBot()" class="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-xl transition-all shadow-lg active:scale-95">
+                        START TRADING
+                    </button>
+                    <button id="clearLogs" onclick="document.getElementById('log-area').innerHTML = '[SYSTEM] Log cleared.';" class="w-full py-4 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl border border-gray-700 transition-all">
+                        CLEAR LOGS
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- AUTH & ACCOUNT LOGIC ---
+        // --- AUTH & ACCOUNT INITIALIZATION ---
         (function checkAuth() {
             const token = localStorage.getItem('derivToken');
             const account = localStorage.getItem('active_account');
             if (!token) {
                 window.location.href = 'index.html';
+                return;
             }
             window.DERIV_TOKEN = token;
             document.addEventListener('DOMContentLoaded', () => {
-                document.getElementById('display-account').textContent = account || 'Unknown';
+                document.getElementById('display-account').textContent = account || 'Unknown Account';
                 // Set the dropdown to match the account type
-                if(account && account.startsWith('VRTC')) {
+                if(account && (account.startsWith('VRTC') || account.startsWith('VRW'))) {
                     document.getElementById('accType').value = 'demo';
                 } else {
                     document.getElementById('accType').value = 'real';
@@ -147,7 +144,7 @@
         function switchAccount(type) {
             const accounts = JSON.parse(localStorage.getItem('deriv_accounts') || '[]');
             const target = accounts.find(a => 
-                type === 'demo' ? a.account.startsWith('VRTC') : !a.account.startsWith('VRTC')
+                type === 'demo' ? (a.account.startsWith('VRTC') || a.account.startsWith('VRW')) : (!a.account.startsWith('VRTC') && !a.account.startsWith('VRW'))
             );
             
             if (target) {
@@ -155,7 +152,7 @@
                 localStorage.setItem('active_account', target.account);
                 location.reload(); 
             } else {
-                alert(`No ${type} account found. Please connect an account with ${type} access.`);
+                alert(`No ${type} account found. Please connect an account with ${type} access via Deriv login.`);
                 document.getElementById('accType').value = (type === 'demo' ? 'real' : 'demo');
             }
         }
@@ -168,16 +165,34 @@
         window.startingBalance = 0;
         window.netProfit = 0;
         window.executionLock = false;
-        window.stopAfterWin = false;
         window.soundEnabled = true;
         window.ToneInitialized = false;
         window.synth = null;
 
-        // --- CORE FUNCTIONS ---
+        // --- AUDIO ---
+        async function initTone() {
+            if (window.ToneInitialized) return;
+            await Tone.start();
+            window.synth = new Tone.Synth().toDestination();
+            window.ToneInitialized = true;
+        }
+
+        function playAudio(type) {
+            if (!window.soundEnabled || !window.synth) return;
+            if (type === 'WIN') window.synth.triggerAttackRelease("C6", "8n");
+            if (type === 'LOSS') window.synth.triggerAttackRelease("G2", "8n");
+        }
+
+        function toggleSound() {
+            window.soundEnabled = !window.soundEnabled;
+            document.getElementById('soundToggle').textContent = window.soundEnabled ? '🔊 Sound' : '🔇 Muted';
+        }
+
+        // --- LOGIC ---
         function extractLastDigit(price) {
             const symbol = document.getElementById('symbol').value;
-            const decimalPlaces = (symbol === 'R_100') ? 2 : 3;
-            const formatted = price.toFixed(decimalPlaces);
+            const decimalPlaces = (symbol.includes('100')) ? 2 : 3;
+            const formatted = parseFloat(price).toFixed(decimalPlaces);
             return formatted.charAt(formatted.length - 1);
         }
 
@@ -190,16 +205,14 @@
             window.isBotRunning = true;
             window.tradeCount = 0;
             window.executionLock = false;
-            window.stopAfterWin = false;
             window.currentStake = parseFloat(document.getElementById('baseStake').value);
             
-            document.getElementById('log-area').innerHTML = "[SYSTEM] Bot started. Mode: Instant Execution.";
+            document.getElementById('log-area').innerHTML = "[SYSTEM] Bot started. Monitoring ticks...";
             updateButtonState();
             connectWebSocket();
             initTone();
             
-            // Disable inputs
-            document.querySelectorAll('input, select:not(#accType)').forEach(el => el.disabled = true);
+            document.querySelectorAll('#controls-section input, #controls-section select').forEach(el => el.disabled = true);
         }
 
         function stopBot() {
@@ -207,36 +220,32 @@
             updateButtonState();
             if (window.ws) window.ws.close();
             log('⏹️ Bot stopped manually', 'SYSTEM');
-            document.querySelectorAll('input, select').forEach(el => el.disabled = false);
+            document.querySelectorAll('#controls-section input, #controls-section select').forEach(el => el.disabled = false);
         }
 
         function updateButtonState() {
             const btn = document.getElementById('toggleButton');
             if (window.isBotRunning) {
-                btn.textContent = 'STOP BOT';
+                btn.textContent = 'STOP TRADING';
                 btn.classList.add('stop-button-active');
             } else {
-                btn.textContent = 'START BOT';
+                btn.textContent = 'START TRADING';
                 btn.classList.remove('stop-button-active');
             }
         }
 
         function connectWebSocket() {
+            // App ID 118190 as requested
             window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=118190');
             
             window.ws.onopen = () => {
                 sendRequest({ authorize: window.DERIV_TOKEN });
                 document.getElementById('status-badge').textContent = 'Connected';
-                document.getElementById('status-badge').className = 'px-3 py-1.5 text-xs font-bold rounded-full bg-green-600 text-white';
+                document.getElementById('status-badge').className = 'px-3 py-2 text-xs font-bold rounded-full bg-green-600 text-white shadow-md';
             };
 
             window.ws.onmessage = (msg) => {
                 const data = JSON.parse(msg.data);
-                if (data.error) {
-                    log(`Error: ${data.error.message}`, 'ERROR');
-                    stopBot();
-                    return;
-                }
                 
                 if (data.msg_type === 'authorize') {
                     sendRequest({ balance: 1, subscribe: 1 });
@@ -245,47 +254,42 @@
                     const bal = parseFloat(data.balance.balance);
                     if (window.startingBalance === 0) window.startingBalance = bal;
                     window.netProfit = bal - window.startingBalance;
-                    document.getElementById('metricAccountBalance').textContent = `$${bal.toFixed(2)}`;
-                    const profitEl = document.getElementById('metricTotalProfit');
-                    profitEl.textContent = `$${window.netProfit.toFixed(2)}`;
-                    profitEl.className = window.netProfit >= 0 ? 'text-sm font-bold profit-green' : 'text-sm font-bold profit-red';
+                    document.getElementById('metricAccountBalance').textContent = `$${bal.toLocaleString()}`;
+                    const pEl = document.getElementById('metricTotalProfit');
+                    pEl.textContent = `$${window.netProfit.toFixed(2)}`;
+                    pEl.className = window.netProfit >= 0 ? 'text-xl font-bold text-green-400' : 'text-xl font-bold text-red-400';
                 } else if (data.msg_type === 'tick') {
                     handleTick(data.tick);
                 } else if (data.msg_type === 'buy') {
-                    log(`✅ Trade #${window.tradeCount} placed: $${window.currentStake}`, 'TRADE');
-                    // Simple martingale logic: increase stake immediately after buying (as if it's a loss)
-                    // If a win is detected by the tick sensor, the bot stops.
-                    const mult = parseFloat(document.getElementById('multiplier').value);
-                    window.currentStake = parseFloat((window.currentStake * mult).toFixed(2));
-                    document.getElementById('metricCurrentStake').textContent = `$${window.currentStake}`;
+                    log(`🛒 BUY SUCCESS: $${window.currentStake} Stake`, 'TRADE');
+                } else if (data.msg_type === 'proposal_open_contract' && data.proposal_open_contract.is_sold) {
+                    handleContractResult(data.proposal_open_contract);
                 }
             };
         }
 
         function handleTick(tick) {
-            const digit = extractLastDigit(parseFloat(tick.quote));
+            const digit = extractLastDigit(tick.quote);
             const predicted = document.getElementById('predictedDigit').value;
+            
+            const container = document.getElementById('tick-container');
+            container.classList.remove('tick-flash');
+            void container.offsetWidth; 
+            container.classList.add('tick-flash');
             
             document.getElementById('metricLiveTick').textContent = tick.quote;
             
             if (!window.isBotRunning || window.executionLock) return;
 
-            // Check for Win (Digit matches)
-            if (digit === predicted) {
-                log(`🎯 WIN DETECTED! Digit ${digit} matched.`, 'STRATEGY');
-                playAudio('WIN');
-                stopBot();
-                return;
-            }
-
-            // Execute Trade if no win
+            // Direct trade logic (Removed Queue)
             executeTrade();
         }
 
         function executeTrade() {
             window.executionLock = true;
             window.tradeCount++;
-            document.getElementById('metricTradeCount').textContent = window.tradeCount;
+            document.getElementById('metricTradeCount').textContent = `${window.tradeCount} TRADES`;
+            document.getElementById('metricCurrentStake').textContent = `$${window.currentStake.toFixed(2)}`;
             
             const req = {
                 buy: 1,
@@ -304,9 +308,21 @@
             };
             
             sendRequest(req);
-            
-            // Release lock after 1 second to prevent overlapping trades on very fast ticks
-            setTimeout(() => { window.executionLock = false; }, 1000);
+        }
+
+        function handleContractResult(contract) {
+            const profit = parseFloat(contract.profit);
+            if (profit > 0) {
+                log(`🎯 WIN: +$${profit.toFixed(2)}`, 'WIN');
+                playAudio('WIN');
+                window.currentStake = parseFloat(document.getElementById('baseStake').value);
+            } else {
+                log(`❌ LOSS: $${Math.abs(profit).toFixed(2)}`, 'LOSS');
+                playAudio('LOSS');
+                const multiplier = parseFloat(document.getElementById('multiplier').value);
+                window.currentStake = parseFloat((window.currentStake * multiplier).toFixed(2));
+            }
+            window.executionLock = false; 
         }
 
         function sendRequest(req) {
@@ -318,25 +334,9 @@
         function log(msg, type) {
             const area = document.getElementById('log-area');
             const time = new Date().toLocaleTimeString();
-            area.innerHTML += `\n[${time}] ${msg}`;
+            const colorClass = type === 'WIN' ? 'text-green-400' : type === 'LOSS' ? 'text-red-400' : 'text-blue-300';
+            area.innerHTML += `\n<span class="text-gray-600">[${time}]</span> <span class="${colorClass}">${msg}</span>`;
             area.scrollTop = area.scrollHeight;
-        }
-
-        async function initTone() {
-            if (window.ToneInitialized) return;
-            await Tone.start();
-            window.synth = new Tone.Synth().toDestination();
-            window.ToneInitialized = true;
-        }
-
-        function playAudio(type) {
-            if (!window.soundEnabled || !window.synth) return;
-            if (type === 'WIN') window.synth.triggerAttackRelease("C6", "8n");
-        }
-
-        function toggleSound() {
-            window.soundEnabled = !window.soundEnabled;
-            document.getElementById('soundToggle').textContent = window.soundEnabled ? '🔊 Sound' : '🔇 Muted';
         }
     </script>
 </body>
