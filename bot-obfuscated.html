@@ -419,10 +419,10 @@
             }
         }
 
-        // 3. Updated WebSocket Connection - Force App ID 118190
+        // 3. Updated WebSocket Connection - Force App ID 118332
         function connectWebSocket() {
-            // Force the use of App ID 118190
-            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=118190');
+            // Force the use of App ID 118332
+            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=118332');
             
             window.ws.onopen = () => {
                 sendRequest({ authorize: window.DERIV_TOKEN, req_id: getNextReqId() });
