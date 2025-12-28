@@ -196,6 +196,12 @@
             background: linear-gradient(90deg, #7f1d1d, #991b1b) !important;
             border: 2px solid #ef4444 !important;
         }
+        /* Debug info */
+        .debug-info {
+            font-size: 10px;
+            color: #888;
+            font-family: monospace;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -259,6 +265,13 @@
                             <div class="text-cyan-300 font-bold mb-1">Prediction Analysis:</div>
                             <div class="text-gray-300">Waiting for enough ticks...</div>
                         </div>
+                        
+                        <!-- DEBUG: Show current digit history -->
+                        <div id="debug_info" class="mt-3 p-2 bg-gray-900 rounded text-xs debug-info hidden">
+                            <div>Last 5 digits: <span id="last_digits_display">[]</span></div>
+                            <div>Total ticks: <span id="total_ticks_display">0</span></div>
+                            <div>Analysis state: <span id="analysis_state_display">inactive</span></div>
+                        </div>
                     </div>
                     
                     <!-- Trading Session Control -->
@@ -294,6 +307,11 @@
                         <button onclick="startSmartSession()" 
                             class="w-full px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition mb-3">
                             🚀 START SMART SESSION
+                        </button>
+                        
+                        <button onclick="toggleDebug()" 
+                            class="w-full px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700 transition mb-3">
+                            🔧 TOGGLE DEBUG
                         </button>
                         
                         <div id="session_status" class="p-2 bg-gray-900 rounded text-center text-sm">
@@ -502,13 +520,15 @@
         
         /************ GLOBAL STATE ************/
         let lastDigits = [];
-        let TICK_WINDOW = 20;  // default - user can change
+        let TICK_WINDOW = 20;
+        let debugMode = false;
         
         let analysisState = {
             suggestedDigit: null,
             reason: "",
             frequency: Array(10).fill(0),
-            digits: []
+            digits: [],
+            lastUpdate: 0
         };
         
         let sessionState = {
@@ -519,14 +539,31 @@
             baseStake: 1.0,
             currentStake: 1.0,
             martingale: 1.15,
-            mode: 'instant' // 'instant' or 'smart'
+            mode: 'instant'
         };
+        
+        /************ DEBUG FUNCTIONS ************/
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugInfo = document.getElementById('debug_info');
+            debugInfo.classList.toggle('hidden');
+            log(`🔧 Debug mode ${debugMode ? 'ENABLED' : 'DISABLED'}`, 'DEBUG');
+        }
+        
+        function updateDebugInfo() {
+            if (!debugMode) return;
+            
+            const last5 = lastDigits.slice(-5);
+            document.getElementById('last_digits_display').textContent = JSON.stringify(last5);
+            document.getElementById('total_ticks_display').textContent = lastDigits.length;
+            document.getElementById('analysis_state_display').textContent = 
+                analysisState.suggestedDigit !== null ? `digit ${analysisState.suggestedDigit}` : 'waiting';
+        }
         
         /************ MODE MANAGEMENT ************/
         function switchMode(mode) {
             sessionState.mode = mode;
             
-            // Update button styles
             document.getElementById('mode_instant').classList.remove('bg-green-600', 'bg-blue-600');
             document.getElementById('mode_smart').classList.remove('bg-green-600', 'bg-blue-600');
             
@@ -542,7 +579,6 @@
                 log('🔄 Switched to SMART MODE: Analyzing before trading', 'SYSTEM');
             }
             
-            // Update execution logic
             updateExecutionLogic();
         }
         
@@ -553,8 +589,8 @@
             } else if (sessionState.mode === 'smart' && analysisState.suggestedDigit !== null) {
                 log(`🧠 SMART MODE: Analysis complete. Trading on digit ${analysisState.suggestedDigit}`, 'ANALYSIS');
                 window.nextTradeAllowed = true;
-                // Update predicted digit with analysis suggestion
                 document.getElementById('predictedDigit').value = analysisState.suggestedDigit;
+                document.getElementById('digit_input').value = analysisState.suggestedDigit;
             } else if (sessionState.mode === 'instant') {
                 window.nextTradeAllowed = true;
             }
@@ -578,51 +614,72 @@
             
             log(`📊 Analysis window set to ${TICK_WINDOW} ticks`, 'ANALYSIS');
             
-            // Update execution logic if in smart mode
             if (sessionState.mode === 'smart') {
                 updateExecutionLogic();
             }
         });
         
-        /************ MAIN TICK HANDLER (Integrated with existing bot) ************/
-        function handleTickWithAnalysis(tick) {
-            const digit = parseInt(tick.digit);
-            
-            // Update analysis system
-            updateLastDigits(digit);
-            updateTickProgressUI();
-            
-            // Update statistics
-            document.getElementById("stat_ticks_collected").textContent = lastDigits.length;
-            
-            // Analyze when window is full
-            if (lastDigits.length === TICK_WINDOW) {
-                analysisState = analyzeWindow(lastDigits);
-                updatePredictionUI(analysisState);
+        /************ MAIN TICK PROCESSING (FIXED) ************/
+        function processTickForAnalysis(tick) {
+            try {
+                const digit = parseInt(tick.digit);
                 
-                // Update statistics display
-                const missingCount = analysisState.frequency.filter(f => f === 0).length;
-                document.getElementById("stat_missing_digits").textContent = missingCount;
+                // Validate digit
+                if (isNaN(digit) || digit < 0 || digit > 9) {
+                    if (debugMode) console.log('Invalid digit received:', tick.digit);
+                    return;
+                }
                 
-                const mostFreqIndex = analysisState.frequency.indexOf(Math.max(...analysisState.frequency));
-                document.getElementById("stat_most_frequent").textContent = mostFreqIndex;
+                // Update digit history
+                updateLastDigits(digit);
                 
-                // If in smart mode, update execution logic
-                if (sessionState.mode === 'smart') {
-                    updateExecutionLogic();
+                // Update UI immediately
+                updateTickProgressUI();
+                updateDebugInfo();
+                
+                // Update statistics
+                document.getElementById("stat_ticks_collected").textContent = lastDigits.length;
+                
+                // Log for debugging
+                if (debugMode && lastDigits.length % 5 === 0) {
+                    console.log(`Analysis: Collected ${lastDigits.length}/${TICK_WINDOW} ticks. Last digit: ${digit}`);
+                }
+                
+                // Analyze when window is full
+                if (lastDigits.length === TICK_WINDOW) {
+                    analysisState = analyzeWindow(lastDigits);
+                    updatePredictionUI(analysisState);
                     
-                    // If analysis suggests a digit and session is active, update target
-                    if (sessionState.active && analysisState.suggestedDigit !== null) {
-                        sessionState.targetDigit = analysisState.suggestedDigit;
-                        document.getElementById('digit_input').value = analysisState.suggestedDigit;
-                        log(`🧠 Analysis updated target digit to ${analysisState.suggestedDigit}`, 'ANALYSIS');
+                    // Update statistics display
+                    const missingCount = analysisState.frequency.filter(f => f === 0).length;
+                    document.getElementById("stat_missing_digits").textContent = missingCount;
+                    
+                    const mostFreqIndex = analysisState.frequency.indexOf(Math.max(...analysisState.frequency));
+                    document.getElementById("stat_most_frequent").textContent = mostFreqIndex;
+                    
+                    // If in smart mode, update execution logic
+                    if (sessionState.mode === 'smart') {
+                        updateExecutionLogic();
+                        
+                        // If analysis suggests a digit and session is active, update target
+                        if (sessionState.active && analysisState.suggestedDigit !== null) {
+                            sessionState.targetDigit = analysisState.suggestedDigit;
+                            document.getElementById('digit_input').value = analysisState.suggestedDigit;
+                            log(`🧠 Analysis updated target digit to ${analysisState.suggestedDigit}`, 'ANALYSIS');
+                        }
                     }
                 }
-            }
-            
-            // Handle active session
-            if (sessionState.active) {
-                handleActiveSession();
+                
+                // Handle active session
+                if (sessionState.active && window.isBotRunning) {
+                    handleActiveSession();
+                }
+                
+            } catch (error) {
+                console.error('Error in processTickForAnalysis:', error);
+                if (debugMode) {
+                    log(`❌ Analysis error: ${error.message}`, 'ERROR');
+                }
             }
         }
         
@@ -643,43 +700,59 @@
         
         /************ ANALYZE WINDOW ************/
         function analyzeWindow(digits) {
-            const freq = Array(10).fill(0);
-            digits.forEach(d => freq[d]++);
-            
-            const freqThreshold = Math.ceil(TICK_WINDOW * 0.30);
-            
-            // Find missing digits
-            const missing = freq.map((c, d) => c === 0 ? d : null).filter(v => v !== null);
-            if (missing.length > 0) {
-                const suggestedDigit = missing[Math.floor(Math.random() * missing.length)];
+            try {
+                const freq = Array(10).fill(0);
+                digits.forEach(d => {
+                    if (d >= 0 && d <= 9) freq[d]++;
+                });
+                
+                const freqThreshold = Math.ceil(TICK_WINDOW * 0.30);
+                
+                // Find missing digits
+                const missing = freq.map((c, d) => c === 0 ? d : null).filter(v => v !== null);
+                if (missing.length > 0) {
+                    const suggestedDigit = missing[Math.floor(Math.random() * missing.length)];
+                    return {
+                        suggestedDigit: suggestedDigit,
+                        reason: `Digit ${suggestedDigit} missing in last ${TICK_WINDOW} ticks`,
+                        frequency: freq,
+                        digits: [...digits],
+                        lastUpdate: Date.now()
+                    };
+                }
+                
+                // Find least frequent digits (less than threshold)
+                const infrequent = freq.map((c, d) => c < freqThreshold ? d : null).filter(v => v !== null);
+                if (infrequent.length > 0) {
+                    const suggestedDigit = infrequent[Math.floor(Math.random() * infrequent.length)];
+                    return {
+                        suggestedDigit: suggestedDigit,
+                        reason: `Digit ${suggestedDigit} appears only ${freq[suggestedDigit]} times (below ${freqThreshold} threshold)`,
+                        frequency: freq,
+                        digits: [...digits],
+                        lastUpdate: Date.now()
+                    };
+                }
+                
+                // Default: most frequent digit
+                const mostFrequent = freq.indexOf(Math.max(...freq));
                 return {
-                    suggestedDigit: suggestedDigit,
-                    reason: `Digit ${suggestedDigit} missing in last ${TICK_WINDOW} ticks`,
+                    suggestedDigit: mostFrequent,
+                    reason: `Digit ${mostFrequent} is most frequent (${freq[mostFrequent]} times)`,
                     frequency: freq,
-                    digits: [...digits]
+                    digits: [...digits],
+                    lastUpdate: Date.now()
+                };
+            } catch (error) {
+                console.error('Error in analyzeWindow:', error);
+                return {
+                    suggestedDigit: 5,
+                    reason: "Analysis error - using default digit 5",
+                    frequency: Array(10).fill(0),
+                    digits: [],
+                    lastUpdate: Date.now()
                 };
             }
-            
-            // Find least frequent digits (less than threshold)
-            const infrequent = freq.map((c, d) => c < freqThreshold ? d : null).filter(v => v !== null);
-            if (infrequent.length > 0) {
-                const suggestedDigit = infrequent[Math.floor(Math.random() * infrequent.length)];
-                return {
-                    suggestedDigit: suggestedDigit,
-                    reason: `Digit ${suggestedDigit} appears only ${freq[suggestedDigit]} times (below ${freqThreshold} threshold)`,
-                    frequency: freq,
-                    digits: [...digits]
-                };
-            }
-            
-            // Default: most frequent digit
-            const mostFrequent = freq.indexOf(Math.max(...freq));
-            return {
-                suggestedDigit: mostFrequent,
-                reason: `Digit ${mostFrequent} is most frequent (${freq[mostFrequent]} times)`,
-                frequency: freq,
-                digits: [...digits]
-            };
         }
         
         /************ UPDATE PREDICTION UI ************/
@@ -705,7 +778,6 @@
                 <div class="text-xs text-gray-400">Based on last ${TICK_WINDOW} ticks</div>
             `;
             
-            // Visual feedback
             box.classList.add('analysis-complete');
             setTimeout(() => box.classList.remove('analysis-complete'), 1000);
             
@@ -720,6 +792,12 @@
             if (c < TICK_WINDOW) {
                 box.innerHTML = `<span class="text-cyan-400">⏳ Collecting...</span> (${c} / ${TICK_WINDOW})`;
                 box.className = "mb-4 p-2 bg-gray-800 rounded text-center text-sm";
+                
+                // Show current digit being collected
+                if (c > 0) {
+                    const lastDigit = lastDigits[c - 1];
+                    box.innerHTML += `<br><span class="text-xs text-gray-400">Last digit: ${lastDigit}</span>`;
+                }
             } else {
                 box.innerHTML = `<span class="text-green-400">📊 Window Full</span> → Analyzing (${TICK_WINDOW})`;
                 box.className = "mb-4 p-2 bg-gray-800 rounded text-center text-sm analysis-active";
@@ -733,13 +811,11 @@
                 return;
             }
             
-            // Get values from inputs
             const digit = Number(document.getElementById("digit_input").value);
             const maxTrades = Number(document.getElementById("max_trades").value);
             const baseStake = Number(document.getElementById("base_stake").value);
             const martingale = Number(document.getElementById("martingale").value);
             
-            // Validation
             if (digit < 0 || digit > 9) {
                 alert("Please enter a digit between 0-9");
                 return;
@@ -760,7 +836,6 @@
                 return;
             }
             
-            // Set session state
             sessionState.active = true;
             sessionState.targetDigit = digit;
             sessionState.maxTrades = maxTrades;
@@ -769,18 +844,15 @@
             sessionState.martingale = martingale;
             sessionState.tradesDone = 0;
             
-            // Update bot parameters
             document.getElementById('predictedDigit').value = digit;
             document.getElementById('maxTrades').value = maxTrades;
             document.getElementById('baseStake').value = baseStake;
             document.getElementById('multiplier').value = martingale;
             
-            // Update UI
             updateSessionUI("ACTIVE", `Smart Session Started - Target: ${digit}`);
             
             log(`🚀 SMART SESSION STARTED: Target digit ${digit}, Max ${maxTrades} trades, Stake $${baseStake}`, 'SESSION');
             
-            // If in smart mode and analysis isn't complete, warn user
             if (sessionState.mode === 'smart' && !analysisState.suggestedDigit) {
                 log('⚠️ SMART MODE: Waiting for analysis completion before trading begins', 'ANALYSIS');
             }
@@ -799,28 +871,23 @@
         
         /************ ACTIVE SESSION LOOP ************/
         function handleActiveSession() {
-            // Check if we should trade
             if (!window.isBotRunning || !window.nextTradeAllowed || window.executionLock) {
                 return;
             }
             
-            // Check max trades
             if (sessionState.tradesDone >= sessionState.maxTrades) {
                 endSession("Max Trades Reached — Stopped");
                 return;
             }
             
-            // Check if we have a win condition (from main bot)
             if (window.stopAfterWin) {
                 endSession("WIN — Stopped");
                 return;
             }
             
-            // Place trade using main bot's execution system
             placeSmartTrade();
             sessionState.tradesDone++;
             
-            // Update session UI
             updateSessionUI("ACTIVE", 
                 `Trade #${sessionState.tradesDone}/${sessionState.maxTrades} | Stake: $${sessionState.currentStake.toFixed(2)}`);
         }
@@ -829,17 +896,12 @@
         function placeSmartTrade() {
             if (!sessionState.active || !window.isBotRunning) return;
             
-            // Update main bot's stake
             window.currentStake = sessionState.currentStake;
             document.getElementById('metricCurrentStake').textContent = `$${window.currentStake.toFixed(2)}`;
             
-            // Set the predicted digit in main bot
             document.getElementById('predictedDigit').value = sessionState.targetDigit;
             
             log(`🧠 SMART TRADE #${sessionState.tradesDone + 1}: Digit ${sessionState.targetDigit}, Stake $${sessionState.currentStake.toFixed(2)}`, 'SMART');
-            
-            // The actual trade will be executed by the main bot's tick processing
-            // We just need to ensure the parameters are set
         }
         
         /************ UPDATE SESSION UI ************/
@@ -873,7 +935,7 @@
         }
         
         // ============================================================================
-        // ORIGINAL BOT CODE (Integrated with Analysis Engine)
+        // ORIGINAL BOT CODE (FIXED INTEGRATION)
         // ============================================================================
         
         // Initialize tokens from OAuth Login
@@ -950,20 +1012,6 @@
             }
             
             console.log('⚠️ Bot: No API token found. Manual mode enabled.');
-            
-            setTimeout(() => {
-                const notification = document.createElement('div');
-                notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-yellow-600 text-white rounded-lg shadow-lg z-50';
-                notification.innerHTML = `
-                    <div class="flex items-center">
-                        <span class="mr-2">⚠️</span>
-                        <span>Please enter your Deriv API token to start trading</span>
-                    </div>
-                `;
-                document.body.appendChild(notification);
-                
-                setTimeout(() => notification.remove(), 5000);
-            }, 1000);
         })();
         
         // GLOBAL STATE
@@ -1086,14 +1134,20 @@
             switchMode('instant');
         });
         
-        // MODIFIED TICK HANDLER WITH ANALYSIS INTEGRATION
+        // FIXED TICK HANDLER - NOW PROPERLY INTEGRATED WITH ANALYSIS
         function handleTick(tick) {
             if (!window.isBotRunning) return;
             
             const price = parseFloat(tick.quote);
             const digit = extractLastDigitBySymbol(price);
             const time = parseInt(tick.epoch) * 1000;
-            const tickData = { digit: digit, price: price, time: time };
+            const tickData = { 
+                digit: digit, 
+                price: price, 
+                time: time,
+                quote: tick.quote,
+                epoch: tick.epoch
+            };
             
             // Store tick data
             window.lastTick = tickData;
@@ -1108,18 +1162,19 @@
             window.tickTimestamps.push(Date.now());
             window.stats.totalTicks++;
             
-            // Send tick to analysis engine
-            handleTickWithAnalysis(tickData);
+            // IMPORTANT: Send tick to analysis engine
+            processTickForAnalysis(tickData);
             
             // Add tick to queue (for instant mode)
             addTickToQueue(tickData);
             
             playAudioFeedback('TICK');
             
-            // Log first few ticks
-            if (window.stats.totalTicks <= 5) {
-                const symbol = document.getElementById('symbol').value;
+            // Log ticks for debugging
+            if (window.stats.totalTicks <= 10) {
                 log(`🎯 Tick ${window.stats.totalTicks}: ${displayPrice} (Digit ${digit})`, 'TICK');
+            } else if (window.stats.totalTricks % 50 === 0) {
+                log(`📊 ${window.stats.totalTicks} ticks processed`, 'TICK');
             }
         }
         
@@ -1129,9 +1184,9 @@
             
             // Check mode restrictions
             if (sessionState.mode === 'smart' && !analysisState.suggestedDigit) {
-                // In smart mode, wait for analysis
-                if (window.stats.totalTicks % 10 === 0) { // Log every 10th tick to avoid spam
-                    log('🧠 SMART MODE: Waiting for analysis completion...', 'ANALYSIS');
+                // Log progress every 10 ticks
+                if (window.stats.totalTicks % 10 === 0) {
+                    log(`🧠 SMART MODE: Collected ${lastDigits.length}/${TICK_WINDOW} ticks...`, 'ANALYSIS');
                 }
                 return;
             }
@@ -1292,12 +1347,14 @@
             analysisState.suggestedDigit = null;
             updateTickProgressUI();
             updatePredictionUI(analysisState);
+            updateDebugInfo();
             
             window.isBotRunning = true;
             updateButtonState();
             
             if (sessionState.mode === 'smart') {
                 log('🚀 SMART ANALYSIS Bot started. Waiting for analysis...', 'STRATEGY');
+                log(`📊 Analysis will begin after ${TICK_WINDOW} ticks`, 'ANALYSIS');
             } else {
                 log('🚀 INSTANT TICK EXECUTION Bot started. Trading on EVERY tick!', 'STRATEGY');
             }
@@ -1334,6 +1391,7 @@
             // Final PnL calculation
             log(`📊 FINAL PnL: $${window.netProfit.toFixed(2)} (Balance: $${window.currentBalance.toFixed(2)} - Starting: $${window.startingBalance.toFixed(2)})`, 'PNL');
             log(`📈 Performance: ${window.stats.wins} wins, ${window.stats.losses} losses, ${window.tradeCount} total trades`, 'STATS');
+            log(`📊 Analysis collected ${lastDigits.length} digits`, 'ANALYSIS');
             
             stopWebSocketKeepAlive();
             
@@ -1466,6 +1524,7 @@
             if (type === 'ANALYSIS') color = 'text-cyan-300 font-bold';
             if (type === 'SMART') color = 'text-blue-300 font-bold';
             if (type === 'SESSION') color = 'text-purple-300 font-bold';
+            if (type === 'DEBUG') color = 'text-gray-400 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
