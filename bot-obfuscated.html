@@ -119,6 +119,20 @@
         .account-label-real {
             color: #10b981;
         }
+        .profit-positive {
+            color: #10b981 !important;
+        }
+        .profit-negative {
+            color: #ef4444 !important;
+        }
+        .profit-neutral {
+            color: #d1d5db !important;
+        }
+        .session-digit-locked {
+            background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
+            border: 2px solid #3b82f6 !important;
+            color: white !important;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -215,6 +229,29 @@
                             <div class="text-cyan-300 font-bold mb-1">Prediction Analysis:</div>
                             <div class="text-gray-300" id="prediction_text">Connect to market first</div>
                         </div>
+                        
+                        <!-- Session Status Display -->
+                        <div id="session_display" class="mt-4 p-3 bg-gray-800 rounded border border-blue-500/30 hidden">
+                            <h3 class="text-sm font-bold text-blue-300 mb-2">Active Session</h3>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs text-gray-300">Digit:</div>
+                                    <div id="session_digit" class="text-xl font-bold text-green-400">-</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-300">Mode:</div>
+                                    <div id="session_mode" class="text-sm font-bold text-blue-400">-</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-300">Trades:</div>
+                                    <div id="session_trades" class="text-sm font-bold text-yellow-400">0/10</div>
+                                </div>
+                            </div>
+                            <button id="new_analysis_btn" onclick="startNewAnalysis()" 
+                                class="mt-2 w-full px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
+                                🔄 Run New Analysis
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -310,7 +347,7 @@
                     
                     <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
                         <p class="text-[10px] font-semibold text-lime-400 uppercase">P/L</p>
-                        <p id="metricTotalProfit" class="text-lg font-bold text-gray-300">$0.00</p>
+                        <p id="metricTotalProfit" class="text-lg font-bold profit-neutral">$0.00</p>
                     </div>
                     
                     <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
@@ -368,7 +405,6 @@
         window.soundEnabled = true;
         window.ToneInitialized = false;
         window.synth = null;
-        window.audioContext = null;
         
         // Trading State
         window.baseStake = 1.0;
@@ -381,6 +417,14 @@
         window.startingBalance = 0.0;
         window.currentBalance = 0.0;
         window.netProfit = 0.0;
+        
+        // PnL Tracking
+        window.pnlTracker = {
+            totalInvestment: 0.0,
+            totalPayout: 0.0,
+            netProfit: 0.0,
+            trades: []
+        };
         
         // Execution State
         window.lastTick = null;
@@ -416,12 +460,16 @@
         // Session State
         let sessionState = {
             active: false,
-            mode: 'instant'
+            mode: 'instant',
+            sessionDigit: null,          // Digit locked for current session
+            sessionStarted: false,       // Whether session has started
+            manualOverride: false        // Whether user manually changed digit
         };
         
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
         const soundToggleButton = document.getElementById('soundToggle');
+        const sessionDisplay = document.getElementById('session_display');
         
         // Check for authentication token
         function checkAuthToken() {
@@ -470,6 +518,174 @@
                 alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found`);
                 document.getElementById('accTypeToggle').checked = !isRealRequested;
             }
+        }
+        
+        // ============================================================================
+        // PnL CALCULATION FUNCTIONS
+        // ============================================================================
+        
+        function updatePnL() {
+            const pnlElem = document.getElementById('metricTotalProfit');
+            
+            // Calculate net profit based on balance change
+            if (window.startingBalance > 0 && window.currentBalance > 0) {
+                window.netProfit = window.currentBalance - window.startingBalance;
+                
+                // Format and display
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                
+                // Set color based on profit/loss
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) {
+                    pnlElem.classList.add('profit-positive');
+                } else if (isNegative) {
+                    pnlElem.classList.add('profit-negative');
+                } else {
+                    pnlElem.classList.add('profit-neutral');
+                }
+                
+                return window.netProfit;
+            }
+            
+            // If we have PnL tracker data, use that
+            if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
+                window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
+                
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) {
+                    pnlElem.classList.add('profit-positive');
+                } else if (isNegative) {
+                    pnlElem.classList.add('profit-negative');
+                } else {
+                    pnlElem.classList.add('profit-neutral');
+                }
+                
+                return window.netProfit;
+            }
+            
+            // Default display
+            pnlElem.textContent = '$0.00';
+            pnlElem.classList.remove('profit-positive', 'profit-negative');
+            pnlElem.classList.add('profit-neutral');
+            return 0;
+        }
+        
+        function trackTradeInvestment(amount) {
+            window.pnlTracker.totalInvestment += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'investment',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            
+            updatePnL();
+            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function trackTradePayout(amount) {
+            window.pnlTracker.totalPayout += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'payout',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            
+            updatePnL();
+            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function resetPnL() {
+            window.pnlTracker = {
+                totalInvestment: 0.0,
+                totalPayout: 0.0,
+                netProfit: 0.0,
+                trades: []
+            };
+            
+            window.startingBalance = 0.0;
+            window.currentBalance = 0.0;
+            window.netProfit = 0.0;
+            
+            updatePnL();
+            log('💰 PnL reset', 'PNL');
+        }
+        
+        // ============================================================================
+        // SESSION MANAGEMENT
+        // ============================================================================
+        
+        function startNewAnalysis() {
+            if (!window.isBotRunning) {
+                log('❌ Bot is not running', 'ERROR');
+                return;
+            }
+            
+            if (sessionState.sessionStarted && window.tradeCount > 0) {
+                const confirmReset = confirm('⚠️ Starting new analysis will reset current session. Continue?');
+                if (!confirmReset) return;
+            }
+            
+            // Reset analysis
+            analysisDigits = [];
+            analysisComplete = false;
+            suggestedDigit = null;
+            sessionState.sessionDigit = null;
+            sessionState.manualOverride = false;
+            
+            // Reset prediction box
+            document.getElementById('prediction_text').textContent = 'Running new analysis...';
+            document.getElementById('prediction_box').classList.remove('analysis-complete');
+            
+            // Update UI
+            updateAnalysisUI('?');
+            
+            log('🔄 Starting new analysis...', 'ANALYSIS');
+            
+            // Hide session display temporarily
+            sessionDisplay.classList.add('hidden');
+        }
+        
+        function updateSessionDisplay() {
+            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
+                document.getElementById('session_digit').textContent = sessionState.sessionDigit;
+                document.getElementById('session_mode').textContent = sessionState.mode.toUpperCase();
+                document.getElementById('session_trades').textContent = `${window.tradeCount}/${window.maxTrades}`;
+                sessionDisplay.classList.remove('hidden');
+            } else {
+                sessionDisplay.classList.add('hidden');
+            }
+        }
+        
+        function lockSessionDigit(digit) {
+            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
+                log(`🔒 Digit ${digit} is already locked for this session`, 'SESSION');
+                return sessionState.sessionDigit;
+            }
+            
+            sessionState.sessionDigit = digit;
+            sessionState.sessionStarted = true;
+            sessionState.manualOverride = false;
+            
+            // Update predicted digit input
+            document.getElementById('predictedDigit').value = digit;
+            
+            // Update UI
+            updateSessionDisplay();
+            
+            log(`🔒 Digit ${digit} locked for current session`, 'SESSION');
+            return digit;
         }
         
         // ============================================================================
@@ -535,7 +751,8 @@
                 
                 updateAnalysisUI(digit);
                 
-                if (analysisDigits.length >= analysisWindowSize) {
+                // Only perform new analysis if session is not active
+                if (!sessionState.sessionStarted && analysisDigits.length >= analysisWindowSize) {
                     performAnalysis();
                 }
                 
@@ -570,6 +787,12 @@
         function performAnalysis() {
             if (analysisDigits.length < analysisWindowSize) return;
             
+            // If session is already active, don't change the digit
+            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
+                log(`🔒 Session active - digit ${sessionState.sessionDigit} remains locked`, 'SESSION');
+                return;
+            }
+            
             try {
                 const freq = Array(10).fill(0);
                 analysisDigits.forEach(d => {
@@ -600,9 +823,12 @@
                 analysisComplete = true;
                 updatePredictionBox();
                 
-                if (sessionState.mode === 'smart') {
-                    updateExecutionLogic();
+                // Lock the digit if in smart mode
+                if (sessionState.mode === 'smart' && suggestedDigit !== null) {
+                    lockSessionDigit(suggestedDigit);
                 }
+                
+                updateExecutionLogic();
                 
             } catch (error) {
                 console.error('Analysis error:', error);
@@ -618,6 +844,13 @@
                     <div class="text-xs text-gray-300">Based on ${analysisWindowSize} market ticks</div>
                 `;
                 box.classList.add('analysis-complete');
+            } else if (sessionState.sessionDigit !== null) {
+                box.innerHTML = `
+                    <div class="text-cyan-300 font-bold mb-1">Session Digit:</div>
+                    <div class="text-xl font-bold mb-2 text-center session-digit-locked px-3 py-1 rounded-lg">${sessionState.sessionDigit}</div>
+                    <div class="text-xs text-gray-300">Locked for current session</div>
+                `;
+                box.classList.add('analysis-complete');
             }
         }
         
@@ -625,13 +858,19 @@
             const newSize = parseInt(document.getElementById('tick_window_input').value);
             if (newSize >= 3 && newSize <= 100) {
                 analysisWindowSize = newSize;
-                analysisDigits = [];
-                analysisComplete = false;
-                suggestedDigit = null;
                 
-                log(`📊 Analysis window: ${newSize} ticks`, 'ANALYSIS');
-                updateAnalysisUI('?');
-                document.getElementById('prediction_text').textContent = 'Waiting for market data...';
+                // Only reset analysis if session hasn't started
+                if (!sessionState.sessionStarted) {
+                    analysisDigits = [];
+                    analysisComplete = false;
+                    suggestedDigit = null;
+                    
+                    log(`📊 Analysis window: ${newSize} ticks`, 'ANALYSIS');
+                    updateAnalysisUI('?');
+                    document.getElementById('prediction_text').textContent = 'Waiting for market data...';
+                } else {
+                    log(`📊 Analysis window updated to ${newSize} (digit remains locked)`, 'ANALYSIS');
+                }
             }
         });
         
@@ -652,23 +891,43 @@
                 document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick';
                 log('🔄 Switched to INSTANT mode', 'SYSTEM');
                 window.nextTradeAllowed = true;
+                
+                // In instant mode, use manual digit input
+                if (window.isBotRunning && !sessionState.manualOverride) {
+                    const manualDigit = parseInt(document.getElementById('predictedDigit').value);
+                    if (!isNaN(manualDigit) && manualDigit >= 0 && manualDigit <= 9) {
+                        sessionState.sessionDigit = manualDigit;
+                        sessionState.sessionStarted = true;
+                        sessionState.manualOverride = true;
+                        updateSessionDisplay();
+                        updatePredictionBox();
+                        log(`🔒 Digit ${manualDigit} set manually for instant mode`, 'SESSION');
+                    }
+                }
             } else {
                 document.getElementById('mode_smart').classList.add('bg-green-600');
                 document.getElementById('mode_instant').classList.add('bg-blue-600');
                 document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade';
                 log('🔄 Switched to SMART mode', 'SYSTEM');
-                updateExecutionLogic();
+                
+                // If session already has a digit, keep it
+                if (sessionState.sessionDigit !== null) {
+                    log(`🔒 Using locked digit ${sessionState.sessionDigit}`, 'SESSION');
+                    updateExecutionLogic();
+                } else {
+                    updateExecutionLogic();
+                }
             }
         }
         
         function updateExecutionLogic() {
-            if (sessionState.mode === 'smart' && !analysisComplete) {
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
                 log('🧠 Waiting for analysis...', 'ANALYSIS');
                 window.nextTradeAllowed = false;
-            } else if (sessionState.mode === 'smart' && analysisComplete && suggestedDigit !== null) {
-                log(`🧠 Ready! Digit: ${suggestedDigit}`, 'ANALYSIS');
+            } else if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
+                log(`🧠 Ready! Using locked digit: ${sessionState.sessionDigit}`, 'SESSION');
                 window.nextTradeAllowed = true;
-                document.getElementById('predictedDigit').value = suggestedDigit;
+                document.getElementById('predictedDigit').value = sessionState.sessionDigit;
             } else if (sessionState.mode === 'instant') {
                 window.nextTradeAllowed = true;
             }
@@ -697,6 +956,30 @@
             
             log('🤖 Bot ready', 'SYSTEM');
             switchMode('instant');
+            
+            // Initialize PnL display
+            updatePnL();
+            
+            // Add event listener for manual digit change
+            document.getElementById('predictedDigit').addEventListener('change', function() {
+                const newDigit = parseInt(this.value);
+                if (!isNaN(newDigit) && newDigit >= 0 && newDigit <= 9) {
+                    if (sessionState.sessionStarted) {
+                        const confirmChange = confirm('⚠️ Changing digit will reset current session. Continue?');
+                        if (!confirmChange) {
+                            this.value = sessionState.sessionDigit || 5;
+                            return;
+                        }
+                    }
+                    
+                    sessionState.sessionDigit = newDigit;
+                    sessionState.sessionStarted = true;
+                    sessionState.manualOverride = true;
+                    updateSessionDisplay();
+                    updatePredictionBox();
+                    log(`🔢 Digit manually set to ${newDigit}`, 'SESSION');
+                }
+            });
         });
         
         // WEBSOCKET CONNECTION - USING ONLY APP ID 118332
@@ -772,7 +1055,7 @@
         function handleTick(tick) {
             if (!window.isBotRunning) return;
             
-            // Process for analysis
+            // Process for analysis (but don't change prediction during session)
             processTickForAnalysis(tick);
             
             // Original bot logic
@@ -817,7 +1100,7 @@
         function processTickImmediately(tick) {
             if (window.stopAfterWin) return;
             
-            if (sessionState.mode === 'smart' && !analysisComplete) {
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
                 return;
             }
             
@@ -839,6 +1122,9 @@
                 window.tradeCount++;
                 document.getElementById('metricTradeCount').textContent = window.tradeCount;
                 
+                // Update session display
+                updateSessionDisplay();
+                
                 log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
                 
                 playAudioFeedback('EXECUTION');
@@ -854,13 +1140,19 @@
         function executeTrade(tick) {
             const contractType = document.getElementById('contractType').value;
             const symbol = document.getElementById('symbol').value;
-            let predictedDigit = parseInt(document.getElementById('predictedDigit').value);
+            let predictedDigit;
+            
+            // Use the locked session digit if available
+            if (sessionState.sessionDigit !== null) {
+                predictedDigit = sessionState.sessionDigit;
+            } else {
+                predictedDigit = parseInt(document.getElementById('predictedDigit').value);
+            }
+            
             let stake = window.currentStake;
             
-            // In smart mode, use suggested digit
-            if (sessionState.mode === 'smart' && suggestedDigit !== null) {
-                predictedDigit = suggestedDigit;
-            }
+            // Track investment for PnL
+            trackTradeInvestment(stake);
             
             const proposalRequest = {
                 proposal: 1,
@@ -895,6 +1187,12 @@
                 window.martingaleStep = 0;
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
+                
+                // Calculate payout for win
+                const payout = window.currentStake * 9; // DIGITMATCH pays 9x
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
                 if (window.martingaleStep >= window.maxTrades) {
@@ -914,6 +1212,9 @@
             const stakeElem = document.getElementById('metricCurrentStake');
             stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
             stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
+            
+            // Update PnL after stake change
+            updatePnL();
         }
         
         // START/STOP BOT
@@ -933,12 +1234,20 @@
             
             resetAllState();
             
-            // Reset analysis
+            // Reset analysis (but keep manual digit if set)
             analysisDigits = [];
             analysisComplete = false;
-            suggestedDigit = null;
+            if (!sessionState.manualOverride) {
+                suggestedDigit = null;
+            }
             totalTicksReceived = 0;
             tickTimestamps = [];
+            
+            // Reset session state if no manual override
+            if (!sessionState.manualOverride) {
+                sessionState.sessionDigit = null;
+                sessionState.sessionStarted = false;
+            }
             
             window.isBotRunning = true;
             updateButtonState();
@@ -957,6 +1266,9 @@
                 control.disabled = true;
                 control.classList.add('opacity-50', 'cursor-not-allowed');
             });
+            
+            // Enable new analysis button
+            document.getElementById('new_analysis_btn').disabled = false;
         }
         
         function stopBot() {
@@ -983,7 +1295,18 @@
                 control.classList.remove('opacity-50', 'cursor-not-allowed');
             });
             
+            // Disable new analysis button
+            document.getElementById('new_analysis_btn').disabled = true;
+            
             updateConnectionStatus();
+            
+            // Display final PnL
+            const finalPnL = updatePnL();
+            log(`💰 Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`, 'PNL');
+            
+            // Reset session state
+            sessionState.sessionStarted = false;
+            sessionDisplay.classList.add('hidden');
         }
         
         function toggleBot() {
@@ -1074,6 +1397,8 @@
             if (type === 'TICK') color = 'text-cyan-300';
             if (type === 'SYSTEM') color = 'text-white';
             if (type === 'ANALYSIS') color = 'text-cyan-300 font-bold';
+            if (type === 'PNL') color = 'text-purple-300 font-bold';
+            if (type === 'SESSION') color = 'text-blue-300 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
@@ -1108,8 +1433,8 @@
             if (!window.isBotRunning || window.stopAfterWin) return false;
             
             let predictedDigit;
-            if (sessionState.mode === 'smart' && suggestedDigit !== null) {
-                predictedDigit = suggestedDigit;
+            if (sessionState.sessionDigit !== null) {
+                predictedDigit = sessionState.sessionDigit;
             } else {
                 predictedDigit = parseInt(document.getElementById('predictedDigit').value);
             }
@@ -1125,6 +1450,12 @@
                 window.tradeCount++;
                 
                 playAudioFeedback('WIN');
+                
+                // Calculate and track payout
+                const payout = window.currentStake * 9; // DIGITMATCH pays 9x
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
                 updateStake('win');
                 
                 return true;
@@ -1187,11 +1518,14 @@
             
             if (window.startingBalance === 0) {
                 window.startingBalance = newBalance;
-                log(`💰 Balance: $${window.startingBalance.toFixed(2)}`, 'SYSTEM');
+                log(`💰 Starting Balance: $${window.startingBalance.toFixed(2)}`, 'PNL');
             }
             
             window.currentBalance = newBalance;
             document.getElementById('metricAccountBalance').textContent = `$${window.currentBalance.toFixed(2)}`;
+            
+            // Update PnL when balance changes
+            updatePnL();
         }
         
         function subscribeToTicks(symbol) {
@@ -1252,6 +1586,9 @@
             window.executionLock = false;
             window.nextTradeAllowed = true;
             
+            // Update session display
+            updateSessionDisplay();
+            
             if (!isSuccess) {
                 updateStake('loss');
             }
@@ -1270,12 +1607,12 @@
         
         function resetAllState() {
             updateStake('initial');
+            resetPnL();
             
             window.startingBalance = 0.0;
             window.currentBalance = 0.0;
             window.netProfit = 0.0;
             
-            document.getElementById('metricTotalProfit').textContent = '$0.00';
             document.getElementById('metricTradeCount').textContent = '0';
             document.getElementById('metricAccountBalance').textContent = '$---';
             document.getElementById('metricLiveTick').textContent = '---';
