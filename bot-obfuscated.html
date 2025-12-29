@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Deriv DigitMartchStar Bot - LIVE MARKET ANALYSIS</title>
+    <title>Deriv DigitMartchStar Bot - LIVE MARKET</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
@@ -13,7 +13,6 @@
         body { font-family: 'Inter', sans-serif; background-color: #111827; }
         @keyframes pulse-once { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.9; } 100% { transform: scale(1); opacity: 1; } }
         .tick-flash { animation: pulse-once 0.1s ease-out; }
-        .queue-indicator { animation: pulse-once 0.3s ease-out; }
         @keyframes win-pulse { 0% { box-shadow: 0 0 5px #10B981; } 50% { box-shadow: 0 0 20px #10B981; } 100% { box-shadow: 0 0 5px #10B981; } }
         .win-detected { animation: win-pulse 0.5s infinite; }
         .queue-digit { 
@@ -44,134 +43,6 @@
             border: 2px solid #86efac !important;
             animation: pulse-once 0.5s;
         }
-        .token-container {
-            position: relative;
-        }
-        .token-visibility-toggle {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #9ca3af;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .trade-completed {
-            border: 3px solid #10b981 !important;
-            background-color: #064e3b !important;
-        }
-        .trade-failed {
-            border: 3px solid #ef4444 !important;
-            background-color: #7f1d1d !important;
-        }
-        .tick-current {
-            border: 3px solid #10B981 !important;
-            background-color: #064e3b !important;
-            animation: pulse-once 0.5s infinite;
-        }
-        .instant-tick {
-            animation: pulse-once 0.3s ease-out;
-        }
-        .success-pulse {
-            animation: pulse-once 0.3s ease-out;
-        }
-        .instant-win-detected {
-            animation: pulse-once 0.5s infinite;
-            border: 3px solid #00ff00 !important;
-            box-shadow: 0 0 20px #00ff00 !important;
-        }
-        .account-balance-green {
-            color: #10B981 !important;
-            font-weight: bold !important;
-        }
-        .current-stake-green {
-            color: #10B981 !important;
-            font-weight: bold !important;
-        }
-        .profit-green {
-            color: #10B981 !important;
-            font-weight: bold !important;
-            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-        }
-        .profit-red {
-            color: #ef4444 !important;
-            font-weight: bold !important;
-            text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-        }
-        .queued-tick {
-            background-color: #1e40af !important;
-            border: 2px solid #3b82f6 !important;
-        }
-        .processing-queued-tick {
-            background-color: #7c2d12 !important;
-            border: 3px solid #f59e0b !important;
-            animation: pulse-once 0.5s infinite;
-        }
-        .executed-tick {
-            background-color: #064e3b !important;
-            border: 2px solid #10b981 !important;
-        }
-        .probability-high { color: #10b981; }
-        .probability-medium { color: #f59e0b; }
-        .probability-low { color: #ef4444; }
-        /* Account toggle */
-        .account-toggle-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .account-toggle {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 30px;
-        }
-        .account-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .account-toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #1d4ed8;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .account-toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 22px;
-            width: 22px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        .account-toggle input:checked + .account-toggle-slider {
-            background-color: #16a34a;
-        }
-        .account-toggle input:checked + .account-toggle-slider:before {
-            transform: translateX(30px);
-        }
-        .account-label {
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .account-label-demo {
-            color: #1d4ed8;
-        }
-        .account-label-real {
-            color: #16a34a;
-        }
-        /* Smart Analysis Styles */
         .analysis-active {
             border: 2px solid #00ffea !important;
             box-shadow: 0 0 10px rgba(0, 255, 234, 0.3) !important;
@@ -204,6 +75,9 @@
         }
         .connection-badge-disconnected {
             background: linear-gradient(90deg, #dc2626, #b91c1c) !important;
+        }
+        .connection-badge-connecting {
+            background: linear-gradient(90deg, #f59e0b, #d97706) !important;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
@@ -240,15 +114,15 @@
             <div class="lg:col-span-1">
                 <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg">
                     <h2 class="text-lg font-bold text-cyan-400 mb-4 pb-2 border-b border-gray-700">
-                        🧠 SMART DIGIT ANALYSIS ENGINE
+                        🧠 SMART DIGIT ANALYSIS
                     </h2>
                     
                     <!-- Connection Status -->
                     <div class="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
-                        <h3 class="text-sm font-bold text-gray-300 mb-2">Market Connection</h3>
+                        <h3 class="text-sm font-bold text-gray-300 mb-2">Market Status</h3>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div>
-                                <span class="text-gray-400">Status:</span>
+                                <span class="text-gray-400">Connection:</span>
                                 <span id="market_status" class="ml-2 font-bold text-red-400">Offline</span>
                             </div>
                             <div>
@@ -268,7 +142,7 @@
                     
                     <!-- Smart Predictor Settings -->
                     <div class="mb-6 p-3 bg-gray-800 rounded-lg border border-cyan-500/30">
-                        <h3 class="text-sm font-bold text-cyan-300 mb-3">Smart Predictor Settings</h3>
+                        <h3 class="text-sm font-bold text-cyan-300 mb-3">Analysis Settings</h3>
                         
                         <div class="mb-3">
                             <label class="block text-xs font-semibold text-gray-300 mb-1">Analysis Window</label>
@@ -284,7 +158,7 @@
                         </div>
                         
                         <div id="tick_progress" class="mb-4 p-3 bg-gray-900 rounded text-center border border-gray-700">
-                            <div class="text-cyan-400 font-bold mb-1">⏳ Waiting for Market Data</div>
+                            <div class="text-cyan-400 font-bold mb-1">⏳ Waiting for Connection</div>
                             <div class="text-2xl font-bold mb-1">
                                 <span id="tick_counter">0</span> / <span id="window_size">20</span>
                             </div>
@@ -292,19 +166,19 @@
                                 <div id="tick_progress_bar" class="bg-cyan-600 h-3 rounded-full" style="width: 0%"></div>
                             </div>
                             <div class="text-xs text-gray-400">
-                                <span id="analysis_status">Start bot to receive live ticks</span>
+                                <span id="analysis_status">Start bot to begin</span>
                             </div>
                         </div>
                         
                         <div id="prediction_box" class="p-3 bg-gray-800 rounded border border-cyan-500/50 text-sm">
                             <div class="text-cyan-300 font-bold mb-1">Prediction Analysis:</div>
-                            <div class="text-gray-300" id="prediction_text">Waiting for market data...</div>
+                            <div class="text-gray-300" id="prediction_text">Connect to market first</div>
                         </div>
                     </div>
                     
                     <!-- Trading Session Control -->
                     <div class="p-3 bg-gray-800 rounded-lg border border-blue-500/30">
-                        <h3 class="text-sm font-bold text-blue-300 mb-3">Trading Session Control</h3>
+                        <h3 class="text-sm font-bold text-blue-300 mb-3">Trading Session</h3>
                         
                         <div class="grid grid-cols-2 gap-3 mb-3">
                             <div>
@@ -341,32 +215,6 @@
                             <span class="text-gray-400">Session: READY</span>
                         </div>
                     </div>
-                    
-                    <!-- Analysis Statistics -->
-                    <div class="mt-4 p-3 bg-gray-800 rounded-lg border border-purple-500/30">
-                        <h3 class="text-sm font-bold text-purple-300 mb-2">Analysis Statistics</h3>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                                <span class="text-gray-400">Window Size:</span>
-                                <span id="stat_window_size" class="ml-2 font-bold">20</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-400">Ticks Collected:</span>
-                                <span id="stat_ticks_collected" class="ml-2 font-bold text-cyan-400">0</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-400">Missing Digits:</span>
-                                <span id="stat_missing_digits" class="ml-2 font-bold digit-missing">-</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-400">Most Frequent:</span>
-                                <span id="stat_most_frequent" class="ml-2 font-bold digit-frequent">-</span>
-                            </div>
-                        </div>
-                        <div class="mt-2 text-xs text-gray-400">
-                            <span id="last_tick_info">Last tick: --:--:--</span>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -387,7 +235,7 @@
                     
                     <!-- Predicted Digit -->
                     <div>
-                        <label for="predictedDigit" class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit (0-9)</label>
+                        <label for="predictedDigit" class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit</label>
                         <input type="number" id="predictedDigit" value="5" min="0" max="9" 
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm text-center">
                     </div>
@@ -396,20 +244,20 @@
                     <div>
                         <label for="contractType" class="block text-xs font-semibold text-gray-300 mb-1">Contract Type</label>
                         <select id="contractType" class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
-                            <option value="DIGITMATCH">DIGITMATCH (INSTANT - 792.9% payout)</option>
+                            <option value="DIGITMATCH">DIGITMATCH</option>
                         </select>
                     </div>
 
                     <!-- Base Stake -->
                     <div>
-                        <label for="baseStake" class="block text-xs font-semibold text-gray-300 mb-1">Base Stake (USD)</label>
+                        <label for="baseStake" class="block text-xs font-semibold text-gray-300 mb-1">Base Stake</label>
                         <input type="number" id="baseStake" value="1.0" min="0.1" step="0.1" 
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
                     </div>
 
                     <!-- Multiplier -->
                     <div>
-                        <label for="multiplier" class="block text-xs font-semibold text-gray-300 mb-1">Martingale Multiplier</label>
+                        <label for="multiplier" class="block text-xs font-semibold text-gray-300 mb-1">Multiplier</label>
                         <input type="number" id="multiplier" value="1.15" min="1.0" step="0.01" 
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
                     </div>
@@ -428,113 +276,66 @@
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
                     </div>
                     
-                    <!-- Analysis Mode Toggle -->
+                    <!-- Mode Toggle -->
                     <div class="col-span-2 lg:col-span-3">
                         <label class="block text-xs font-semibold text-gray-300 mb-1">Execution Mode</label>
                         <div class="grid grid-cols-2 gap-2">
                             <button id="mode_instant" onclick="switchMode('instant')" 
                                 class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition">
-                                ⚡ INSTANT MODE
+                                ⚡ INSTANT
                             </button>
                             <button id="mode_smart" onclick="switchMode('smart')" 
                                 class="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
-                                🧠 SMART MODE
+                                🧠 SMART
                             </button>
                         </div>
                         <p id="mode_description" class="text-xs text-gray-400 mt-1">
-                            ⚡ INSTANT: Trade on each tick immediately
+                            ⚡ INSTANT: Trade on each tick
                         </p>
                     </div>
                 </div>
                 
-                <!-- METRICS COLUMN -->
-                <div id="metrics-column">
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-gray-700 rounded-lg p-2 shadow-inner border border-green-500/50 col-span-2">
-                            <p class="text-[10px] font-semibold text-green-500 uppercase">Current Tick</p>
-                            <p id="metricLiveTick" class="text-xl font-extrabold text-white">---</p>
-                            <p id="metricLastDigit" class="text-lg font-bold text-green-300">Digit: ?</p>
-                            <p id="metricTickRate" class="text-xs font-bold text-blue-400">Ticks/sec: --</p>
-                            <p id="metricProbability" class="text-xs font-bold probability-medium">Probability: 10%</p>
+                <!-- METRICS -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-gray-700 rounded-lg p-2 shadow-inner border border-green-500/50 col-span-2">
+                        <p class="text-[10px] font-semibold text-green-500 uppercase">Current Tick</p>
+                        <p id="metricLiveTick" class="text-xl font-extrabold text-white">---</p>
+                        <p id="metricLastDigit" class="text-lg font-bold text-green-300">Digit: ?</p>
+                        <p id="metricTickRate" class="text-xs font-bold text-blue-400">Ticks/sec: --</p>
+                    </div>
+                    
+                    <div class="bg-gray-700 rounded-lg p-2 shadow-inner border border-purple-500/50">
+                        <p class="text-[10px] font-semibold text-purple-500 uppercase">Balance</p>
+                        <p id="metricAccountBalance" class="text-lg font-bold text-white">$---</p>
+                    </div>
+                    
+                    <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
+                        <p class="text-[10px] font-semibold text-green-500 uppercase">Trade #</p>
+                        <p id="metricTradeCount" class="text-lg font-bold text-white">0</p>
+                    </div>
+                    
+                    <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
+                        <p class="text-[10px] font-semibold text-lime-400 uppercase">P/L</p>
+                        <p id="metricTotalProfit" class="text-lg font-bold text-gray-300">$0.00</p>
+                    </div>
+                    
+                    <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
+                        <p class="text-[10px] font-semibold text-green-500 uppercase">Stake</p>
+                        <p id="metricCurrentStake" class="text-lg font-bold text-white">$0.00</p>
+                    </div>
+                    
+                    <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 shadow-inner border border-yellow-500/50 col-span-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <p class="text-[10px] font-semibold text-yellow-500 uppercase">TRADE STATUS</p>
+                            <p id="metricTradeResult" class="text-xs font-bold text-gray-400">READY</p>
                         </div>
-                        
-                        <div class="bg-gray-700 rounded-lg p-2 shadow-inner border border-purple-500/50">
-                            <p class="text-[10px] font-semibold text-purple-500 uppercase">Account Balance</p>
-                            <p id="metricAccountBalance" class="text-lg font-bold text-white">$---</p>
-                            <p class="text-xs text-gray-300 mt-1">Available</p>
+                        <div class="mb-2">
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase mb-1">Status:</p>
+                            <p id="metricPreviousResult" class="text-sm font-bold text-gray-300">Waiting for connection...</p>
                         </div>
-                        
-                        <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
-                            <p class="text-[10px] font-semibold text-green-500 uppercase">Trade #</p>
-                            <p id="metricTradeCount" class="text-lg font-bold text-white">0</p>
-                        </div>
-                        
-                        <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
-                            <p class="text-[10px] font-semibold text-lime-400 uppercase">Net P/L</p>
-                            <p id="metricTotalProfit" class="text-lg font-bold text-gray-300">$0.00</p>
-                        </div>
-                        
-                        <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
-                            <p class="text-[10px] font-semibold text-green-500 uppercase">Current Stake</p>
-                            <p id="metricCurrentStake" class="text-lg font-bold text-white">$0.00</p>
-                        </div>
-                        
-                        <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 shadow-inner border border-yellow-500/50 col-span-3">
-                            <div class="flex justify-between items-center mb-2">
-                                <p class="text-[10px] font-semibold text-yellow-500 uppercase">⚡ TRADE STATUS</p>
-                                <p id="metricTradeResult" class="text-xs font-bold text-gray-400">READY</p>
-                            </div>
-                            <div class="mb-2">
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-1">Status:</p>
-                                <p id="metricPreviousResult" class="text-sm font-bold text-gray-300">Waiting for ticks...</p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-1">Action:</p>
-                                <p id="metricNextAction" class="text-sm font-bold text-yellow-400">Execute on each tick</p>
-                            </div>
-                        </div>
-                        
-                        <div id="queue-status-container" class="bg-gray-900 rounded-lg p-3 shadow-inner border border-blue-500/50 col-span-3 tick-queue-highlight relative">
-                            <div class="flex justify-between items-center mb-2">
-                                <p class="text-[10px] font-semibold text-blue-500 uppercase">🎯 EXECUTION STATS</p>
-                                <p id="metricQueueStatus" class="text-xs font-bold text-green-400">READY</p>
-                            </div>
-                            
-                            <div class="mb-3 p-2 bg-gray-800 rounded border border-yellow-500/30">
-                                <p class="text-[10px] font-semibold text-yellow-500 uppercase mb-1">Processing Tick:</p>
-                                <div id="processingTickDisplay" class="flex items-center">
-                                    <div id="processingTickDigit" class="queue-digit bg-gray-700 text-white mr-2">?</div>
-                                    <div class="flex-1">
-                                        <p id="processingTickInfo" class="text-xs text-gray-300">Waiting...</p>
-                                        <p id="processingTickTime" class="text-[10px] text-gray-400">--</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-2">
-                                <div class="flex justify-between items-center mb-1">
-                                    <p class="text-[10px] font-semibold text-blue-500 uppercase">Trades Executed:</p>
-                                    <p id="metricExecutedTrades" class="text-xs font-bold text-white">0</p>
-                                </div>
-                                <div class="w-full bg-gray-700 rounded-full h-2.5 mb-2">
-                                    <div id="executionBar" class="bg-green-600 h-2.5 rounded-full" style="width: 0%"></div>
-                                </div>
-                                <p class="text-[10px] text-gray-400 text-center">Trade progress</p>
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-1 mt-2">
-                                <div class="text-center">
-                                    <p class="text-[8px] text-gray-400 uppercase">Trades Done</p>
-                                    <p id="metricTradesDone" class="text-xs font-bold text-green-400">0/10</p>
-                                </div>
-                                <div class="text-center">
-                                    <p class="text-[8px] text-gray-400 uppercase">Trades Left</p>
-                                    <p id="metricTradesLeft" class="text-xs font-bold text-blue-400">10</p>
-                                </div>
-                            </div>
-                            <p class="text-[9px] text-gray-400 text-center mt-2">
-                                <strong>GOAL:</strong> Win detected within <span id="metricTradesRemaining">10</span> trades
-                            </p>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase mb-1">Action:</p>
+                            <p id="metricNextAction" class="text-sm font-bold text-yellow-400">Start bot to begin</p>
                         </div>
                     </div>
                 </div>
@@ -545,215 +346,159 @@
         <div class="flex justify-center mb-5">
             <button id="toggleButton" onclick="toggleBot()" 
                 class="w-full md:w-1/2 px-6 py-3 bg-green-600 text-white font-bold text-lg rounded-lg shadow-xl hover:bg-green-700 transition duration-150">
-                START BOT
+                🚀 START BOT
             </button>
         </div>
 
         <!-- LOG AREA -->
         <div id="log-column" class="w-full flex flex-col">
-            <h2 class="text-lg font-bold text-gray-300 mb-2 border-b border-gray-700 pb-1">Live Trade Log</h2>
+            <h2 class="text-lg font-bold text-gray-300 mb-2 border-b border-gray-700 pb-1">Live Log</h2>
             <div id="log-area" class="flex-grow h-80 bg-gray-900 text-lime-400 p-2.5 rounded-lg overflow-y-scroll text-xs whitespace-pre-wrap shadow-inner">
-                [00:00:00] 🤖 Deriv DigitMartchStar Bot Initialized
-                [00:00:00] 🧠 SMART ANALYSIS ENGINE: Ready
-                [00:00:00] ⚡ Click START BOT to connect to live market
-                [00:00:00] 📊 Bot will collect real market ticks for analysis
+                [00:00:00] 🤖 Deriv Bot Initialized
+                [00:00:00] 📊 Ready to connect to live market
+                [00:00:00] 🧠 Smart analysis engine ready
             </div>
         </div>
     </div>
 
     <script>
         // ============================================================================
-        // SMART ANALYSIS ENGINE
+        // INITIALIZATION
         // ============================================================================
         
-        /************ ANALYSIS STATE ************/
+        // Check for authentication token
+        function checkAuthToken() {
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+            if (!token) {
+                log('⚠️ No API token found. Please authenticate first.', 'WARNING');
+                document.getElementById('prediction_text').textContent = 'Authentication required';
+                return false;
+            }
+            return true;
+        }
+        
+        // ============================================================================
+        // ANALYSIS ENGINE
+        // ============================================================================
+        
         let analysisDigits = [];
         let analysisWindowSize = 20;
         let analysisComplete = false;
         let suggestedDigit = null;
         
-        /************ TICK TRACKING ************/
         let totalTicksReceived = 0;
         let lastTickTime = 0;
         let tickTimestamps = [];
         
-        /************ UPDATE CONNECTION STATUS ************/
         function updateConnectionStatus() {
             const isConnected = window.ws && window.ws.readyState === WebSocket.OPEN;
+            const isConnecting = window.isConnecting || false;
             
-            // Update market status
-            document.getElementById('market_status').textContent = isConnected ? 'Live' : 'Offline';
-            document.getElementById('market_status').className = isConnected ? 
-                'ml-2 font-bold text-green-400' : 'ml-2 font-bold text-red-400';
+            if (isConnected) {
+                document.getElementById('status-badge').textContent = '🟢 CONNECTED';
+                document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connected text-white shadow-md';
+                document.getElementById('market_status').textContent = 'Live';
+                document.getElementById('market_status').className = 'ml-2 font-bold text-green-400';
+            } else if (isConnecting) {
+                document.getElementById('status-badge').textContent = '🟡 CONNECTING';
+                document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connecting text-white shadow-md';
+                document.getElementById('market_status').textContent = 'Connecting...';
+                document.getElementById('market_status').className = 'ml-2 font-bold text-yellow-400';
+            } else {
+                document.getElementById('status-badge').textContent = '🔴 DISCONNECTED';
+                document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-disconnected text-white shadow-md';
+                document.getElementById('market_status').textContent = 'Offline';
+                document.getElementById('market_status').className = 'ml-2 font-bold text-red-400';
+            }
             
-            // Update main status badge
-            document.getElementById('status-badge').textContent = isConnected ? '🟢 CONNECTED' : '🔴 DISCONNECTED';
-            document.getElementById('status-badge').className = isConnected ? 
-                'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connected text-white shadow-md' :
-                'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-disconnected text-white shadow-md';
+            document.getElementById('current_symbol').textContent = 
+                document.getElementById('symbol').options[document.getElementById('symbol').selectedIndex].text;
             
-            // Update current symbol
-            const symbolSelect = document.getElementById('symbol');
-            const selectedSymbol = symbolSelect.options[symbolSelect.selectedIndex].text;
-            document.getElementById('current_symbol').textContent = selectedSymbol;
-            
-            // Update ticks received
             document.getElementById('ticks_received').textContent = totalTicksReceived;
             
-            // Calculate tick rate
             const now = Date.now();
             const recentTicks = tickTimestamps.filter(ts => now - ts < 5000);
             const tickRate = recentTicks.length / 5;
             document.getElementById('current_tick_rate').textContent = tickRate.toFixed(1) + '/s';
-            
-            // Update last tick info
-            if (lastTickTime > 0) {
-                const timeStr = new Date(lastTickTime).toLocaleTimeString('en-US', { 
-                    hour12: false, 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit' 
-                });
-                document.getElementById('last_tick_info').textContent = `Last tick: ${timeStr}`;
-            }
         }
         
-        /************ PROCESS TICK FOR ANALYSIS ************/
         function processTickForAnalysis(tick) {
             try {
                 const price = parseFloat(tick.quote);
                 const symbol = document.getElementById('symbol').value;
                 
-                // Extract digit based on symbol decimal places
                 let decimalPlaces = 3;
                 if (symbol === 'R_100') decimalPlaces = 2;
                 
                 const formattedPrice = price.toFixed(decimalPlaces);
                 const digit = parseInt(formattedPrice.charAt(formattedPrice.length - 1), 10);
                 
-                // Validate digit
-                if (isNaN(digit) || digit < 0 || digit > 9) {
-                    console.warn('Invalid digit extracted:', digit);
-                    return;
-                }
+                if (isNaN(digit) || digit < 0 || digit > 9) return;
                 
-                // Update tracking
                 totalTicksReceived++;
                 lastTickTime = Date.now();
                 tickTimestamps.push(lastTickTime);
                 
-                // Keep only recent timestamps (last 10 seconds)
                 const tenSecondsAgo = Date.now() - 10000;
                 tickTimestamps = tickTimestamps.filter(ts => ts > tenSecondsAgo);
                 
-                // Store digit for analysis
                 analysisDigits.push(digit);
                 if (analysisDigits.length > analysisWindowSize) {
                     analysisDigits.shift();
                 }
                 
-                // Update UI
                 updateAnalysisUI(digit);
                 
-                // Perform analysis if we have enough data
                 if (analysisDigits.length >= analysisWindowSize) {
                     performAnalysis();
                 }
                 
-                // Log first few ticks
                 if (totalTicksReceived <= 5) {
                     log(`📊 Tick #${totalTicksReceived}: ${price.toFixed(3)} (Digit ${digit})`, 'TICK');
-                } else if (totalTicksReceived % 20 === 0) {
-                    log(`📊 ${totalTicksReceived} ticks received`, 'TICK');
                 }
                 
             } catch (error) {
-                console.error('Error processing tick:', error);
-                log(`❌ Error processing tick: ${error.message}`, 'ERROR');
+                console.error('Tick processing error:', error);
             }
         }
         
-        /************ UPDATE ANALYSIS UI ************/
         function updateAnalysisUI(currentDigit) {
-            // Update connection status
             updateConnectionStatus();
             
-            // Update tick counter
             document.getElementById('tick_counter').textContent = analysisDigits.length;
-            document.getElementById('stat_ticks_collected').textContent = analysisDigits.length;
-            
-            // Update progress bar
             const progressPercent = Math.min(100, (analysisDigits.length / analysisWindowSize) * 100);
             document.getElementById('tick_progress_bar').style.width = `${progressPercent}%`;
             
-            // Update status text
             const statusElem = document.getElementById('analysis_status');
             if (analysisDigits.length < analysisWindowSize) {
-                statusElem.textContent = `Collecting: ${analysisDigits.length}/${analysisWindowSize} ticks`;
+                statusElem.textContent = `Collecting: ${analysisDigits.length}/${analysisWindowSize}`;
                 statusElem.className = 'text-xs text-cyan-400';
             } else {
                 statusElem.textContent = '✅ Analysis complete';
                 statusElem.className = 'text-xs text-green-400';
             }
             
-            // Update prediction text
-            const predictionElem = document.getElementById('prediction_text');
-            if (analysisDigits.length < analysisWindowSize) {
-                predictionElem.textContent = `Analyzing ${analysisDigits.length}/${analysisWindowSize} ticks...`;
-            } else if (suggestedDigit !== null) {
-                predictionElem.innerHTML = `Suggested digit: <span class="text-green-400 font-bold">${suggestedDigit}</span>`;
-            }
-            
-            // Update main window size display
             document.getElementById('window_size').textContent = analysisWindowSize;
-            document.getElementById('stat_window_size').textContent = analysisWindowSize;
-            
-            // Add visual feedback
-            document.getElementById('tick_counter').classList.add('tick-count-highlight');
-            setTimeout(() => {
-                document.getElementById('tick_counter').classList.remove('tick-count-highlight');
-            }, 300);
         }
         
-        /************ PERFORM ANALYSIS ************/
         function performAnalysis() {
             if (analysisDigits.length < analysisWindowSize) return;
             
             try {
-                // Count digit frequencies
                 const freq = Array(10).fill(0);
                 analysisDigits.forEach(d => {
                     if (d >= 0 && d <= 9) freq[d]++;
                 });
                 
-                // Find missing digits
                 const missing = [];
                 for (let i = 0; i < 10; i++) {
                     if (freq[i] === 0) missing.push(i);
                 }
                 
-                // Update statistics
-                document.getElementById('stat_missing_digits').textContent = missing.length;
-                
-                // Find most frequent digit
-                let mostFrequent = 0;
-                let maxFreq = 0;
-                for (let i = 0; i < 10; i++) {
-                    if (freq[i] > maxFreq) {
-                        maxFreq = freq[i];
-                        mostFrequent = i;
-                    }
-                }
-                
-                document.getElementById('stat_most_frequent').textContent = mostFrequent;
-                
-                // Determine suggested digit
                 if (missing.length > 0) {
-                    // Use a missing digit
                     suggestedDigit = missing[Math.floor(Math.random() * missing.length)];
                     log(`🧠 Analysis: Digit ${suggestedDigit} missing from last ${analysisWindowSize} ticks`, 'ANALYSIS');
                 } else {
-                    // Use least frequent digit
                     let leastFrequent = 0;
                     let minFreq = Infinity;
                     for (let i = 0; i < 10; i++) {
@@ -763,40 +508,33 @@
                         }
                     }
                     suggestedDigit = leastFrequent;
-                    log(`🧠 Analysis: Digit ${suggestedDigit} is least frequent (${minFreq} times)`, 'ANALYSIS');
+                    log(`🧠 Analysis: Digit ${suggestedDigit} is least frequent`, 'ANALYSIS');
                 }
                 
                 analysisComplete = true;
-                
-                // Update prediction box
                 updatePredictionBox();
                 
-                // Update execution logic if in smart mode
                 if (sessionState.mode === 'smart') {
                     updateExecutionLogic();
                 }
                 
             } catch (error) {
                 console.error('Analysis error:', error);
-                log(`❌ Analysis failed: ${error.message}`, 'ERROR');
             }
         }
         
-        /************ UPDATE PREDICTION BOX ************/
         function updatePredictionBox() {
             const box = document.getElementById('prediction_box');
             if (suggestedDigit !== null) {
                 box.innerHTML = `
-                    <div class="text-cyan-300 font-bold mb-1">Prediction Analysis:</div>
+                    <div class="text-cyan-300 font-bold mb-1">Prediction:</div>
                     <div class="text-xl font-bold mb-2 text-center text-green-400">${suggestedDigit}</div>
-                    <div class="text-xs text-gray-300 mb-2">Based on last ${analysisWindowSize} market ticks</div>
-                    <div class="text-xs text-gray-400">Ready for smart trading</div>
+                    <div class="text-xs text-gray-300">Based on ${analysisWindowSize} market ticks</div>
                 `;
                 box.classList.add('analysis-complete');
             }
         }
         
-        /************ APPLY WINDOW SIZE ************/
         document.getElementById('apply_tick_window').addEventListener('click', function() {
             const newSize = parseInt(document.getElementById('tick_window_input').value);
             if (newSize >= 3 && newSize <= 100) {
@@ -805,11 +543,9 @@
                 analysisComplete = false;
                 suggestedDigit = null;
                 
-                log(`📊 Analysis window set to ${newSize} ticks`, 'ANALYSIS');
+                log(`📊 Analysis window: ${newSize} ticks`, 'ANALYSIS');
                 updateAnalysisUI('?');
                 document.getElementById('prediction_text').textContent = 'Waiting for market data...';
-            } else {
-                alert('Please enter a value between 3 and 100');
             }
         });
         
@@ -828,7 +564,6 @@
             mode: 'instant'
         };
         
-        /************ MODE MANAGEMENT ************/
         function switchMode(mode) {
             sessionState.mode = mode;
             
@@ -838,13 +573,13 @@
             if (mode === 'instant') {
                 document.getElementById('mode_instant').classList.add('bg-green-600');
                 document.getElementById('mode_smart').classList.add('bg-blue-600');
-                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick immediately';
-                log('🔄 Switched to INSTANT MODE', 'SYSTEM');
+                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick';
+                log('🔄 Instant mode', 'SYSTEM');
             } else {
                 document.getElementById('mode_smart').classList.add('bg-green-600');
                 document.getElementById('mode_instant').classList.add('bg-blue-600');
-                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade on analyzed digit';
-                log('🔄 Switched to SMART MODE', 'SYSTEM');
+                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first';
+                log('🔄 Smart mode', 'SYSTEM');
             }
             
             updateExecutionLogic();
@@ -852,12 +587,11 @@
         
         function updateExecutionLogic() {
             if (sessionState.mode === 'smart' && !analysisComplete) {
-                log('🧠 SMART MODE: Waiting for analysis...', 'ANALYSIS');
+                log('🧠 Waiting for analysis...', 'ANALYSIS');
                 window.nextTradeAllowed = false;
             } else if (sessionState.mode === 'smart' && analysisComplete && suggestedDigit !== null) {
-                log(`🧠 SMART MODE: Ready! Suggested digit: ${suggestedDigit}`, 'ANALYSIS');
+                log(`🧠 Ready! Digit: ${suggestedDigit}`, 'ANALYSIS');
                 window.nextTradeAllowed = true;
-                // Auto-update the digit input
                 document.getElementById('predictedDigit').value = suggestedDigit;
                 document.getElementById('digit_input').value = suggestedDigit;
             } else if (sessionState.mode === 'instant') {
@@ -865,18 +599,13 @@
             }
         }
         
-        /************ START SMART SESSION ************/
         function startSmartSession() {
             if (!window.isBotRunning) {
-                log("❌ Start the bot first", 'ERROR');
+                log("❌ Start bot first", 'ERROR');
                 return;
             }
             
             const digit = Number(document.getElementById("digit_input").value);
-            const maxTrades = Number(document.getElementById("max_trades").value);
-            const baseStake = Number(document.getElementById("base_stake").value);
-            const martingale = Number(document.getElementById("martingale").value);
-            
             if (digit < 0 || digit > 9) {
                 alert("Digit must be 0-9");
                 return;
@@ -884,27 +613,24 @@
             
             sessionState.active = true;
             sessionState.targetDigit = digit;
-            sessionState.maxTrades = maxTrades;
-            sessionState.baseStake = baseStake;
-            sessionState.currentStake = baseStake;
-            sessionState.martingale = martingale;
+            sessionState.maxTrades = Number(document.getElementById("max_trades").value);
+            sessionState.baseStake = Number(document.getElementById("base_stake").value);
+            sessionState.currentStake = sessionState.baseStake;
+            sessionState.martingale = Number(document.getElementById("martingale").value);
             sessionState.tradesDone = 0;
             
-            // Update main bot settings
             document.getElementById('predictedDigit').value = digit;
-            document.getElementById('maxTrades').value = maxTrades;
-            document.getElementById('baseStake').value = baseStake;
-            document.getElementById('multiplier').value = martingale;
+            document.getElementById('maxTrades').value = sessionState.maxTrades;
+            document.getElementById('baseStake').value = sessionState.baseStake;
+            document.getElementById('multiplier').value = sessionState.martingale;
             
-            updateSessionUI("ACTIVE", `Target: ${digit}, Stake: $${baseStake}`);
+            updateSessionUI("ACTIVE", `Target: ${digit}, Stake: $${sessionState.baseStake}`);
             
-            log(`🚀 SMART SESSION: Digit ${digit}, Max ${maxTrades} trades`, 'SESSION');
+            log(`🚀 Smart session: Digit ${digit}`, 'SESSION');
         }
         
-        /************ UPDATE SESSION UI ************/
         function updateSessionUI(status, msg) {
             const elem = document.getElementById("session_status");
-            
             if (status === "ACTIVE") {
                 elem.innerHTML = `<span class="text-green-400 font-bold">▶️ ACTIVE</span> — ${msg}`;
                 elem.className = "p-2 bg-gray-900 rounded text-center text-sm session-active";
@@ -915,77 +641,14 @@
         }
         
         // ============================================================================
-        // ORIGINAL BOT CODE WITH PROPER MARKET CONNECTION
+        // CORE BOT FUNCTIONALITY
         // ============================================================================
-        
-        // Initialize tokens
-        window.DERIV_TOKEN = localStorage.getItem('active_token');
-        let allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
-        
-        function initializeToggleState() {
-            if (allAccounts.length > 0) {
-                const currentToken = window.DERIV_TOKEN;
-                const currentAccount = allAccounts.find(acc => acc.token === currentToken);
-                
-                if (currentAccount) {
-                    const isReal = !currentAccount.account.startsWith('VR');
-                    document.getElementById('accTypeToggle').checked = isReal;
-                    log(`Initialized: ${isReal ? 'REAL' : 'DEMO'} account`, 'SYSTEM');
-                }
-            }
-        }
-        
-        function switchAccount() {
-            const isRealRequested = document.getElementById('accTypeToggle').checked;
-            const targetAccount = allAccounts.find(acc => 
-                isRealRequested ? !acc.account.startsWith('VR') : acc.account.startsWith('VR')
-            );
-        
-            if (targetAccount) {
-                window.DERIV_TOKEN = targetAccount.token;
-                localStorage.setItem('active_token', targetAccount.token);
-                log(`Switched to ${isRealRequested ? 'REAL' : 'DEMO'}`, 'SYSTEM');
-                
-                if (window.isBotRunning) {
-                    stopBot();
-                    setTimeout(() => startBot(), 1000);
-                }
-            } else {
-                alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found`);
-                document.getElementById('accTypeToggle').checked = !isRealRequested;
-            }
-        }
-        
-        // WebSocket Connection to REAL MARKET
-        function connectWebSocket() {
-            window.ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
-            
-            window.ws.onopen = () => {
-                log('✅ Connected to Deriv WebSocket', 'SYSTEM');
-                updateConnectionStatus();
-                sendRequest({ authorize: window.DERIV_TOKEN, req_id: getNextReqId() });
-            };
-            
-            window.ws.onmessage = (msg) => {
-                const data = JSON.parse(msg.data);
-                handleAPIResponse(data);
-            };
-            
-            window.ws.onclose = () => {
-                log('❌ Disconnected from market', 'SYSTEM');
-                updateConnectionStatus();
-            };
-            
-            window.ws.onerror = (error) => {
-                log(`❌ WebSocket error: ${error}`, 'ERROR');
-                updateConnectionStatus();
-            };
-        }
         
         // Global State
         window.ws = null;
         window.req_id = 0;
         window.isBotRunning = false;
+        window.isConnecting = false;
         window.soundEnabled = true;
         window.ToneInitialized = false;
         window.synth = null;
@@ -1001,17 +664,12 @@
         window.startingBalance = 0.0;
         window.currentBalance = 0.0;
         window.netProfit = 0.0;
-        window.lastBalanceUpdate = 0;
         
         // Execution State
         window.lastTick = null;
-        window.waitingForTradeResult = false;
-        window.lastTradeResult = null;
         window.nextTradeAllowed = true;
         window.stopAfterWin = false;
-        window.currentlyProcessingTick = null;
         window.pendingProposals = new Map();
-        window.activeContracts = new Map();
         window.executionLock = false;
         
         // Statistics
@@ -1019,53 +677,112 @@
             totalTicks: 0,
             tradesExecuted: 0,
             wins: 0,
-            losses: 0,
-            digitMatches: 0,
-            digitNonMatches: 0
+            losses: 0
         };
         
         // Rate tracking
         window.botTickTimestamps = [];
-        window.wsPingInterval = null;
-        window.lastPingTime = Date.now();
         
         // Queue
         window.tickQueue = [];
         window.maxQueueSize = 10;
         
-        // DOM Elements
-        const toggleButton = document.getElementById('toggleButton');
-        const soundToggleButton = document.getElementById('soundToggle');
-        
+        // DOM Ready
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🤖 Bot initialized with LIVE MARKET ANALYSIS');
+            console.log('🤖 Bot initialized');
             
-            initializeToggleState();
-            window.soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
-            updateSoundButton();
+            // Check for token
+            if (!checkAuthToken()) {
+                document.getElementById('prediction_text').textContent = 'Please authenticate first';
+            }
             
-            // Initialize UI
+            // Initialize
             updateAnalysisUI('?');
-            
-            // Start periodic updates
             setInterval(calculateRates, 1000);
-            setInterval(updateStrategyDisplay, 100);
-            
-            // Start queue processor
             startQueueProcessor();
             
-            log('🤖 Deriv DigitMartchStar Bot Ready', 'SYSTEM');
-            log('📊 Click START BOT to connect to live market', 'SYSTEM');
-            
-            // Set default mode
+            log('🤖 Bot ready', 'SYSTEM');
             switchMode('instant');
         });
         
-        // MAIN TICK HANDLER - Gets REAL market data
+        // WEBSOCKET CONNECTION - FIXED
+        function connectWebSocket() {
+            if (window.ws) {
+                try {
+                    window.ws.close();
+                } catch (e) {}
+            }
+            
+            window.isConnecting = true;
+            updateConnectionStatus();
+            
+            // Try multiple app_ids
+            const appIds = [1089, 1, 2, 118332];
+            let currentAppIdIndex = 0;
+            
+            function tryNextConnection() {
+                if (currentAppIdIndex >= appIds.length) {
+                    log('❌ Failed to connect to Deriv API', 'ERROR');
+                    window.isConnecting = false;
+                    updateConnectionStatus();
+                    return;
+                }
+                
+                const appId = appIds[currentAppIdIndex];
+                const wsUrl = `wss://ws.binaryws.com/websockets/v3?app_id=${appId}`;
+                
+                log(`🔗 Connecting to Deriv API (App ID: ${appId})...`, 'SYSTEM');
+                
+                window.ws = new WebSocket(wsUrl);
+                
+                window.ws.onopen = () => {
+                    window.isConnecting = false;
+                    log(`✅ Connected to Deriv API (App ID: ${appId})`, 'SYSTEM');
+                    updateConnectionStatus();
+                    
+                    // Get token from storage
+                    const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+                    if (!token) {
+                        log('❌ No API token found in storage', 'ERROR');
+                        return;
+                    }
+                    
+                    sendRequest({ 
+                        authorize: token, 
+                        req_id: getNextReqId() 
+                    });
+                };
+                
+                window.ws.onmessage = (msg) => {
+                    try {
+                        const data = JSON.parse(msg.data);
+                        handleAPIResponse(data);
+                    } catch (e) {
+                        console.error('WebSocket message error:', e);
+                    }
+                };
+                
+                window.ws.onclose = () => {
+                    window.isConnecting = false;
+                    updateConnectionStatus();
+                    log('🔌 WebSocket disconnected', 'SYSTEM');
+                };
+                
+                window.ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    currentAppIdIndex++;
+                    setTimeout(tryNextConnection, 1000);
+                };
+            }
+            
+            tryNextConnection();
+        }
+        
+        // TICK HANDLER
         function handleTick(tick) {
             if (!window.isBotRunning) return;
             
-            // Process tick for analysis FIRST
+            // Process for analysis
             processTickForAnalysis(tick);
             
             // Original bot logic
@@ -1076,12 +793,15 @@
             const formattedPrice = price.toFixed(decimalPlaces);
             const digit = formattedPrice.charAt(formattedPrice.length - 1);
             
-            const time = parseInt(tick.epoch) * 1000;
-            const tickData = { digit: digit, price: price, time: time };
+            const tickData = { 
+                digit: digit, 
+                price: price, 
+                time: Date.now() 
+            };
             
             window.lastTick = tickData;
             
-            // Update main display
+            // Update display
             document.getElementById('metricLiveTick').textContent = price.toFixed(3);
             document.getElementById('metricLastDigit').textContent = `Digit: ${digit}`;
             document.getElementById('metricLiveTick').classList.add('tick-flash');
@@ -1090,13 +810,12 @@
             window.stats.totalTicks++;
             window.botTickTimestamps.push(Date.now());
             
-            // Add to queue for trading
+            // Add to queue
             addTickToQueue(tickData);
             
             playAudioFeedback('TICK');
         }
         
-        // Keep other functions
         function addTickToQueue(tick) {
             window.tickQueue.push(tick);
             if (window.tickQueue.length > window.maxQueueSize) {
@@ -1108,11 +827,7 @@
         function processTickImmediately(tick) {
             if (window.stopAfterWin) return;
             
-            // Check mode restrictions
             if (sessionState.mode === 'smart' && !analysisComplete) {
-                if (window.stats.totalTicks % 10 === 0) {
-                    log(`🧠 Collecting: ${analysisDigits.length}/${analysisWindowSize} ticks...`, 'ANALYSIS');
-                }
                 return;
             }
             
@@ -1121,7 +836,7 @@
             }
             
             if (window.tradeCount >= window.maxTrades) {
-                log(`🛑 Max trades limit reached`, 'CRITICAL');
+                log(`🛑 Max trades reached`, 'CRITICAL');
                 stopBot();
                 return;
             }
@@ -1134,10 +849,9 @@
                 window.tradeCount++;
                 document.getElementById('metricTradeCount').textContent = window.tradeCount;
                 
-                log(`⚡ TRADE #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'INSTANT');
+                log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'INSTANT');
                 
                 playAudioFeedback('EXECUTION');
-                updateProcessingTickDisplay(tick);
                 executeTrade(tick);
                 
             } catch (error) {
@@ -1153,7 +867,6 @@
             let predictedDigit = parseInt(document.getElementById('predictedDigit').value);
             let stake = window.currentStake;
             
-            // Use session digit if active
             if (sessionState.active && sessionState.mode === 'smart') {
                 predictedDigit = sessionState.targetDigit;
                 stake = sessionState.currentStake;
@@ -1213,12 +926,15 @@
             stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold current-stake-green' : 'text-lg font-bold text-white';
         }
         
+        // START/STOP BOT
         function startBot() {
             if (window.isBotRunning) return;
             
-            if (!window.DERIV_TOKEN) {
-                log('❌ No authentication token found. Please authenticate first.', 'CRITICAL');
-                showNotification('Please authenticate via the portal first', 'error');
+            // Check for token
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+            if (!token) {
+                log('❌ No API token found. Please authenticate first.', 'CRITICAL');
+                document.getElementById('prediction_text').textContent = 'Authentication required';
                 return;
             }
             
@@ -1234,11 +950,11 @@
             window.isBotRunning = true;
             updateButtonState();
             
-            log('🚀 Connecting to Deriv live market...', 'SYSTEM');
-            log(`🧠 Analysis mode: ${sessionState.mode}`, 'ANALYSIS');
+            log('🚀 Starting bot...', 'SYSTEM');
+            log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             
             updateStake('initial');
-            updateSessionUI("CONNECTING", "Connecting to market...");
+            updateSessionUI("CONNECTING", "Starting...");
             
             initTone();
             connectWebSocket();
@@ -1264,9 +980,6 @@
             }
             
             log('⏹️ Bot stopped', 'SYSTEM');
-            log(`📊 Market ticks analyzed: ${analysisDigits.length}/${analysisWindowSize}`, 'ANALYSIS');
-            
-            stopWebSocketKeepAlive();
             
             if (window.ws) {
                 window.ws.close();
@@ -1274,7 +987,6 @@
             }
             window.tickSubscriptionSent = false;
             window.pendingProposals.clear();
-            window.activeContracts.clear();
             window.executionLock = false;
             
             // Enable controls
@@ -1284,10 +996,9 @@
             });
             
             updateConnectionStatus();
-            updateTradeResultStatus();
         }
         
-        // Helper functions
+        // HELPER FUNCTIONS
         function calculateRates() {
             const now = Date.now();
             window.botTickTimestamps = window.botTickTimestamps.filter(ts => now - ts < 5000);
@@ -1359,7 +1070,6 @@
             if (type === 'SYSTEM') color = 'text-white';
             if (type === 'ANALYSIS') color = 'text-cyan-300 font-bold';
             if (type === 'SESSION') color = 'text-purple-300 font-bold';
-            if (type === 'MARTINGALE') color = 'text-yellow-300 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
@@ -1377,48 +1087,6 @@
                 toggleButton.classList.remove('stop-button-active', 'hover:bg-red-700');
                 toggleButton.classList.add('bg-green-600', 'hover:bg-green-700', 'start-button-active');
             }
-        }
-        
-        function updateTradeResultStatus() {
-            const tradeResultElem = document.getElementById('metricTradeResult');
-            const previousResultElem = document.getElementById('metricPreviousResult');
-            const nextActionElem = document.getElementById('metricNextAction');
-            const tradeResultContainer = document.getElementById('trade-result-container');
-            
-            if (window.stopAfterWin) {
-                tradeResultElem.textContent = 'WIN';
-                tradeResultElem.className = 'text-xs font-bold text-green-400';
-                previousResultElem.textContent = `✅ WIN - Strategy successful!`;
-                nextActionElem.textContent = 'STOPPING BOT';
-                tradeResultContainer.classList.add('trade-completed');
-                tradeResultContainer.classList.remove('trade-failed');
-            } else if (window.executionLock) {
-                tradeResultElem.textContent = 'TRADING';
-                tradeResultElem.className = 'text-xs font-bold text-yellow-400';
-                previousResultElem.textContent = `Executing trade #${window.tradeCount}`;
-                nextActionElem.textContent = 'Processing...';
-                tradeResultContainer.classList.remove('trade-completed', 'trade-failed');
-            } else {
-                tradeResultElem.textContent = 'READY';
-                tradeResultElem.className = 'text-xs font-bold text-gray-400';
-                previousResultElem.textContent = 'Waiting for ticks...';
-                nextActionElem.textContent = sessionState.mode === 'smart' ? 'Smart Mode: Analyzing...' : 'Execute on each tick';
-                tradeResultContainer.classList.remove('trade-completed', 'trade-failed');
-            }
-        }
-        
-        function updateStrategyDisplay() {
-            const maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
-            const tradesLeft = maxTrades - window.tradeCount;
-            const tradesDone = window.tradeCount;
-            
-            document.getElementById('metricTradesDone').textContent = `${tradesDone}/${maxTrades}`;
-            document.getElementById('metricTradesLeft').textContent = tradesLeft;
-            document.getElementById('metricTradesRemaining').textContent = maxTrades;
-            
-            const progressPercent = Math.min(100, (window.tradeCount / maxTrades) * 100);
-            document.getElementById('executionBar').style.width = `${progressPercent}%`;
-            document.getElementById('metricExecutedTrades').textContent = window.tradeCount;
         }
         
         function startQueueProcessor() {
@@ -1445,47 +1113,20 @@
             const tickDigit = parseInt(tick.digit);
             
             if (tickDigit === predictedDigit) {
-                log(`🎯 WIN DETECTED! Tick digit ${tickDigit} matches predicted ${predictedDigit}.`, 'IMMEDIATE_WIN');
+                log(`🎯 WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'IMMEDIATE_WIN');
                 
                 window.lastTradeResult = 'win';
                 window.stopAfterWin = true;
                 window.stats.wins++;
-                window.stats.digitMatches++;
                 window.tradeCount++;
                 
-                const processingDigit = document.getElementById('processingTickDigit');
-                processingDigit.textContent = tickDigit;
-                processingDigit.classList.add('instant-win-detected');
-                
-                const tradeResultContainer = document.getElementById('trade-result-container');
-                tradeResultContainer.classList.add('trade-completed');
-                
                 playAudioFeedback('WIN');
-                updateTradeResultStatus();
                 updateStake('win');
                 
                 return true;
             }
             
-            window.stats.digitNonMatches++;
             return false;
-        }
-        
-        function updateProcessingTickDisplay(tick) {
-            if (!tick) return;
-            
-            document.getElementById('processingTickDigit').textContent = tick.digit;
-            document.getElementById('processingTickInfo').textContent = `Price: ${tick.price.toFixed(3)}`;
-            document.getElementById('processingTickTime').textContent = new Date(tick.time).toLocaleTimeString();
-            document.getElementById('processingTickDigit').classList.add('instant-tick');
-            
-            document.getElementById('metricPreviousResult').textContent = `Executing trade #${window.tradeCount}`;
-            
-            if (sessionState.active && sessionState.mode === 'smart') {
-                document.getElementById('metricNextAction').textContent = `Smart: Digit ${sessionState.targetDigit}`;
-            } else {
-                document.getElementById('metricNextAction').textContent = `Digit: ${tick.digit}`;
-            }
         }
         
         function sendRequest(request) {
@@ -1505,7 +1146,7 @@
             if (data.error) {
                 log(`API Error: ${data.error.message}`, 'ERROR');
                 if (data.error.code === 'InvalidToken') {
-                    log('❌ Invalid API Token. Please check your authentication.', 'CRITICAL');
+                    log('❌ Invalid API Token', 'CRITICAL');
                     stopBot();
                 }
                 return;
@@ -1525,10 +1166,6 @@
                 handleBuyResponse(data.buy);
             } else if (data.msg_type === 'balance') {
                 handleBalanceUpdate(data.balance);
-            } else if (data.msg_type === 'contract_update') {
-                handleContractUpdate(data.contract_update);
-            } else if (data.msg_type === 'ping') {
-                window.lastPingTime = Date.now();
             }
         }
         
@@ -1538,7 +1175,7 @@
                 subscribe: 1,
                 req_id: getNextReqId()
             });
-            log('Subscribed to balance updates', 'SYSTEM');
+            log('Subscribed to balance', 'SYSTEM');
         }
         
         function handleBalanceUpdate(balanceData) {
@@ -1546,24 +1183,11 @@
             
             if (window.startingBalance === 0) {
                 window.startingBalance = newBalance;
-                log(`💰 Starting Balance: $${window.startingBalance.toFixed(2)}`, 'PNL');
+                log(`💰 Balance: $${window.startingBalance.toFixed(2)}`, 'PNL');
             }
             
             window.currentBalance = newBalance;
-            
-            const balanceElem = document.getElementById('metricAccountBalance');
-            balanceElem.textContent = `$${window.currentBalance.toFixed(2)}`;
-        }
-        
-        function handleContractUpdate(contractUpdate) {
-            if (contractUpdate.status === 'sold') {
-                const profit = parseFloat(contractUpdate.profit);
-                if (profit > 0) {
-                    log(`✅ Contract WON: $${profit.toFixed(2)}`, 'WIN');
-                } else {
-                    log(`❌ Contract LOST: $${Math.abs(profit).toFixed(2)}`, 'LOSS');
-                }
-            }
+            document.getElementById('metricAccountBalance').textContent = `$${window.currentBalance.toFixed(2)}`;
         }
         
         function subscribeToTicks(symbol) {
@@ -1575,12 +1199,12 @@
                 req_id: getNextReqId()
             });
             window.tickSubscriptionSent = true;
-            log(`✅ Subscribed to LIVE ticks for ${symbol}`, 'SYSTEM');
+            log(`✅ Subscribed to ${symbol} ticks`, 'SYSTEM');
         }
         
         function handleProposalResponse(proposal, req_id) {
             if (!proposal || !proposal.id) {
-                log(`❌ Proposal request failed`, 'ERROR');
+                log(`❌ Proposal failed`, 'ERROR');
                 return;
             }
         
@@ -1598,7 +1222,7 @@
                 req_id: getNextReqId()
             };
             
-            log(`✅ Buying contract for $${pending.stake.toFixed(2)}`, 'TRADE');
+            log(`✅ Buying: $${pending.stake.toFixed(2)}`, 'TRADE');
             
             window.pendingProposals.set(buyRequest.req_id, {
                 ...pending,
@@ -1615,7 +1239,7 @@
                 updateStake('loss');
                 onTradeComplete(true);
             } else {
-                log(`❌ Trade execution failed`, 'ERROR');
+                log(`❌ Trade failed`, 'ERROR');
                 onTradeComplete(false);
             }
         }
@@ -1623,8 +1247,6 @@
         function onTradeComplete(isSuccess = true) {
             window.executionLock = false;
             window.nextTradeAllowed = true;
-            
-            updateStrategyDisplay();
             
             if (!isSuccess) {
                 updateStake('loss');
@@ -1636,7 +1258,7 @@
             }
             
             if (window.tradeCount >= window.maxTrades) {
-                log(`🛑 Max trades reached`, 'CRITICAL');
+                log(`🛑 Max trades`, 'CRITICAL');
                 stopBot();
                 return;
             }
@@ -1648,7 +1270,6 @@
             window.startingBalance = 0.0;
             window.currentBalance = 0.0;
             window.netProfit = 0.0;
-            window.lastBalanceUpdate = 0;
             
             document.getElementById('metricTotalProfit').textContent = '$0.00';
             document.getElementById('metricTradeCount').textContent = '0';
@@ -1660,9 +1281,7 @@
                 totalTicks: 0,
                 tradesExecuted: 0,
                 wins: 0,
-                losses: 0,
-                digitMatches: 0,
-                digitNonMatches: 0
+                losses: 0
             };
             
             window.tickQueue = [];
@@ -1671,61 +1290,25 @@
             window.tradeCount = 0;
             window.martingaleStep = 0;
             window.pendingProposals.clear();
-            window.activeContracts.clear();
             window.botTickTimestamps = [];
             
             window.executionLock = false;
             window.waitingForTradeResult = false;
             window.nextTradeAllowed = true;
             window.stopAfterWin = false;
-            window.currentlyProcessingTick = null;
             
             const logArea = document.getElementById('log-area');
-            logArea.innerHTML = '[00:00:00] 🤖 Bot reset. Ready to connect to live market.';
-            
-            updateTradeResultStatus();
-            updateStrategyDisplay();
+            logArea.innerHTML = '[00:00:00] 🤖 Bot reset. Ready.';
             
             log('🔄 Bot reset', 'SYSTEM');
         }
         
-        function startWebSocketKeepAlive() {
-            stopWebSocketKeepAlive();
-            window.wsPingInterval = setInterval(() => {
-                if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-                    if (Date.now() - window.lastPingTime > 10000) {
-                        sendRequest({ ping: 1, req_id: getNextReqId() });
-                    }
-                }
-            }, 5000);
-        }
-        
-        function stopWebSocketKeepAlive() {
-            if (window.wsPingInterval) {
-                clearInterval(window.wsPingInterval);
-                window.wsPingInterval = null;
+        function toggleBot() {
+            if (window.isBotRunning) {
+                stopBot();
+            } else {
+                startBot();
             }
-        }
-        
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${
-                type === 'error' ? 'bg-red-600 text-white' :
-                type === 'success' ? 'bg-green-600 text-white' :
-                'bg-blue-600 text-white'
-            }`;
-            notification.innerHTML = `
-                <div class="flex items-center">
-                    <span class="mr-2">${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'}</span>
-                    <span>${message}</span>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
         }
     </script>
 </body>
