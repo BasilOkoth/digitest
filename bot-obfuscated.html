@@ -354,9 +354,9 @@
         <div id="log-column" class="w-full flex flex-col">
             <h2 class="text-lg font-bold text-gray-300 mb-2 border-b border-gray-700 pb-1">Live Log</h2>
             <div id="log-area" class="flex-grow h-80 bg-gray-900 text-lime-400 p-2.5 rounded-lg overflow-y-scroll text-xs whitespace-pre-wrap shadow-inner">
-                [00:00:00] 🤖 Deriv Bot Initialized
-                [00:00:00] 📊 Ready to connect to live market
-                [00:00:00] 🧠 Smart analysis engine ready
+[00:00:00] 🤖 Deriv Bot Initialized
+[00:00:00] 📊 Ready to connect to live market
+[00:00:00] 🧠 Smart analysis engine ready
             </div>
         </div>
     </div>
@@ -375,6 +375,44 @@
                 return false;
             }
             return true;
+        }
+        
+        // Initialize account toggle
+        function initializeToggleState() {
+            const token = localStorage.getItem('active_token');
+            const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
+            
+            if (token && allAccounts.length > 0) {
+                const currentAccount = allAccounts.find(acc => acc.token === token);
+                if (currentAccount) {
+                    const isReal = !currentAccount.account.startsWith('VR');
+                    document.getElementById('accTypeToggle').checked = isReal;
+                    log(`Account: ${isReal ? 'REAL' : 'DEMO'} (${currentAccount.account})`, 'SYSTEM');
+                }
+            }
+        }
+        
+        // Switch account
+        function switchAccount() {
+            const isRealRequested = document.getElementById('accTypeToggle').checked;
+            const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
+            
+            const targetAccount = allAccounts.find(acc => 
+                isRealRequested ? !acc.account.startsWith('VR') : acc.account.startsWith('VR')
+            );
+        
+            if (targetAccount) {
+                localStorage.setItem('active_token', targetAccount.token);
+                log(`Switched to ${isRealRequested ? 'REAL' : 'DEMO'} account`, 'SYSTEM');
+                
+                if (window.isBotRunning) {
+                    stopBot();
+                    setTimeout(() => startBot(), 1000);
+                }
+            } else {
+                alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found`);
+                document.getElementById('accTypeToggle').checked = !isRealRequested;
+            }
         }
         
         // ============================================================================
@@ -691,6 +729,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🤖 Bot initialized');
             
+            // Initialize account toggle
+            initializeToggleState();
+            
             // Check for token
             if (!checkAuthToken()) {
                 document.getElementById('prediction_text').textContent = 'Please authenticate first';
@@ -705,7 +746,7 @@
             switchMode('instant');
         });
         
-        // WEBSOCKET CONNECTION - FIXED
+        // WEBSOCKET CONNECTION - USING ONLY APP ID 118332
         function connectWebSocket() {
             if (window.ws) {
                 try {
@@ -716,66 +757,62 @@
             window.isConnecting = true;
             updateConnectionStatus();
             
-            // Try multiple app_ids
-            const appIds = [1089, 1, 2, 118332];
-            let currentAppIdIndex = 0;
+            // Use ONLY App ID 118332
+            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
             
-            function tryNextConnection() {
-                if (currentAppIdIndex >= appIds.length) {
-                    log('❌ Failed to connect to Deriv API', 'ERROR');
-                    window.isConnecting = false;
-                    updateConnectionStatus();
+            log('🔗 Connecting to Deriv API...', 'SYSTEM');
+            
+            window.ws = new WebSocket(wsUrl);
+            
+            window.ws.onopen = () => {
+                window.isConnecting = false;
+                log('✅ WebSocket connected', 'SYSTEM');
+                updateConnectionStatus();
+                
+                // Get token from storage
+                const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+                if (!token) {
+                    log('❌ No API token found in storage', 'ERROR');
+                    stopBot();
                     return;
                 }
                 
-                const appId = appIds[currentAppIdIndex];
-                const wsUrl = `wss://ws.binaryws.com/websockets/v3?app_id=${appId}`;
-                
-                log(`🔗 Connecting to Deriv API (App ID: ${appId})...`, 'SYSTEM');
-                
-                window.ws = new WebSocket(wsUrl);
-                
-                window.ws.onopen = () => {
-                    window.isConnecting = false;
-                    log(`✅ Connected to Deriv API (App ID: ${appId})`, 'SYSTEM');
-                    updateConnectionStatus();
-                    
-                    // Get token from storage
-                    const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
-                    if (!token) {
-                        log('❌ No API token found in storage', 'ERROR');
-                        return;
-                    }
-                    
-                    sendRequest({ 
-                        authorize: token, 
-                        req_id: getNextReqId() 
-                    });
-                };
-                
-                window.ws.onmessage = (msg) => {
-                    try {
-                        const data = JSON.parse(msg.data);
-                        handleAPIResponse(data);
-                    } catch (e) {
-                        console.error('WebSocket message error:', e);
-                    }
-                };
-                
-                window.ws.onclose = () => {
-                    window.isConnecting = false;
-                    updateConnectionStatus();
-                    log('🔌 WebSocket disconnected', 'SYSTEM');
-                };
-                
-                window.ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    currentAppIdIndex++;
-                    setTimeout(tryNextConnection, 1000);
-                };
-            }
+                // Send authorization request
+                sendRequest({ 
+                    authorize: token, 
+                    req_id: getNextReqId() 
+                });
+            };
             
-            tryNextConnection();
+            window.ws.onmessage = (msg) => {
+                try {
+                    const data = JSON.parse(msg.data);
+                    handleAPIResponse(data);
+                } catch (e) {
+                    console.error('WebSocket message error:', e);
+                }
+            };
+            
+            window.ws.onclose = () => {
+                window.isConnecting = false;
+                updateConnectionStatus();
+                log('🔌 WebSocket disconnected', 'SYSTEM');
+                
+                // If bot was running, try to reconnect
+                if (window.isBotRunning) {
+                    log('🔄 Attempting to reconnect...', 'SYSTEM');
+                    setTimeout(() => {
+                        if (window.isBotRunning) {
+                            connectWebSocket();
+                        }
+                    }, 2000);
+                }
+            };
+            
+            window.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                log('❌ WebSocket connection error', 'ERROR');
+            };
         }
         
         // TICK HANDLER
@@ -926,15 +963,19 @@
             stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold current-stake-green' : 'text-lg font-bold text-white';
         }
         
-        // START/STOP BOT
+        // START/STOP BOT - FIXED
         function startBot() {
-            if (window.isBotRunning) return;
+            if (window.isBotRunning) {
+                stopBot();
+                return;
+            }
             
             // Check for token
             const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
             if (!token) {
                 log('❌ No API token found. Please authenticate first.', 'CRITICAL');
                 document.getElementById('prediction_text').textContent = 'Authentication required';
+                showNotification('Please authenticate first', 'error');
                 return;
             }
             
@@ -952,6 +993,7 @@
             
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
+            log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             
             updateStake('initial');
             updateSessionUI("CONNECTING", "Starting...");
@@ -996,6 +1038,14 @@
             });
             
             updateConnectionStatus();
+        }
+        
+        function toggleBot() {
+            if (window.isBotRunning) {
+                stopBot();
+            } else {
+                startBot();
+            }
         }
         
         // HELPER FUNCTIONS
@@ -1146,7 +1196,7 @@
             if (data.error) {
                 log(`API Error: ${data.error.message}`, 'ERROR');
                 if (data.error.code === 'InvalidToken') {
-                    log('❌ Invalid API Token', 'CRITICAL');
+                    log('❌ Invalid API Token. Please check your authentication.', 'CRITICAL');
                     stopBot();
                 }
                 return;
@@ -1303,12 +1353,25 @@
             log('🔄 Bot reset', 'SYSTEM');
         }
         
-        function toggleBot() {
-            if (window.isBotRunning) {
-                stopBot();
-            } else {
-                startBot();
-            }
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${
+                type === 'error' ? 'bg-red-600 text-white' :
+                type === 'success' ? 'bg-green-600 text-white' :
+                'bg-blue-600 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <span class="mr-2">${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
         }
     </script>
 </body>
