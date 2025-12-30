@@ -13,8 +13,60 @@
         body { font-family: 'Inter', sans-serif; background-color: #111827; }
         @keyframes pulse-once { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.9; } 100% { transform: scale(1); opacity: 1; } }
         .tick-flash { animation: pulse-once 0.1s ease-out; }
-        @keyframes win-pulse { 0% { box-shadow: 0 0 5px #10B981; } 50% { box-shadow: 0 0 20px #10B981; } 100% { box-shadow: 0 0 5px #10B981; } }
-        .win-detected { animation: win-pulse 0.5s infinite; }
+        @keyframes win-pulse { 
+            0% { 
+                box-shadow: 0 0 5px #10B981, 0 0 10px rgba(16, 185, 129, 0.5); 
+                border-color: #10B981;
+            } 
+            50% { 
+                box-shadow: 0 0 20px #10B981, 0 0 30px rgba(16, 185, 129, 0.8); 
+                border-color: #34d399;
+            } 
+            100% { 
+                box-shadow: 0 0 5px #10B981, 0 0 10px rgba(16, 185, 129, 0.5); 
+                border-color: #10B981;
+            } 
+        }
+        .win-glow {
+            animation: win-pulse 1s infinite;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
+        }
+        @keyframes loss-pulse { 
+            0% { 
+                box-shadow: 0 0 5px #ef4444, 0 0 10px rgba(239, 68, 68, 0.5); 
+                border-color: #ef4444;
+            } 
+            50% { 
+                box-shadow: 0 0 20px #ef4444, 0 0 30px rgba(239, 68, 68, 0.8); 
+                border-color: #f87171;
+            } 
+            100% { 
+                box-shadow: 0 0 5px #ef4444, 0 0 10px rgba(239, 68, 68, 0.5); 
+                border-color: #ef4444;
+            } 
+        }
+        .loss-glow {
+            animation: loss-pulse 1s infinite;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.2)) !important;
+        }
+        @keyframes trade-pulse { 
+            0% { 
+                box-shadow: 0 0 5px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.5); 
+                border-color: #f59e0b;
+            } 
+            50% { 
+                box-shadow: 0 0 15px #f59e0b, 0 0 25px rgba(245, 158, 11, 0.7); 
+                border-color: #fbbf24;
+            } 
+            100% { 
+                box-shadow: 0 0 5px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.5); 
+                border-color: #f59e0b;
+            } 
+        }
+        .trade-glow {
+            animation: trade-pulse 1s infinite;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.2)) !important;
+        }
         .queue-digit { 
             width: 32px; 
             height: 32px; 
@@ -132,6 +184,18 @@
             background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
             border: 2px solid #3b82f6 !important;
             color: white !important;
+        }
+        .status-win {
+            color: #10b981 !important;
+            font-weight: bold !important;
+        }
+        .status-loss {
+            color: #ef4444 !important;
+            font-weight: bold !important;
+        }
+        .status-trade {
+            color: #f59e0b !important;
+            font-weight: bold !important;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
@@ -355,6 +419,7 @@
                         <p id="metricCurrentStake" class="text-lg font-bold text-white">$0.00</p>
                     </div>
                     
+                    <!-- TRADE STATUS SECTION - UPDATED WITH GLOW EFFECTS -->
                     <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 shadow-inner border border-yellow-500/50 col-span-3">
                         <div class="flex justify-between items-center mb-2">
                             <p class="text-[10px] font-semibold text-yellow-500 uppercase">TRADE STATUS</p>
@@ -461,15 +526,19 @@
         let sessionState = {
             active: false,
             mode: 'instant',
-            sessionDigit: null,          // Digit locked for current session
-            sessionStarted: false,       // Whether session has started
-            manualOverride: false        // Whether user manually changed digit
+            sessionDigit: null,
+            sessionStarted: false,
+            manualOverride: false
         };
         
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
         const soundToggleButton = document.getElementById('soundToggle');
         const sessionDisplay = document.getElementById('session_display');
+        const tradeResultContainer = document.getElementById('trade-result-container');
+        const metricPreviousResult = document.getElementById('metricPreviousResult');
+        const metricNextAction = document.getElementById('metricNextAction');
+        const metricTradeResult = document.getElementById('metricTradeResult');
         
         // Check for authentication token
         function checkAuthToken() {
@@ -518,6 +587,65 @@
                 alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found`);
                 document.getElementById('accTypeToggle').checked = !isRealRequested;
             }
+        }
+        
+        // ============================================================================
+        // TRADE STATUS UI FUNCTIONS
+        // ============================================================================
+        
+        function updateTradeStatus(status, result, action, type = 'normal') {
+            // Remove all glow classes first
+            tradeResultContainer.classList.remove('win-glow', 'loss-glow', 'trade-glow');
+            
+            // Update text content
+            metricPreviousResult.textContent = result;
+            metricNextAction.textContent = action;
+            
+            // Apply appropriate styling based on type
+            switch(type) {
+                case 'win':
+                    metricTradeResult.textContent = 'WIN 🎯';
+                    metricTradeResult.className = 'text-xs font-bold status-win';
+                    metricPreviousResult.className = 'text-sm font-bold status-win';
+                    metricNextAction.className = 'text-sm font-bold text-green-400';
+                    tradeResultContainer.classList.add('win-glow');
+                    log(`🎯 Trade Status: ${result}`, 'WIN');
+                    break;
+                    
+                case 'loss':
+                    metricTradeResult.textContent = 'LOSS ❌';
+                    metricTradeResult.className = 'text-xs font-bold status-loss';
+                    metricPreviousResult.className = 'text-sm font-bold status-loss';
+                    metricNextAction.className = 'text-sm font-bold text-red-400';
+                    tradeResultContainer.classList.add('loss-glow');
+                    log(`❌ Trade Status: ${result}`, 'LOSS');
+                    break;
+                    
+                case 'trade':
+                    metricTradeResult.textContent = 'TRADING ⚡';
+                    metricTradeResult.className = 'text-xs font-bold status-trade';
+                    metricPreviousResult.className = 'text-sm font-bold status-trade';
+                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
+                    tradeResultContainer.classList.add('trade-glow');
+                    log(`⚡ Trade Status: ${result}`, 'TRADE');
+                    break;
+                    
+                default:
+                    metricTradeResult.textContent = status || 'READY';
+                    metricTradeResult.className = 'text-xs font-bold text-gray-400';
+                    metricPreviousResult.className = 'text-sm font-bold text-gray-300';
+                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
+                    break;
+            }
+        }
+        
+        function resetTradeStatus() {
+            updateTradeStatus(
+                'READY',
+                'Waiting for connection...',
+                'Start bot to begin',
+                'normal'
+            );
         }
         
         // ============================================================================
@@ -701,16 +829,19 @@
                 document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connected text-white shadow-md';
                 document.getElementById('market_status').textContent = 'Live';
                 document.getElementById('market_status').className = 'ml-2 font-bold text-green-400';
+                updateTradeStatus('CONNECTED', 'Market live - Ready to trade', 'Set parameters and start trading', 'normal');
             } else if (isConnecting) {
                 document.getElementById('status-badge').textContent = '🟡 CONNECTING';
                 document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connecting text-white shadow-md';
                 document.getElementById('market_status').textContent = 'Connecting...';
                 document.getElementById('market_status').className = 'ml-2 font-bold text-yellow-400';
+                updateTradeStatus('CONNECTING', 'Connecting to market...', 'Please wait', 'normal');
             } else {
                 document.getElementById('status-badge').textContent = '🔴 DISCONNECTED';
                 document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-disconnected text-white shadow-md';
                 document.getElementById('market_status').textContent = 'Offline';
                 document.getElementById('market_status').className = 'ml-2 font-bold text-red-400';
+                updateTradeStatus('DISCONNECTED', 'Market offline', 'Start bot to connect', 'normal');
             }
             
             document.getElementById('current_symbol').textContent = 
@@ -924,12 +1055,15 @@
             if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
                 log('🧠 Waiting for analysis...', 'ANALYSIS');
                 window.nextTradeAllowed = false;
+                updateTradeStatus('ANALYZING', 'Analyzing market data...', 'Waiting for analysis completion', 'normal');
             } else if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
                 log(`🧠 Ready! Using locked digit: ${sessionState.sessionDigit}`, 'SESSION');
                 window.nextTradeAllowed = true;
                 document.getElementById('predictedDigit').value = sessionState.sessionDigit;
+                updateTradeStatus('READY', `Digit ${sessionState.sessionDigit} locked`, 'Ready to trade', 'normal');
             } else if (sessionState.mode === 'instant') {
                 window.nextTradeAllowed = true;
+                updateTradeStatus('READY', 'Instant mode active', 'Trading on each tick', 'normal');
             }
         }
         
@@ -960,6 +1094,9 @@
             // Initialize PnL display
             updatePnL();
             
+            // Initialize trade status
+            resetTradeStatus();
+            
             // Add event listener for manual digit change
             document.getElementById('predictedDigit').addEventListener('change', function() {
                 const newDigit = parseInt(this.value);
@@ -978,6 +1115,7 @@
                     updateSessionDisplay();
                     updatePredictionBox();
                     log(`🔢 Digit manually set to ${newDigit}`, 'SESSION');
+                    updateTradeStatus('MANUAL', `Digit manually set to ${newDigit}`, 'Ready to trade', 'normal');
                 }
             });
         });
@@ -1110,6 +1248,7 @@
             
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached`, 'CRITICAL');
+                updateTradeStatus('MAX TRADES', 'Maximum trades reached', 'Bot stopped', 'loss');
                 stopBot();
                 return;
             }
@@ -1127,6 +1266,14 @@
                 
                 log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
                 
+                // Update trade status with glowing effect
+                updateTradeStatus(
+                    'TRADING',
+                    `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${sessionState.sessionDigit || document.getElementById('predictedDigit').value}`,
+                    'Executing trade...',
+                    'trade'
+                );
+                
                 playAudioFeedback('EXECUTION');
                 executeTrade(tick);
                 
@@ -1134,6 +1281,7 @@
                 log(`❌ Error: ${error}`, 'ERROR');
                 window.executionLock = false;
                 window.nextTradeAllowed = true;
+                updateTradeStatus('ERROR', `Trade failed: ${error}`, 'Retrying...', 'loss');
             }
         }
         
@@ -1193,20 +1341,38 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
+                // Update trade status with win glow
+                updateTradeStatus(
+                    'WIN 🎯',
+                    `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
+                    'Resetting stake to base',
+                    'win'
+                );
+                
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
                 if (window.martingaleStep >= window.maxTrades) {
                     log(`🛑 MAX TRADES REACHED`, 'CRITICAL');
+                    updateTradeStatus('MAX TRADES', 'Maximum trades reached', 'Bot stopped', 'loss');
                     stopBot();
                     return;
                 }
                 const newStake = window.currentStake * window.multiplier;
                 window.currentStake = parseFloat(newStake.toFixed(2));
                 log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)}`, 'LOSS');
+                
+                // Update trade status with loss glow
+                updateTradeStatus(
+                    'LOSS ❌',
+                    `Lost - Next stake: $${window.currentStake.toFixed(2)}`,
+                    'Increasing stake for next trade',
+                    'loss'
+                );
             } else {
                 window.martingaleStep = 0;
                 window.currentStake = window.baseStake;
                 log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
+                updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
             }
             
             const stakeElem = document.getElementById('metricCurrentStake');
@@ -1229,6 +1395,7 @@
             if (!token) {
                 log('❌ No API token found. Please authenticate first.', 'CRITICAL');
                 document.getElementById('prediction_text').textContent = 'Authentication required';
+                updateTradeStatus('ERROR', 'No API token found', 'Please authenticate first', 'loss');
                 return;
             }
             
@@ -1255,6 +1422,8 @@
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
+            
+            updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
             
             updateStake('initial');
             
@@ -1303,6 +1472,14 @@
             // Display final PnL
             const finalPnL = updatePnL();
             log(`💰 Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`, 'PNL');
+            
+            // Update trade status
+            updateTradeStatus(
+                'STOPPED',
+                `Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`,
+                'Bot stopped - Ready for new session',
+                finalPnL > 0 ? 'win' : (finalPnL < 0 ? 'loss' : 'normal')
+            );
             
             // Reset session state
             sessionState.sessionStarted = false;
@@ -1456,6 +1633,14 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
+                // Update trade status with win glow
+                updateTradeStatus(
+                    'IMMEDIATE WIN 🎯',
+                    `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
+                    'Stopping bot after win',
+                    'win'
+                );
+                
                 updateStake('win');
                 
                 return true;
@@ -1543,6 +1728,7 @@
         function handleProposalResponse(proposal, req_id) {
             if (!proposal || !proposal.id) {
                 log(`❌ Proposal failed`, 'ERROR');
+                updateTradeStatus('ERROR', 'Proposal failed', 'Retrying...', 'loss');
                 return;
             }
         
@@ -1578,6 +1764,7 @@
                 onTradeComplete(true);
             } else {
                 log(`❌ Trade failed`, 'ERROR');
+                updateTradeStatus('ERROR', 'Trade execution failed', 'Retrying...', 'loss');
                 onTradeComplete(false);
             }
         }
@@ -1600,6 +1787,7 @@
             
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached`, 'CRITICAL');
+                updateTradeStatus('MAX TRADES', 'Maximum trades reached', 'Bot stopped', 'loss');
                 stopBot();
                 return;
             }
@@ -1608,6 +1796,7 @@
         function resetAllState() {
             updateStake('initial');
             resetPnL();
+            resetTradeStatus();
             
             window.startingBalance = 0.0;
             window.currentBalance = 0.0;
