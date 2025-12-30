@@ -679,7 +679,7 @@
         window.baseStake = 1.0;
         window.currentStake = 1.0;
         window.multiplier = 1.15;
-        window.maxTrades = 10;
+        window.maxTrades = 10; // FIXED: Initialize with user value
         window.tradeCount = 0;
         window.martingaleStep = 0;
         window.accountBalance = 0.0;
@@ -1467,7 +1467,7 @@
                 return;
             }
             
-            // FIXED: Use user-defined maxTrades, not hardcoded limit
+            // FIXED: Use user-defined maxTrades
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
                 updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
@@ -1573,7 +1573,7 @@
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
-                // FIXED: Use user-defined maxTrades, not hardcoded limit
+                // FIXED: Use user-defined maxTrades
                 if (window.martingaleStep >= window.maxTrades) {
                     log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
                     updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
@@ -1613,6 +1613,9 @@
                 return;
             }
             
+            // FIXED: Read maxTrades from user input at start
+            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            
             // Check for token
             const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
             if (!token) {
@@ -1644,6 +1647,7 @@
             
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
+            log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
@@ -2009,7 +2013,7 @@
                 return;
             }
             
-            // FIXED: Use user-defined maxTrades, not hardcoded limit
+            // FIXED: Use user-defined maxTrades
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
                 updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
@@ -2019,6 +2023,9 @@
         }
         
         function resetAllState() {
+            // FIXED: Read maxTrades from user input on reset
+            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            
             updateStake('initial');
             resetPnL();
             resetTradeStatus();
