@@ -197,6 +197,30 @@
             color: #f59e0b !important;
             font-weight: bold !important;
         }
+        /* Calculator Styles */
+        .calculator-highlight {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+            border: 1px solid #a78bfa !important;
+            color: white !important;
+        }
+        .calculator-warning {
+            background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+            border: 1px solid #f87171 !important;
+            color: white !important;
+        }
+        .calculator-safe {
+            background: linear-gradient(135deg, #059669, #10b981) !important;
+            border: 1px solid #34d399 !important;
+            color: white !important;
+        }
+        @keyframes calculator-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .calculator-pulse {
+            animation: calculator-pulse 0.5s ease-out;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -322,6 +346,86 @@
             
             <!-- MIDDLE COLUMN: MAIN CONTROLS -->
             <div class="lg:col-span-2">
+                <!-- MARTINGALE CALCULATOR -->
+                <div class="mb-6 p-4 bg-gray-900 rounded-xl border border-purple-500/50 shadow-lg">
+                    <h2 class="text-lg font-bold text-purple-400 mb-3 pb-2 border-b border-gray-700 flex items-center">
+                        🧮 MARTINGALE CALCULATOR
+                        <button onclick="toggleCalculator()" class="ml-auto text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">
+                            <span id="calcToggleIcon">−</span>
+                        </button>
+                    </h2>
+                    
+                    <div id="calculatorContent" class="transition-all duration-300">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <!-- Left Column: Inputs -->
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 mb-1">Base Stake ($)</label>
+                                    <input type="number" id="calc_base_stake" value="1.0" min="0.1" step="0.1" 
+                                        class="w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm calculator-highlight">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 mb-1">Multiplier</label>
+                                    <input type="number" id="calc_multiplier" value="1.15" min="1.0" step="0.01" 
+                                        class="w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 mb-1">Max Trades</label>
+                                    <input type="number" id="calc_max_trades" value="10" min="1" max="50" 
+                                        class="w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 mb-1">Bankroll Limit ($)</label>
+                                    <input type="number" id="calc_bankroll_limit" value="50.0" min="1.0" step="0.1" 
+                                        class="w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
+                                </div>
+                                
+                                <button onclick="calculateMartingale()" 
+                                    class="w-full mt-2 px-4 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition">
+                                    🧮 CALCULATE
+                                </button>
+                            </div>
+                            
+                            <!-- Right Column: Results -->
+                            <div class="space-y-3">
+                                <div class="p-3 bg-gray-800 rounded-lg border border-green-500/50">
+                                    <div class="text-xs font-semibold text-green-400 mb-1">Total Required</div>
+                                    <div id="calc_total_required" class="text-xl font-bold text-white">$0.00</div>
+                                    <div class="text-xs text-gray-400 mt-1">For all trades</div>
+                                </div>
+                                
+                                <div class="p-3 bg-gray-800 rounded-lg border border-blue-500/50">
+                                    <div class="text-xs font-semibold text-blue-400 mb-1">Final Stake</div>
+                                    <div id="calc_final_stake" class="text-lg font-bold text-white">$0.00</div>
+                                    <div class="text-xs text-gray-400 mt-1">Last trade amount</div>
+                                </div>
+                                
+                                <div class="p-3 bg-gray-800 rounded-lg border border-yellow-500/50">
+                                    <div class="text-xs font-semibold text-yellow-400 mb-1">Bankroll Status</div>
+                                    <div id="calc_bankroll_status" class="text-lg font-bold text-white">-</div>
+                                    <div class="text-xs text-gray-400 mt-1">vs. your limit</div>
+                                </div>
+                                
+                                <div class="p-3 bg-gray-800 rounded-lg border border-cyan-500/50">
+                                    <div class="text-xs font-semibold text-cyan-400 mb-1">Profit on Win</div>
+                                    <div id="calc_profit_on_win" class="text-lg font-bold text-white">$0.00</div>
+                                    <div class="text-xs text-gray-400 mt-1">9x payout minus investment</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Stake Progression Table -->
+                        <div class="mt-4">
+                            <div class="text-xs font-semibold text-gray-300 mb-2">Stake Progression</div>
+                            <div id="calc_progression" class="text-xs text-gray-400 italic">Click CALCULATE to see stake progression</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Trading Controls -->
                 <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                     <!-- Symbol -->
                     <div>
@@ -458,6 +562,142 @@
     </div>
 
     <script>
+        // ============================================================================
+        // MARTINGALE CALCULATOR FUNCTIONS
+        // ============================================================================
+        
+        let calculatorExpanded = true;
+        
+        function toggleCalculator() {
+            calculatorExpanded = !calculatorExpanded;
+            const calculatorContent = document.getElementById('calculatorContent');
+            const toggleIcon = document.getElementById('calcToggleIcon');
+            
+            if (calculatorExpanded) {
+                calculatorContent.classList.remove('hidden');
+                toggleIcon.textContent = '−';
+            } else {
+                calculatorContent.classList.add('hidden');
+                toggleIcon.textContent = '+';
+            }
+        }
+        
+        function calculateMartingale() {
+            try {
+                const baseStake = parseFloat(document.getElementById('calc_base_stake').value) || 1.0;
+                const multiplier = parseFloat(document.getElementById('calc_multiplier').value) || 1.15;
+                const maxTrades = parseInt(document.getElementById('calc_max_trades').value) || 10;
+                const bankrollLimit = parseFloat(document.getElementById('calc_bankroll_limit').value) || 50.0;
+                
+                if (baseStake <= 0 || multiplier <= 1.0 || maxTrades <= 0) {
+                    alert('Please enter valid values for calculation.');
+                    return;
+                }
+                
+                let currentStake = baseStake;
+                let totalRequired = 0;
+                let progression = [];
+                let finalStake = baseStake;
+                
+                // Calculate progression and totals
+                for (let i = 1; i <= maxTrades; i++) {
+                    if (i === 1) {
+                        currentStake = baseStake;
+                    } else {
+                        currentStake *= multiplier;
+                    }
+                    
+                    // Round to 2 decimal places
+                    currentStake = Math.round(currentStake * 100) / 100;
+                    totalRequired += currentStake;
+                    finalStake = currentStake;
+                    
+                    progression.push({
+                        trade: i,
+                        stake: currentStake.toFixed(2),
+                        cumulative: Math.round(totalRequired * 100) / 100
+                    });
+                }
+                
+                // Round total required
+                totalRequired = Math.round(totalRequired * 100) / 100;
+                
+                // Calculate profit on win (DIGITMATCH pays 9x)
+                const profitOnWin = (finalStake * 9) - totalRequired;
+                
+                // Update main bot controls with calculated values
+                document.getElementById('baseStake').value = baseStake.toFixed(2);
+                document.getElementById('multiplier').value = multiplier.toFixed(2);
+                document.getElementById('maxTrades').value = maxTrades;
+                
+                // Update calculator results
+                document.getElementById('calc_total_required').textContent = `$${totalRequired.toFixed(2)}`;
+                document.getElementById('calc_final_stake').textContent = `$${finalStake.toFixed(2)}`;
+                document.getElementById('calc_profit_on_win').textContent = `$${profitOnWin.toFixed(2)}`;
+                
+                // Update bankroll status
+                const bankrollStatusElem = document.getElementById('calc_bankroll_status');
+                bankrollStatusElem.classList.remove('calculator-safe', 'calculator-warning', 'calculator-highlight');
+                
+                if (totalRequired <= bankrollLimit) {
+                    bankrollStatusElem.textContent = '✅ Within Limit';
+                    bankrollStatusElem.classList.add('calculator-safe');
+                } else if (totalRequired <= bankrollLimit * 1.5) {
+                    bankrollStatusElem.textContent = '⚠️ Close to Limit';
+                    bankrollStatusElem.classList.add('calculator-warning');
+                } else {
+                    bankrollStatusElem.textContent = '❌ Over Limit';
+                    bankrollStatusElem.classList.add('calculator-warning');
+                }
+                
+                // Update progression display
+                const progressionElem = document.getElementById('calc_progression');
+                let progressionHTML = '<div class="grid grid-cols-4 gap-1 text-xs mb-1 font-semibold text-gray-300">';
+                progressionHTML += '<div>Trade #</div><div>Stake</div><div>Cumulative</div><div>Status</div>';
+                progressionHTML += '</div>';
+                
+                progression.forEach(item => {
+                    const status = item.cumulative <= bankrollLimit ? '✅' : '❌';
+                    progressionHTML += `
+                        <div class="grid grid-cols-4 gap-1 text-xs py-1 ${item.trade % 2 === 0 ? 'bg-gray-800/50' : ''}">
+                            <div class="text-gray-300">${item.trade}</div>
+                            <div class="text-green-400">$${item.stake}</div>
+                            <div class="text-blue-400">$${item.cumulative.toFixed(2)}</div>
+                            <div class="${status === '✅' ? 'text-green-400' : 'text-red-400'}">${status}</div>
+                        </div>
+                    `;
+                });
+                
+                progressionElem.innerHTML = progressionHTML;
+                
+                // Add pulse animation
+                document.getElementById('calc_total_required').classList.add('calculator-pulse');
+                setTimeout(() => {
+                    document.getElementById('calc_total_required').classList.remove('calculator-pulse');
+                }, 500);
+                
+                log(`🧮 Calculator: Total required: $${totalRequired.toFixed(2)} for ${maxTrades} trades`, 'CALCULATOR');
+                
+            } catch (error) {
+                console.error('Calculator error:', error);
+                alert('Error in calculation. Please check your inputs.');
+            }
+        }
+        
+        // Sync calculator with main controls
+        function syncCalculatorWithMain() {
+            const baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
+            const multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
+            const maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            
+            document.getElementById('calc_base_stake').value = baseStake.toFixed(2);
+            document.getElementById('calc_multiplier').value = multiplier.toFixed(2);
+            document.getElementById('calc_max_trades').value = maxTrades;
+            
+            // Auto-calculate when main controls change
+            calculateMartingale();
+        }
+        
         // ============================================================================
         // INITIALIZATION
         // ============================================================================
@@ -1088,6 +1328,23 @@
             setInterval(calculateRates, 1000);
             startQueueProcessor();
             
+            // Initialize calculator with default values
+            calculateMartingale();
+            
+            // Set up event listeners for auto-calculation
+            document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
+            document.getElementById('multiplier').addEventListener('change', syncCalculatorWithMain);
+            document.getElementById('maxTrades').addEventListener('change', syncCalculatorWithMain);
+            document.getElementById('calc_base_stake').addEventListener('change', () => {
+                document.getElementById('baseStake').value = document.getElementById('calc_base_stake').value;
+            });
+            document.getElementById('calc_multiplier').addEventListener('change', () => {
+                document.getElementById('multiplier').value = document.getElementById('calc_multiplier').value;
+            });
+            document.getElementById('calc_max_trades').addEventListener('change', () => {
+                document.getElementById('maxTrades').value = document.getElementById('calc_max_trades').value;
+            });
+            
             log('🤖 Bot ready', 'SYSTEM');
             switchMode('instant');
             
@@ -1576,6 +1833,7 @@
             if (type === 'ANALYSIS') color = 'text-cyan-300 font-bold';
             if (type === 'PNL') color = 'text-purple-300 font-bold';
             if (type === 'SESSION') color = 'text-blue-300 font-bold';
+            if (type === 'CALCULATOR') color = 'text-purple-300 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
