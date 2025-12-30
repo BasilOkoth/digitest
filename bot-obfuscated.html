@@ -31,42 +31,6 @@
             animation: win-pulse 1s infinite;
             background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
         }
-        @keyframes loss-pulse { 
-            0% { 
-                box-shadow: 0 0 5px #ef4444, 0 0 10px rgba(239, 68, 68, 0.5); 
-                border-color: #ef4444;
-            } 
-            50% { 
-                box-shadow: 0 0 20px #ef4444, 0 0 30px rgba(239, 68, 68, 0.8); 
-                border-color: #f87171;
-            } 
-            100% { 
-                box-shadow: 0 0 5px #ef4444, 0 0 10px rgba(239, 68, 68, 0.5); 
-                border-color: #ef4444;
-            } 
-        }
-        .loss-glow {
-            animation: loss-pulse 1s infinite;
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.2)) !important;
-        }
-        @keyframes trade-pulse { 
-            0% { 
-                box-shadow: 0 0 5px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.5); 
-                border-color: #f59e0b;
-            } 
-            50% { 
-                box-shadow: 0 0 15px #f59e0b, 0 0 25px rgba(245, 158, 11, 0.7); 
-                border-color: #fbbf24;
-            } 
-            100% { 
-                box-shadow: 0 0 5px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.5); 
-                border-color: #f59e0b;
-            } 
-        }
-        .trade-glow {
-            animation: trade-pulse 1s infinite;
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.2)) !important;
-        }
         .queue-digit { 
             width: 32px; 
             height: 32px; 
@@ -373,7 +337,7 @@
                                 
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-300 mb-1">Max Trades</label>
-                                    <input type="number" id="calc_max_trades" value="10" min="1" max="50" 
+                                    <input type="number" id="calc_max_trades" value="10" min="1" max="100" 
                                         class="w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
                                 </div>
                                 
@@ -523,7 +487,7 @@
                         <p id="metricCurrentStake" class="text-lg font-bold text-white">$0.00</p>
                     </div>
                     
-                    <!-- TRADE STATUS SECTION - UPDATED WITH GLOW EFFECTS -->
+                    <!-- TRADE STATUS SECTION - ONLY GLOW ON WINS -->
                     <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 shadow-inner border border-yellow-500/50 col-span-3">
                         <div class="flex justify-between items-center mb-2">
                             <p class="text-[10px] font-semibold text-yellow-500 uppercase">TRADE STATUS</p>
@@ -830,12 +794,12 @@
         }
         
         // ============================================================================
-        // TRADE STATUS UI FUNCTIONS
+        // TRADE STATUS UI FUNCTIONS - UPDATED: ONLY GLOW ON WINS
         // ============================================================================
         
         function updateTradeStatus(status, result, action, type = 'normal') {
             // Remove all glow classes first
-            tradeResultContainer.classList.remove('win-glow', 'loss-glow', 'trade-glow');
+            tradeResultContainer.classList.remove('win-glow');
             
             // Update text content
             metricPreviousResult.textContent = result;
@@ -848,7 +812,7 @@
                     metricTradeResult.className = 'text-xs font-bold status-win';
                     metricPreviousResult.className = 'text-sm font-bold status-win';
                     metricNextAction.className = 'text-sm font-bold text-green-400';
-                    tradeResultContainer.classList.add('win-glow');
+                    tradeResultContainer.classList.add('win-glow'); // ONLY GLOW ON WINS
                     log(`🎯 Trade Status: ${result}`, 'WIN');
                     break;
                     
@@ -857,7 +821,7 @@
                     metricTradeResult.className = 'text-xs font-bold status-loss';
                     metricPreviousResult.className = 'text-sm font-bold status-loss';
                     metricNextAction.className = 'text-sm font-bold text-red-400';
-                    tradeResultContainer.classList.add('loss-glow');
+                    // No glow for losses
                     log(`❌ Trade Status: ${result}`, 'LOSS');
                     break;
                     
@@ -866,7 +830,7 @@
                     metricTradeResult.className = 'text-xs font-bold status-trade';
                     metricPreviousResult.className = 'text-sm font-bold status-trade';
                     metricNextAction.className = 'text-sm font-bold text-yellow-400';
-                    tradeResultContainer.classList.add('trade-glow');
+                    // No glow for trading
                     log(`⚡ Trade Status: ${result}`, 'TRADE');
                     break;
                     
@@ -1308,7 +1272,7 @@
         }
         
         // ============================================================================
-        // CORE BOT FUNCTIONALITY
+        // CORE BOT FUNCTIONALITY - FIXED MAX TRADES LIMIT
         // ============================================================================
         
         // DOM Ready
@@ -1503,9 +1467,10 @@
                 return;
             }
             
+            // FIXED: Use user-defined maxTrades, not hardcoded limit
             if (window.tradeCount >= window.maxTrades) {
-                log(`🛑 Max trades reached`, 'CRITICAL');
-                updateTradeStatus('MAX TRADES', 'Maximum trades reached', 'Bot stopped', 'loss');
+                log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
+                updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
                 stopBot();
                 return;
             }
@@ -1523,7 +1488,7 @@
                 
                 log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
                 
-                // Update trade status with glowing effect
+                // Update trade status WITHOUT glow effect
                 updateTradeStatus(
                     'TRADING',
                     `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${sessionState.sessionDigit || document.getElementById('predictedDigit').value}`,
@@ -1586,7 +1551,7 @@
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
-            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10; // FIXED: Use user-defined value
             
             if (winOrLoss === 'win') {
                 window.martingaleStep = 0;
@@ -1598,19 +1563,20 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Update trade status with win glow
+                // Update trade status WITH glow effect (only for wins)
                 updateTradeStatus(
                     'WIN 🎯',
                     `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
                     'Resetting stake to base',
-                    'win'
+                    'win' // This triggers the glow
                 );
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
+                // FIXED: Use user-defined maxTrades, not hardcoded limit
                 if (window.martingaleStep >= window.maxTrades) {
-                    log(`🛑 MAX TRADES REACHED`, 'CRITICAL');
-                    updateTradeStatus('MAX TRADES', 'Maximum trades reached', 'Bot stopped', 'loss');
+                    log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
+                    updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
                     stopBot();
                     return;
                 }
@@ -1618,12 +1584,12 @@
                 window.currentStake = parseFloat(newStake.toFixed(2));
                 log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)}`, 'LOSS');
                 
-                // Update trade status with loss glow
+                // Update trade status WITHOUT glow effect
                 updateTradeStatus(
                     'LOSS ❌',
                     `Lost - Next stake: $${window.currentStake.toFixed(2)}`,
                     'Increasing stake for next trade',
-                    'loss'
+                    'loss' // No glow for losses
                 );
             } else {
                 window.martingaleStep = 0;
@@ -1730,12 +1696,12 @@
             const finalPnL = updatePnL();
             log(`💰 Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`, 'PNL');
             
-            // Update trade status
+            // Update trade status - only glow if profit is positive
             updateTradeStatus(
                 'STOPPED',
                 `Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`,
                 'Bot stopped - Ready for new session',
-                finalPnL > 0 ? 'win' : (finalPnL < 0 ? 'loss' : 'normal')
+                finalPnL > 0 ? 'win' : 'normal' // Only glow on positive profit
             );
             
             // Reset session state
@@ -1891,12 +1857,12 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Update trade status with win glow
+                // Update trade status WITH glow effect (only for wins)
                 updateTradeStatus(
                     'IMMEDIATE WIN 🎯',
                     `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
                     'Stopping bot after win',
-                    'win'
+                    'win' // This triggers the glow
                 );
                 
                 updateStake('win');
@@ -2043,9 +2009,10 @@
                 return;
             }
             
+            // FIXED: Use user-defined maxTrades, not hardcoded limit
             if (window.tradeCount >= window.maxTrades) {
-                log(`🛑 Max trades reached`, 'CRITICAL');
-                updateTradeStatus('MAX TRADES', 'Maximum trades reached', 'Bot stopped', 'loss');
+                log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
+                updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
                 stopBot();
                 return;
             }
