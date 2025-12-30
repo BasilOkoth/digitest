@@ -185,6 +185,21 @@
         .calculator-pulse {
             animation: calculator-pulse 0.5s ease-out;
         }
+        /* Recheck Badge */
+        .recheck-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 5px;
+            background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+            color: white;
+        }
+        .loss-streak-high {
+            color: #ef4444 !important;
+            animation: pulse-once 0.5s infinite;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -198,6 +213,7 @@
                     🔴 DISCONNECTED
                 </span>
                 <span id="contract-type-badge" class="contract-type-badge bg-purple-600 text-white">DIGITMATCH</span>
+                <span id="recheck-badge" class="recheck-badge hidden">ADAPTIVE</span>
                 <!-- Account toggle -->
                 <div class="account-toggle-container ml-3">
                     <span class="account-label account-label-demo">DEMO</span>
@@ -219,7 +235,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <!-- LEFT COLUMN: SMART ANALYSIS ENGINE -->
             <div class="lg:col-span-1">
-                <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg">
+                <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg analysis-settings-container">
                     <h2 class="text-lg font-bold text-cyan-400 mb-4 pb-2 border-b border-gray-700">
                         🧠 SMART DIGIT ANALYSIS
                     </h2>
@@ -254,7 +270,7 @@
                         <div class="mb-3">
                             <label class="block text-xs font-semibold text-gray-300 mb-1">Analysis Window</label>
                             <div class="flex items-center gap-2">
-                                <input type="number" id="tick_window_input" value="20" min="3" max="100" 
+                                <input type="number" id="tick_window_input" value="10" min="3" max="100" 
                                     class="flex-1 rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 py-1.5 px-2 text-sm">
                                 <button id="apply_tick_window" 
                                     class="px-3 py-1.5 bg-cyan-600 text-white font-bold rounded-md hover:bg-cyan-700 transition text-sm">
@@ -267,7 +283,7 @@
                         <div id="tick_progress" class="mb-4 p-3 bg-gray-900 rounded text-center border border-gray-700">
                             <div class="text-cyan-400 font-bold mb-1">⏳ Waiting for Connection</div>
                             <div class="text-2xl font-bold mb-1">
-                                <span id="tick_counter">0</span> / <span id="window_size">20</span>
+                                <span id="tick_counter">0</span> / <span id="window_size">10</span>
                             </div>
                             <div class="w-full bg-gray-700 rounded-full h-3 mb-2">
                                 <div id="tick_progress_bar" class="bg-cyan-600 h-3 rounded-full" style="width: 0%"></div>
@@ -303,6 +319,49 @@
                                 class="mt-2 w-full px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
                                 🔄 Run New Analysis
                             </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Adaptive Recheck Settings -->
+                    <div class="mt-4 p-3 bg-gray-800 rounded-lg border border-purple-500/30">
+                        <h3 class="text-sm font-bold text-purple-300 mb-3">Adaptive Strategy</h3>
+                        
+                        <div class="mb-3">
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">
+                                Recheck after consecutive losses:
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="recheckThreshold" value="5" min="2" max="20" 
+                                    class="flex-1 rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
+                                <button onclick="updateRecheckSettings()" 
+                                    class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
+                                    Update
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Reanalyze and adjust digit after X consecutive losses</p>
+                        </div>
+                        
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="enableRecheck" checked 
+                                class="rounded bg-gray-700 border-gray-600 text-purple-600 focus:ring-purple-500">
+                            <label for="enableRecheck" class="ml-2 text-xs text-gray-300">Enable adaptive reanalysis</label>
+                        </div>
+                        
+                        <div class="text-xs text-gray-400 mb-2">
+                            Max digit changes per session: 
+                            <input type="number" id="maxDigitChanges" value="3" min="1" max="10" 
+                                class="ml-2 w-12 rounded-md bg-gray-700 border border-gray-600 text-white text-center py-0.5 px-1">
+                        </div>
+                        
+                        <div class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
+                            <div class="flex justify-between">
+                                <span>Current loss streak:</span>
+                                <span id="currentLossStreak" class="font-bold text-gray-300">0</span>
+                            </div>
+                            <div class="flex justify-between mt-1">
+                                <span>Digit changes this session:</span>
+                                <span id="digitChangesCount" class="font-bold text-gray-300">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -521,6 +580,7 @@
 [00:00:00] 🤖 Deriv Bot Initialized
 [00:00:00] 📊 Ready to connect to live market
 [00:00:00] 🧠 Smart analysis engine ready
+[00:00:00] 🔄 Adaptive strategy enabled
             </div>
         </div>
     </div>
@@ -679,7 +739,7 @@
         window.baseStake = 1.0;
         window.currentStake = 1.0;
         window.multiplier = 1.15;
-        window.maxTrades = 10; // FIXED: Initialize with user value
+        window.maxTrades = 10;
         window.tradeCount = 0;
         window.martingaleStep = 0;
         window.accountBalance = 0.0;
@@ -719,7 +779,7 @@
         
         // Analysis Engine
         let analysisDigits = [];
-        let analysisWindowSize = 20;
+        let analysisWindowSize = 10; // Changed from 20 to 10
         let analysisComplete = false;
         let suggestedDigit = null;
         let totalTicksReceived = 0;
@@ -734,6 +794,19 @@
             sessionStarted: false,
             manualOverride: false
         };
+        
+        // ============================================================================
+        // ADAPTIVE RECHECK SYSTEM - NEW FEATURE
+        // ============================================================================
+        
+        window.recheckThreshold = 5; // Recheck after N consecutive losses
+        window.consecutiveLosses = 0;
+        window.lastAnalysisTime = 0;
+        window.recheckEnabled = true;
+        window.digitChangesThisSession = 0;
+        window.maxDigitChanges = 3;
+        window.lastRecheckTime = 0;
+        window.recheckCooldown = 10000; // 10 seconds between rechecks
         
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
@@ -794,7 +867,173 @@
         }
         
         // ============================================================================
-        // TRADE STATUS UI FUNCTIONS - UPDATED: ONLY GLOW ON WINS
+        // ADAPTIVE RECHECK FUNCTIONS - NEW
+        // ============================================================================
+        
+        function updateRecheckSettings() {
+            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
+            window.recheckEnabled = document.getElementById('enableRecheck').checked;
+            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
+            
+            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
+            
+            // Update badge visibility
+            const badge = document.getElementById('recheck-badge');
+            if (window.recheckEnabled) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        function updateLossStreakDisplay() {
+            const streakElem = document.getElementById('currentLossStreak');
+            const changesElem = document.getElementById('digitChangesCount');
+            
+            if (streakElem) {
+                streakElem.textContent = window.consecutiveLosses;
+                if (window.consecutiveLosses >= window.recheckThreshold) {
+                    streakElem.classList.add('loss-streak-high');
+                } else {
+                    streakElem.classList.remove('loss-streak-high');
+                }
+            }
+            
+            if (changesElem) {
+                changesElem.textContent = window.digitChangesThisSession;
+            }
+        }
+        
+        function collectQuickAnalysis(count) {
+            // Use recent ticks from queue or collect new ones
+            const recentDigits = [];
+            
+            if (window.tickQueue && window.tickQueue.length > 0) {
+                // Use last N ticks from queue
+                const startIdx = Math.max(0, window.tickQueue.length - count);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        recentDigits.push(parseInt(window.tickQueue[i].digit));
+                    }
+                }
+            }
+            
+            return recentDigits.slice(-count); // Return last 'count' digits
+        }
+        
+        function analyzeDigitsQuick(digitsArray) {
+            if (!digitsArray || digitsArray.length < 3) return null;
+            
+            const freq = Array(10).fill(0);
+            digitsArray.forEach(d => {
+                if (d >= 0 && d <= 9) freq[d]++;
+            });
+            
+            // Find missing digits first
+            const missing = [];
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] === 0) missing.push(i);
+            }
+            
+            if (missing.length > 0) {
+                return missing[Math.floor(Math.random() * missing.length)];
+            }
+            
+            // Find least frequent
+            let leastFrequent = 0;
+            let minFreq = Infinity;
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] < minFreq) {
+                    minFreq = freq[i];
+                    leastFrequent = i;
+                }
+            }
+            
+            return leastFrequent;
+        }
+        
+        function checkAndReanalyze(currentDigit) {
+            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
+                return false;
+            }
+            
+            // Check cooldown period
+            const now = Date.now();
+            if (now - window.lastRecheckTime < window.recheckCooldown) {
+                return false;
+            }
+            
+            // Check if we've changed digits too many times
+            if (window.digitChangesThisSession >= window.maxDigitChanges) {
+                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
+                return false;
+            }
+            
+            // Check if we need to reanalyze
+            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
+            const timeSinceAnalysis = now - window.lastAnalysisTime;
+            const marketChanged = timeSinceAnalysis > 30000; // 30 seconds
+            
+            if (needRecheck || marketChanged) {
+                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
+                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
+                
+                // Store current state
+                const currentSessionDigit = sessionState.sessionDigit;
+                const currentStake = window.currentStake;
+                const currentMartingaleStep = window.martingaleStep;
+                
+                // Collect fresh data for analysis
+                const freshAnalysis = collectQuickAnalysis(10);
+                
+                if (freshAnalysis.length >= 5) {
+                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
+                    
+                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
+                        window.digitChangesThisSession++;
+                        window.lastRecheckTime = now;
+                        
+                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
+                        
+                        // Update session with new digit - KEEP current stake & martingale step
+                        sessionState.sessionDigit = newSuggestedDigit;
+                        sessionState.manualOverride = false;
+                        document.getElementById('predictedDigit').value = newSuggestedDigit;
+                        
+                        // Update analysis time but DO NOT reset consecutive losses or martingale
+                        window.lastAnalysisTime = now;
+                        
+                        updatePredictionBox();
+                        updateSessionDisplay();
+                        
+                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
+                        
+                        updateTradeStatus('STRATEGY CHANGE', 
+                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
+                            `Continuing with $${currentStake.toFixed(2)} stake`,
+                            'normal');
+                        
+                        return true;
+                    } else {
+                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit}) or no change`, 'ANALYSIS');
+                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
+                    }
+                } else {
+                    log(`⚠️ Insufficient data for reanalysis (${freshAnalysis.length} ticks)`, 'ANALYSIS');
+                }
+                
+                window.lastRecheckTime = now;
+                window.lastAnalysisTime = now;
+                return false;
+            }
+            
+            return false;
+        }
+        
+        // ============================================================================
+        // TRADE STATUS UI FUNCTIONS
         // ============================================================================
         
         function updateTradeStatus(status, result, action, type = 'normal') {
@@ -812,7 +1051,7 @@
                     metricTradeResult.className = 'text-xs font-bold status-win';
                     metricPreviousResult.className = 'text-sm font-bold status-win';
                     metricNextAction.className = 'text-sm font-bold text-green-400';
-                    tradeResultContainer.classList.add('win-glow'); // ONLY GLOW ON WINS
+                    tradeResultContainer.classList.add('win-glow');
                     log(`🎯 Trade Status: ${result}`, 'WIN');
                     break;
                     
@@ -821,7 +1060,6 @@
                     metricTradeResult.className = 'text-xs font-bold status-loss';
                     metricPreviousResult.className = 'text-sm font-bold status-loss';
                     metricNextAction.className = 'text-sm font-bold text-red-400';
-                    // No glow for losses
                     log(`❌ Trade Status: ${result}`, 'LOSS');
                     break;
                     
@@ -830,7 +1068,6 @@
                     metricTradeResult.className = 'text-xs font-bold status-trade';
                     metricPreviousResult.className = 'text-sm font-bold status-trade';
                     metricNextAction.className = 'text-sm font-bold text-yellow-400';
-                    // No glow for trading
                     log(`⚡ Trade Status: ${result}`, 'TRADE');
                     break;
                     
@@ -1156,6 +1393,7 @@
                 }
                 
                 analysisComplete = true;
+                window.lastAnalysisTime = Date.now(); // Store analysis time
                 updatePredictionBox();
                 
                 // Lock the digit if in smart mode
@@ -1272,7 +1510,7 @@
         }
         
         // ============================================================================
-        // CORE BOT FUNCTIONALITY - FIXED MAX TRADES LIMIT
+        // CORE BOT FUNCTIONALITY
         // ============================================================================
         
         // DOM Ready
@@ -1291,9 +1529,11 @@
             updateAnalysisUI('?');
             setInterval(calculateRates, 1000);
             startQueueProcessor();
+            setInterval(updateLossStreakDisplay, 500);
             
             // Initialize calculator with default values
             calculateMartingale();
+            updateRecheckSettings(); // Initialize recheck settings
             
             // Set up event listeners for auto-calculation
             document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
@@ -1308,6 +1548,11 @@
             document.getElementById('calc_max_trades').addEventListener('change', () => {
                 document.getElementById('maxTrades').value = document.getElementById('calc_max_trades').value;
             });
+            
+            // Add event listeners for recheck settings
+            document.getElementById('enableRecheck').addEventListener('change', updateRecheckSettings);
+            document.getElementById('recheckThreshold').addEventListener('change', updateRecheckSettings);
+            document.getElementById('maxDigitChanges').addEventListener('change', updateRecheckSettings);
             
             log('🤖 Bot ready', 'SYSTEM');
             switchMode('instant');
@@ -1467,7 +1712,7 @@
                 return;
             }
             
-            // FIXED: Use user-defined maxTrades
+            // Use user-defined maxTrades
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
                 updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
@@ -1488,7 +1733,7 @@
                 
                 log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
                 
-                // Update trade status WITHOUT glow effect
+                // Update trade status
                 updateTradeStatus(
                     'TRADING',
                     `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${sessionState.sessionDigit || document.getElementById('predictedDigit').value}`,
@@ -1551,10 +1796,11 @@
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
-            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10; // FIXED: Use user-defined value
+            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             
             if (winOrLoss === 'win') {
                 window.martingaleStep = 0;
+                window.consecutiveLosses = 0; // Reset on win
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
@@ -1563,36 +1809,59 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Update trade status WITH glow effect (only for wins)
+                // Update trade status
                 updateTradeStatus(
                     'WIN 🎯',
                     `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
                     'Resetting stake to base',
-                    'win' // This triggers the glow
+                    'win'
                 );
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
-                // FIXED: Use user-defined maxTrades
+                window.consecutiveLosses++;
+                
+                // ====================================================
+                // ADAPTIVE RECHECK - Check if we should change digit
+                // ====================================================
+                if (sessionState.mode === 'smart' && window.recheckEnabled) {
+                    const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
+                    
+                    if (shouldRecheck) {
+                        const changed = checkAndReanalyze(sessionState.sessionDigit);
+                        if (changed) {
+                            // Digit was changed - MARTINGALE CONTINUES AS IS
+                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
+                            // DO NOT reset martingaleStep or currentStake
+                        }
+                    }
+                }
+                
+                // Check max trades
                 if (window.martingaleStep >= window.maxTrades) {
                     log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
                     updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
                     stopBot();
                     return;
                 }
+                
+                // Increase stake for next trade (martingale continues)
                 const newStake = window.currentStake * window.multiplier;
                 window.currentStake = parseFloat(newStake.toFixed(2));
-                log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)}`, 'LOSS');
+                log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)} (Loss streak: ${window.consecutiveLosses}, Step: ${window.martingaleStep})`, 'LOSS');
                 
-                // Update trade status WITHOUT glow effect
+                // Update trade status
                 updateTradeStatus(
                     'LOSS ❌',
-                    `Lost - Next stake: $${window.currentStake.toFixed(2)}`,
-                    'Increasing stake for next trade',
-                    'loss' // No glow for losses
+                    `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
+                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
+                    'loss'
                 );
+                
             } else {
                 window.martingaleStep = 0;
+                window.consecutiveLosses = 0;
+                window.digitChangesThisSession = 0;
                 window.currentStake = window.baseStake;
                 log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
                 updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
@@ -1613,7 +1882,7 @@
                 return;
             }
             
-            // FIXED: Read maxTrades from user input at start
+            // Read maxTrades from user input at start
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             
             // Check for token
@@ -1648,6 +1917,7 @@
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
+            log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
@@ -1700,12 +1970,12 @@
             const finalPnL = updatePnL();
             log(`💰 Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`, 'PNL');
             
-            // Update trade status - only glow if profit is positive
+            // Update trade status
             updateTradeStatus(
                 'STOPPED',
                 `Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`,
                 'Bot stopped - Ready for new session',
-                finalPnL > 0 ? 'win' : 'normal' // Only glow on positive profit
+                finalPnL > 0 ? 'win' : 'normal'
             );
             
             // Reset session state
@@ -1804,6 +2074,8 @@
             if (type === 'PNL') color = 'text-purple-300 font-bold';
             if (type === 'SESSION') color = 'text-blue-300 font-bold';
             if (type === 'CALCULATOR') color = 'text-purple-300 font-bold';
+            if (type === 'STRATEGY') color = 'text-purple-300 font-bold';
+            if (type === 'SETTINGS') color = 'text-blue-300 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
@@ -1861,12 +2133,12 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Update trade status WITH glow effect (only for wins)
+                // Update trade status
                 updateTradeStatus(
                     'IMMEDIATE WIN 🎯',
                     `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
                     'Stopping bot after win',
-                    'win' // This triggers the glow
+                    'win'
                 );
                 
                 updateStake('win');
@@ -2013,7 +2285,7 @@
                 return;
             }
             
-            // FIXED: Use user-defined maxTrades
+            // Use user-defined maxTrades
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
                 updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
@@ -2023,8 +2295,14 @@
         }
         
         function resetAllState() {
-            // FIXED: Read maxTrades from user input on reset
+            // Read maxTrades from user input on reset
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            
+            // Reset adaptive system
+            window.consecutiveLosses = 0;
+            window.digitChangesThisSession = 0;
+            window.lastAnalysisTime = 0;
+            window.lastRecheckTime = 0;
             
             updateStake('initial');
             resetPnL();
@@ -2063,6 +2341,7 @@
             logArea.innerHTML = '[00:00:00] 🤖 Bot reset. Ready.';
             
             log('🔄 Bot reset', 'SYSTEM');
+            log('🔄 Adaptive system reset', 'SYSTEM');
         }
     </script>
 </body>
