@@ -761,6 +761,11 @@
         window.stopAfterWin = false;
         window.pendingProposals = new Map();
         window.executionLock = false;
+        window.immediateWinDetected = false;
+        window.winningDigit = null;
+        window.winningTick = null;
+        window.tradeTimeout = null;
+        window.maxTradeWaitTime = 5000;
         
         // Statistics
         window.stats = {
@@ -1710,6 +1715,36 @@
             playAudioFeedback('TICK');
         }
         
+        // FIXED: Check for immediate win - detects win but allows trade to execute first
+        function checkForImmediateWin(tick) {
+            if (!window.isBotRunning || window.stopAfterWin || window.executionLock) {
+                return false;
+            }
+            
+            let predictedDigit;
+            if (sessionState.sessionDigit !== null) {
+                predictedDigit = sessionState.sessionDigit;
+            } else {
+                predictedDigit = parseInt(document.getElementById('predictedDigit').value);
+            }
+            
+            const tickDigit = parseInt(tick.digit);
+            
+            if (tickDigit === predictedDigit) {
+                log(`🎯 IMMEDIATE WIN DETECTED! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
+                
+                // Set win flags but DON'T stop yet - allow trade to execute
+                window.immediateWinDetected = true;
+                window.winningDigit = tickDigit;
+                window.winningTick = tick;
+                
+                // Return false to let normal trade flow continue
+                return false;
+            }
+            
+            return false;
+        }
+        
         // IMPROVED: Add tick to queue and analysisDigits
         function addTickToQueue(tick) {
             window.tickQueue.push(tick);
@@ -1729,14 +1764,23 @@
             return true;
         }
         
+        // FIXED: Process tick immediately - handles winning ticks properly
         function processTickImmediately(tick) {
             if (window.stopAfterWin) return;
             
-            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+            // Check if this is a winning tick that we detected
+            if (window.immediateWinDetected && tick === window.winningTick) {
+                log(`⚡ Processing winning tick for trade execution`, 'WIN');
+                window.immediateWinDetected = false; // Reset flag
+                // Continue with normal trade execution
+            }
+            
+            // Check for win on this tick
+            if (checkForImmediateWin(tick)) {
                 return;
             }
             
-            if (checkForImmediateWin(tick)) {
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
                 return;
             }
             
@@ -1776,6 +1820,7 @@
             }
         }
         
+        // FIXED: Execute trade with timeout safeguard
         function executeTrade(tick) {
             const contractType = document.getElementById('contractType').value;
             const symbol = document.getElementById('symbol').value;
@@ -1789,6 +1834,25 @@
             
             let stake = window.currentStake;
             trackTradeInvestment(stake);
+            
+            // Clear any existing timeout
+            if (window.tradeTimeout) {
+                clearTimeout(window.tradeTimeout);
+            }
+            
+            // Set timeout to prevent hanging if trade doesn't complete
+            window.tradeTimeout = setTimeout(() => {
+                if (window.executionLock && window.isBotRunning) {
+                    log(`⚠️ Trade timeout - forcing completion`, 'WARNING');
+                    window.executionLock = false;
+                    window.nextTradeAllowed = true;
+                    
+                    if (window.stopAfterWin) {
+                        log(`✅ Force-stopping bot after timeout`, 'WIN');
+                        setTimeout(() => stopBot(), 100);
+                    }
+                }
+            }, window.maxTradeWaitTime);
             
             const proposalRequest = {
                 proposal: 1,
@@ -1808,13 +1872,25 @@
                 stake: stake,
                 contractType: contractType,
                 predictedDigit: predictedDigit,
-                startTime: Date.now()
+                startTime: Date.now(),
+                isWinningTrade: (parseInt(tick.digit) === predictedDigit)
             });
             
             sendRequest(proposalRequest);
         }
         
-        // IMPROVED: Update stake with better reanalysis
+        // FIXED: Delayed stop after win
+        function delayedStopAfterWin() {
+            // Wait for trade to complete
+            setTimeout(() => {
+                if (window.isBotRunning) {
+                    log(`✅ Winning trade completed, stopping bot...`, 'WIN');
+                    stopBot();
+                }
+            }, 3000); // 3 second delay to ensure trade executes
+        }
+        
+        // FIXED: Update stake with proper win handling
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -1833,9 +1909,22 @@
                 updateTradeStatus(
                     'WIN 🎯',
                     `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
-                    'Resetting stake to base',
+                    'Delaying stop for trade completion...',
                     'win'
                 );
+                
+                // Set stop flag but delay actual stop
+                window.stopAfterWin = true;
+                
+                // Clear win detection flags
+                window.immediateWinDetected = false;
+                window.winningDigit = null;
+                window.winningTick = null;
+                
+                // Schedule delayed stop to ensure trade completes
+                delayedStopAfterWin();
+                
+                playAudioFeedback('WIN');
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
@@ -1948,6 +2037,17 @@
             window.nextTradeAllowed = false;
             window.stopAfterWin = false;
             updateButtonState();
+            
+            // Clear win detection flags
+            window.immediateWinDetected = false;
+            window.winningDigit = null;
+            window.winningTick = null;
+            
+            // Clear trade timeout
+            if (window.tradeTimeout) {
+                clearTimeout(window.tradeTimeout);
+                window.tradeTimeout = null;
+            }
             
             log('⏹️ Bot stopped', 'SYSTEM');
             
@@ -2101,46 +2201,6 @@
             }, 50);
         }
         
-        function checkForImmediateWin(tick) {
-            if (!window.isBotRunning || window.stopAfterWin) return false;
-            
-            let predictedDigit;
-            if (sessionState.sessionDigit !== null) {
-                predictedDigit = sessionState.sessionDigit;
-            } else {
-                predictedDigit = parseInt(document.getElementById('predictedDigit').value);
-            }
-            
-            const tickDigit = parseInt(tick.digit);
-            
-            if (tickDigit === predictedDigit) {
-                log(`🎯 IMMEDIATE WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
-                
-                window.lastTradeResult = 'win';
-                window.stopAfterWin = true;
-                window.stats.wins++;
-                window.tradeCount++;
-                
-                playAudioFeedback('WIN');
-                
-                const payout = window.currentStake * 9;
-                trackTradePayout(payout);
-                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
-                
-                updateTradeStatus(
-                    'IMMEDIATE WIN 🎯',
-                    `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
-                    'Stopping bot after win',
-                    'win'
-                );
-                
-                updateStake('win');
-                return true;
-            }
-            
-            return false;
-        }
-        
         function sendRequest(request) {
             if (window.ws && window.ws.readyState === WebSocket.OPEN) {
                 const message = JSON.stringify(request);
@@ -2251,7 +2311,14 @@
             }
         }
         
+        // FIXED: On trade complete with timeout clearing
         function onTradeComplete(isSuccess = true) {
+            // Clear trade timeout
+            if (window.tradeTimeout) {
+                clearTimeout(window.tradeTimeout);
+                window.tradeTimeout = null;
+            }
+            
             window.executionLock = false;
             window.nextTradeAllowed = true;
             updateSessionDisplay();
@@ -2260,9 +2327,9 @@
                 updateStake('loss');
             }
             
-            if (window.stopAfterWin) {
-                setTimeout(() => stopBot(), 100);
-                return;
+            // If we're stopping after a win and trade completed
+            if (window.stopAfterWin && isSuccess) {
+                log(`✅ Trade execution confirmed, bot will stop shortly`, 'WIN');
             }
             
             if (window.tradeCount >= window.maxTrades) {
@@ -2280,6 +2347,18 @@
             window.lastAnalysisTime = 0;
             window.lastRecheckTime = 0;
             
+            // Reset win detection flags
+            window.immediateWinDetected = false;
+            window.winningDigit = null;
+            window.winningTick = null;
+            window.stopAfterWin = false;
+            
+            // Clear trade timeout
+            if (window.tradeTimeout) {
+                clearTimeout(window.tradeTimeout);
+                window.tradeTimeout = null;
+            }
+            
             updateStake('initial');
             resetPnL();
             resetTradeStatus();
@@ -2296,7 +2375,6 @@
             window.stats = { totalTicks: 0, tradesExecuted: 0, wins: 0, losses: 0 };
             window.tickQueue = [];
             window.lastTick = null;
-            window.lastTradeResult = null;
             window.tradeCount = 0;
             window.martingaleStep = 0;
             window.pendingProposals.clear();
@@ -2305,7 +2383,6 @@
             window.executionLock = false;
             window.waitingForTradeResult = false;
             window.nextTradeAllowed = true;
-            window.stopAfterWin = false;
             
             const logArea = document.getElementById('log-area');
             logArea.innerHTML = '[00:00:00] 🤖 Bot reset. Ready.';
