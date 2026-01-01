@@ -137,15 +137,12 @@
         }
         .profit-positive {
             color: #10b981 !important;
-            font-weight: bold !important;
         }
         .profit-negative {
             color: #ef4444 !important;
-            font-weight: bold !important;
         }
         .profit-neutral {
             color: #d1d5db !important;
-            font-weight: bold !important;
         }
         .session-digit-locked {
             background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
@@ -202,38 +199,6 @@
         .loss-streak-high {
             color: #ef4444 !important;
             animation: pulse-once 0.5s infinite;
-            font-weight: bold !important;
-        }
-        /* Balance Text */
-        .balance-text {
-            font-weight: bold !important;
-            color: #10b981 !important;
-            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-        }
-        .balance-updating {
-            animation: pulse-once 1s infinite;
-            color: #f59e0b !important;
-        }
-        /* Connection Manager Styles */
-        .reconnect-button {
-            background: linear-gradient(90deg, #f59e0b, #d97706) !important;
-            border: 2px solid #fbbf24 !important;
-        }
-        .reconnect-button:hover {
-            background: linear-gradient(90deg, #d97706, #b45309) !important;
-        }
-        @keyframes reconnect-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .reconnecting {
-            animation: reconnect-pulse 1s infinite;
-        }
-        /* Trade Stopped State */
-        .trade-stopped {
-            background: linear-gradient(135deg, #dc2626, #ef4444) !important;
-            border: 2px solid #f87171 !important;
-            color: white !important;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
@@ -263,10 +228,6 @@
                 <button id="soundToggle" onclick="toggleSound()" 
                     class="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition">
                     🔊 Sound ON
-                </button>
-                <button id="reconnectButton" onclick="manualReconnect()" 
-                    class="px-4 py-2 reconnect-button text-white font-bold rounded-lg shadow hidden">
-                    🔄 Reconnect
                 </button>
             </div>
         </div>
@@ -298,10 +259,6 @@
                             <div>
                                 <span class="text-gray-400">Tick Rate:</span>
                                 <span id="current_tick_rate" class="ml-2 font-bold text-blue-400">0/s</span>
-                            </div>
-                            <div class="col-span-2">
-                                <span class="text-gray-400">Connection Health:</span>
-                                <span id="connection_health" class="ml-2 font-bold text-gray-400">-</span>
                             </div>
                         </div>
                     </div>
@@ -571,8 +528,7 @@
                     
                     <div class="bg-gray-700 rounded-lg p-2 shadow-inner border border-purple-500/50">
                         <p class="text-[10px] font-semibold text-purple-500 uppercase">Balance</p>
-                        <p id="metricAccountBalance" class="text-lg font-bold balance-text">$---</p>
-                        <p id="balanceStatus" class="text-xs text-gray-400">-</p>
+                        <p id="metricAccountBalance" class="text-lg font-bold text-white">$---</p>
                     </div>
                     
                     <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
@@ -630,238 +586,6 @@
     </div>
 
     <script>
-        // ============================================================================
-        // CONNECTION MANAGER WITH RETRY LOGIC
-        // ============================================================================
-        
-        class ConnectionManager {
-            constructor() {
-                this.retryCount = 0;
-                this.maxRetries = 5;
-                this.retryDelay = 2000;
-                this.maxRetryDelay = 30000;
-                this.backoffMultiplier = 2;
-                this.reconnectTimer = null;
-                this.connectionStartTime = 0;
-                this.lastSuccessfulTick = 0;
-                this.healthCheckInterval = null;
-            }
-            
-            connect() {
-                this.retryCount = 0;
-                this.connectionStartTime = Date.now();
-                this._attemptConnection();
-            }
-            
-            _attemptConnection() {
-                if (this.retryCount >= this.maxRetries) {
-                    log(`❌ Max reconnection attempts (${this.maxRetries}) reached`, 'CONNECTION');
-                    this.showReconnectButton();
-                    return;
-                }
-                
-                if (this.retryCount > 0) {
-                    const delay = Math.min(
-                        this.retryDelay * Math.pow(this.backoffMultiplier, this.retryCount - 1),
-                        this.maxRetryDelay
-                    );
-                    
-                    log(`🔄 Reconnection attempt ${this.retryCount}/${this.maxRetries} in ${delay/1000}s...`, 'CONNECTION');
-                    
-                    this.reconnectTimer = setTimeout(() => {
-                        this._connectWebSocket();
-                    }, delay);
-                } else {
-                    this._connectWebSocket();
-                }
-            }
-            
-            _connectWebSocket() {
-                if (window.ws) {
-                    try {
-                        window.ws.close();
-                    } catch (e) {}
-                }
-                
-                window.isConnecting = true;
-                updateConnectionStatus();
-                
-                // Try multiple WebSocket endpoints for reliability
-                const endpoints = [
-                    'wss://ws.binaryws.com/websockets/v3?app_id=118332',
-                    'wss://ws.derivws.com/websockets/v3?app_id=118332'
-                ];
-                
-                const endpoint = endpoints[this.retryCount % endpoints.length];
-                log(`🔗 Connecting to ${endpoint.substring(0, 30)}...`, 'CONNECTION');
-                
-                window.ws = new WebSocket(endpoint);
-                
-                this._setupWebSocketHandlers();
-            }
-            
-            _setupWebSocketHandlers() {
-                window.ws.onopen = () => {
-                    this._onOpen();
-                };
-                
-                window.ws.onmessage = (msg) => {
-                    this._onMessage(msg);
-                };
-                
-                window.ws.onclose = () => {
-                    this._onClose();
-                };
-                
-                window.ws.onerror = (error) => {
-                    this._onError(error);
-                };
-            }
-            
-            _onOpen() {
-                this.retryCount = 0;
-                window.isConnecting = false;
-                log('✅ WebSocket connected', 'CONNECTION');
-                updateConnectionStatus();
-                this.hideReconnectButton();
-                
-                const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
-                if (!token) {
-                    log('❌ No API token found in storage', 'ERROR');
-                    stopBot();
-                    return;
-                }
-                
-                sendRequest({ 
-                    authorize: token, 
-                    req_id: getNextReqId() 
-                });
-                
-                // Start health checks
-                this.startHealthChecks();
-            }
-            
-            _onMessage(msg) {
-                try {
-                    const data = JSON.parse(msg.data);
-                    
-                    // Update last successful tick time for health checks
-                    if (data.msg_type === 'tick') {
-                        this.lastSuccessfulTick = Date.now();
-                    }
-                    
-                    handleAPIResponse(data);
-                } catch (e) {
-                    console.error('WebSocket message error:', e);
-                }
-            }
-            
-            _onClose() {
-                window.isConnecting = false;
-                updateConnectionStatus();
-                log('🔌 WebSocket disconnected', 'CONNECTION');
-                
-                this.stopHealthChecks();
-                
-                if (window.isBotRunning) {
-                    this.retryCount++;
-                    log(`🔄 Auto-reconnecting... (attempt ${this.retryCount}/${this.maxRetries})`, 'CONNECTION');
-                    this._attemptConnection();
-                }
-            }
-            
-            _onError(error) {
-                console.error('WebSocket error:', error);
-                log('❌ WebSocket connection error', 'ERROR');
-                
-                // Force close to trigger reconnection
-                if (window.ws) {
-                    window.ws.close();
-                }
-            }
-            
-            startHealthChecks() {
-                this.healthCheckInterval = setInterval(() => {
-                    this.checkConnectionHealth();
-                }, 5000);
-            }
-            
-            stopHealthChecks() {
-                if (this.healthCheckInterval) {
-                    clearInterval(this.healthCheckInterval);
-                    this.healthCheckInterval = null;
-                }
-            }
-            
-            checkConnectionHealth() {
-                const now = Date.now();
-                const timeSinceLastTick = now - this.lastSuccessfulTick;
-                const connectionUptime = now - this.connectionStartTime;
-                
-                let healthStatus = 'Good';
-                let healthColor = 'text-green-400';
-                
-                if (timeSinceLastTick > 30000) { // 30 seconds without ticks
-                    healthStatus = 'Stalled';
-                    healthColor = 'text-red-400';
-                    
-                    log('⚠️ Connection appears stalled - no ticks for 30s', 'WARNING');
-                    
-                    // Try to force reconnect
-                    if (window.isBotRunning && window.ws) {
-                        window.ws.close();
-                    }
-                } else if (timeSinceLastTick > 10000) { // 10 seconds without ticks
-                    healthStatus = 'Slow';
-                    healthColor = 'text-yellow-400';
-                }
-                
-                document.getElementById('connection_health').textContent = healthStatus;
-                document.getElementById('connection_health').className = `ml-2 font-bold ${healthColor}`;
-            }
-            
-            showReconnectButton() {
-                const reconnectBtn = document.getElementById('reconnectButton');
-                if (reconnectBtn) {
-                    reconnectBtn.classList.remove('hidden');
-                    reconnectBtn.classList.add('reconnecting');
-                }
-            }
-            
-            hideReconnectButton() {
-                const reconnectBtn = document.getElementById('reconnectButton');
-                if (reconnectBtn) {
-                    reconnectBtn.classList.add('hidden');
-                    reconnectBtn.classList.remove('reconnecting');
-                }
-            }
-            
-            manualReconnect() {
-                log('🔄 Manual reconnection initiated', 'CONNECTION');
-                this.retryCount = 0;
-                this.connect();
-            }
-            
-            disconnect() {
-                this.stopHealthChecks();
-                
-                if (this.reconnectTimer) {
-                    clearTimeout(this.reconnectTimer);
-                    this.reconnectTimer = null;
-                }
-                
-                if (window.ws) {
-                    window.ws.close();
-                    window.ws = null;
-                }
-                
-                this.hideReconnectButton();
-            }
-        }
-        
-        // Initialize connection manager
-        const connectionManager = new ConnectionManager();
-        
         // ============================================================================
         // MARTINGALE CALCULATOR FUNCTIONS
         // ============================================================================
@@ -1023,10 +747,6 @@
         window.currentBalance = 0.0;
         window.netProfit = 0.0;
         
-        // CRITICAL: Stop trading control
-        window.stopTrading = false; // Set to true when winning trade executes
-        window.winningTradeExecuted = false; // Track if winning trade has been executed
-        
         // PnL Tracking
         window.pnlTracker = {
             totalInvestment: 0.0,
@@ -1038,6 +758,7 @@
         // Execution State
         window.lastTick = null;
         window.nextTradeAllowed = true;
+        window.stopAfterWin = false;
         window.pendingProposals = new Map();
         window.executionLock = false;
         
@@ -1052,9 +773,9 @@
         // Rate tracking
         window.botTickTimestamps = [];
         
-        // Queue
+        // Queue - INCREASED SIZE FOR BETTER REANALYSIS
         window.tickQueue = [];
-        window.maxQueueSize = 30;
+        window.maxQueueSize = 30; // Increased from 10 to 30
         
         // Analysis Engine
         let analysisDigits = [];
@@ -1067,6 +788,7 @@
         
         // Session State
         let sessionState = {
+            active: false,
             mode: 'instant',
             sessionDigit: null,
             sessionStarted: false,
@@ -1074,7 +796,7 @@
         };
         
         // ============================================================================
-        // ADAPTIVE RECHECK SYSTEM
+        // ADAPTIVE RECHECK SYSTEM - IMPROVED
         // ============================================================================
         
         window.recheckThreshold = 5;
@@ -1133,6 +855,249 @@
             }
         }
         
+        // IMPROVED: Better data collection for reanalysis
+        function collectQuickAnalysis(count) {
+            const recentDigits = [];
+            
+            // Method 1: Use tick queue if available
+            if (window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - count);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
+            }
+            
+            // Method 2: Use the global analysisDigits array
+            if (recentDigits.length < count && analysisDigits && analysisDigits.length > 0) {
+                const startIdx = Math.max(0, analysisDigits.length - count);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            // Method 3: Use last tick if available
+            if (recentDigits.length === 0 && window.lastTick && window.lastTick.digit !== undefined) {
+                const digit = parseInt(window.lastTick.digit);
+                if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                    recentDigits.push(digit);
+                }
+            }
+            
+            // Return unique digits to avoid duplicates
+            return [...new Set(recentDigits)].slice(-count);
+        }
+        
+        // IMPROVED: Better analysis for small data sets
+        function analyzeDigitsQuick(digitsArray) {
+            if (!digitsArray || digitsArray.length === 0) return null;
+            
+            // Log what we're analyzing for debugging
+            if (digitsArray.length < 3) {
+                log(`📊 Quick analysis: Only ${digitsArray.length} digits available`, 'ANALYSIS');
+            }
+            
+            const freq = Array(10).fill(0);
+            digitsArray.forEach(d => {
+                if (d >= 0 && d <= 9) freq[d]++;
+            });
+            
+            // For very small data sets (1-2 digits), use a different approach
+            if (digitsArray.length < 3) {
+                const usedDigits = [...new Set(digitsArray)];
+                const possibleDigits = [];
+                
+                // Find digits that haven't been used recently
+                for (let i = 0; i < 10; i++) {
+                    if (!usedDigits.includes(i)) {
+                        possibleDigits.push(i);
+                    }
+                }
+                
+                if (possibleDigits.length > 0) {
+                    const randomDigit = possibleDigits[Math.floor(Math.random() * possibleDigits.length)];
+                    log(`🎲 Small data set: Choosing random digit ${randomDigit} from ${possibleDigits.length} options`, 'ANALYSIS');
+                    return randomDigit;
+                } else {
+                    // If all digits appear (unlikely with 1-2 digits), pick one randomly
+                    const randomDigit = Math.floor(Math.random() * 10);
+                    log(`🎲 All digits in small set: Choosing random digit ${randomDigit}`, 'ANALYSIS');
+                    return randomDigit;
+                }
+            }
+            
+            // Normal analysis for larger data sets
+            // Find missing digits first
+            const missing = [];
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] === 0) missing.push(i);
+            }
+            
+            if (missing.length > 0) {
+                const randomMissing = missing[Math.floor(Math.random() * missing.length)];
+                log(`📊 Found ${missing.length} missing digits, choosing ${randomMissing}`, 'ANALYSIS');
+                return randomMissing;
+            }
+            
+            // Find least frequent
+            let leastFrequent = 0;
+            let minFreq = Infinity;
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] < minFreq) {
+                    minFreq = freq[i];
+                    leastFrequent = i;
+                }
+            }
+            
+            log(`📊 All digits present, choosing least frequent: ${leastFrequent} (appeared ${minFreq} times)`, 'ANALYSIS');
+            return leastFrequent;
+        }
+        
+        // IMPROVED: Fallback reanalysis when normal methods fail
+        function fallbackReanalysis() {
+            const recentDigits = [];
+            
+            // Try to get any available data
+            if (analysisDigits && analysisDigits.length > 0) {
+                // Use all available analysis digits
+                const startIdx = Math.max(0, analysisDigits.length - 50);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            // Also check tick queue
+            if (recentDigits.length < 10 && window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - 20);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
+            }
+            
+            return [...new Set(recentDigits)]; // Return unique digits
+        }
+        
+        // IMPROVED: Main recheck function with fallback
+        function checkAndReanalyze(currentDigit) {
+            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
+                return false;
+            }
+            
+            // Check cooldown period
+            const now = Date.now();
+            if (now - window.lastRecheckTime < window.recheckCooldown) {
+                return false;
+            }
+            
+            // Check if we've changed digits too many times
+            if (window.digitChangesThisSession >= window.maxDigitChanges) {
+                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
+                return false;
+            }
+            
+            // Check if we need to reanalyze
+            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
+            const timeSinceAnalysis = now - window.lastAnalysisTime;
+            const marketChanged = timeSinceAnalysis > 30000;
+            
+            if (needRecheck || marketChanged) {
+                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
+                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
+                
+                // Store current state
+                const currentSessionDigit = sessionState.sessionDigit;
+                const currentStake = window.currentStake;
+                const currentMartingaleStep = window.martingaleStep;
+                
+                // Try normal data collection first
+                let freshAnalysis = collectQuickAnalysis(10);
+                
+                // Log available data
+                log(`📊 Reanalysis data: ${freshAnalysis.length} recent digits available`, 'ANALYSIS');
+                
+                // If normal collection fails, try fallback
+                if (freshAnalysis.length < 2) {
+                    log(`🔄 Normal data collection insufficient, trying fallback...`, 'ANALYSIS');
+                    const fallbackData = fallbackReanalysis();
+                    if (fallbackData.length > 0) {
+                        freshAnalysis = fallbackData.slice(-10); // Use last 10 from fallback
+                        log(`📊 Fallback data: ${freshAnalysis.length} digits from history`, 'ANALYSIS');
+                    }
+                }
+                
+                // We need at least SOME data
+                if (freshAnalysis.length >= 1) {
+                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
+                    
+                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
+                        window.digitChangesThisSession++;
+                        window.lastRecheckTime = now;
+                        
+                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`📊 Based on ${freshAnalysis.length} recent digits: [${freshAnalysis.join(', ')}]`, 'STRATEGY');
+                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
+                        
+                        // Update session with new digit - KEEP current stake & martingale step
+                        sessionState.sessionDigit = newSuggestedDigit;
+                        sessionState.manualOverride = false;
+                        document.getElementById('predictedDigit').value = newSuggestedDigit;
+                        
+                        // Update analysis time
+                        window.lastAnalysisTime = now;
+                        
+                        updatePredictionBox();
+                        updateSessionDisplay();
+                        
+                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
+                        
+                        updateTradeStatus('STRATEGY CHANGE', 
+                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
+                            `Continuing with $${currentStake.toFixed(2)} stake`,
+                            'normal');
+                        
+                        return true;
+                    } else if (newSuggestedDigit === currentSessionDigit) {
+                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit})`, 'ANALYSIS');
+                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
+                        
+                        // Still update the timestamp to prevent frequent rechecks
+                        window.lastRecheckTime = now;
+                        window.lastAnalysisTime = now;
+                        
+                        updateTradeStatus('ANALYSIS', 
+                            `Reanalysis confirms digit ${currentSessionDigit}`,
+                            `Continuing with current strategy`,
+                            'normal');
+                    }
+                } else {
+                    log(`⚠️ No data available for reanalysis`, 'ANALYSIS');
+                    log(`💡 Waiting for more market data...`, 'ANALYSIS');
+                    
+                    // Still update timestamp to prevent constant checking
+                    window.lastRecheckTime = now;
+                    window.lastAnalysisTime = now;
+                }
+                
+                return false;
+            }
+            
+            return false;
+        }
+        
         // ============================================================================
         // CORE BOT FUNCTIONS
         // ============================================================================
@@ -1188,7 +1153,7 @@
         
         // TRADE STATUS UI FUNCTIONS
         function updateTradeStatus(status, result, action, type = 'normal') {
-            tradeResultContainer.classList.remove('win-glow', 'trade-stopped');
+            tradeResultContainer.classList.remove('win-glow');
             metricPreviousResult.textContent = result;
             metricNextAction.textContent = action;
             
@@ -1214,14 +1179,6 @@
                     metricPreviousResult.className = 'text-sm font-bold status-trade';
                     metricNextAction.className = 'text-sm font-bold text-yellow-400';
                     log(`⚡ Trade Status: ${result}`, 'TRADE');
-                    break;
-                case 'stopped':
-                    metricTradeResult.textContent = 'STOPPED ⏹️';
-                    metricTradeResult.className = 'text-xs font-bold text-red-400';
-                    metricPreviousResult.className = 'text-sm font-bold text-red-300';
-                    metricNextAction.className = 'text-sm font-bold text-red-400';
-                    tradeResultContainer.classList.add('trade-stopped');
-                    log(`⏹️ Trade Status: ${result}`, 'SYSTEM');
                     break;
                 default:
                     metricTradeResult.textContent = status || 'READY';
@@ -1658,10 +1615,69 @@
         
         // WEBSOCKET CONNECTION
         function connectWebSocket() {
-            connectionManager.connect();
+            if (window.ws) {
+                try {
+                    window.ws.close();
+                } catch (e) {}
+            }
+            
+            window.isConnecting = true;
+            updateConnectionStatus();
+            
+            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
+            log('🔗 Connecting to Deriv API...', 'SYSTEM');
+            
+            window.ws = new WebSocket(wsUrl);
+            
+            window.ws.onopen = () => {
+                window.isConnecting = false;
+                log('✅ WebSocket connected', 'SYSTEM');
+                updateConnectionStatus();
+                
+                const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+                if (!token) {
+                    log('❌ No API token found in storage', 'ERROR');
+                    stopBot();
+                    return;
+                }
+                
+                sendRequest({ 
+                    authorize: token, 
+                    req_id: getNextReqId() 
+                });
+            };
+            
+            window.ws.onmessage = (msg) => {
+                try {
+                    const data = JSON.parse(msg.data);
+                    handleAPIResponse(data);
+                } catch (e) {
+                    console.error('WebSocket message error:', e);
+                }
+            };
+            
+            window.ws.onclose = () => {
+                window.isConnecting = false;
+                updateConnectionStatus();
+                log('🔌 WebSocket disconnected', 'SYSTEM');
+                
+                if (window.isBotRunning) {
+                    log('🔄 Attempting to reconnect...', 'SYSTEM');
+                    setTimeout(() => {
+                        if (window.isBotRunning) {
+                            connectWebSocket();
+                        }
+                    }, 2000);
+                }
+            };
+            
+            window.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                log('❌ WebSocket connection error', 'ERROR');
+            };
         }
         
-        // TICK HANDLER - EXECUTE TRADE ON EACH TICK
+        // TICK HANDLER
         function handleTick(tick) {
             if (!window.isBotRunning) return;
             
@@ -1690,17 +1706,11 @@
             window.stats.totalTicks++;
             window.botTickTimestamps.push(Date.now());
             
-            // CRITICAL: Check if we should stop trading
-            if (window.stopTrading) {
-                return; // Don't process any more ticks
-            }
-            
-            // Add tick to queue for processing
             addTickToQueue(tickData);
-            
             playAudioFeedback('TICK');
         }
         
+        // IMPROVED: Add tick to queue and analysisDigits
         function addTickToQueue(tick) {
             window.tickQueue.push(tick);
             if (window.tickQueue.length > window.maxQueueSize) {
@@ -1719,14 +1729,14 @@
             return true;
         }
         
-        // CRITICAL: Process each tick and check for winning trade
         function processTickImmediately(tick) {
-            // CRITICAL: Don't process if we've stopped trading
-            if (window.stopTrading) {
+            if (window.stopAfterWin) return;
+            
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
                 return;
             }
             
-            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+            if (checkForImmediateWin(tick)) {
                 return;
             }
             
@@ -1737,12 +1747,8 @@
                 return;
             }
             
-            // Don't execute if already executing a trade
-            if (window.executionLock) {
-                return;
-            }
-            
             window.executionLock = true;
+            window.nextTradeAllowed = false;
             
             try {
                 window.stats.tradesExecuted++;
@@ -1750,55 +1756,27 @@
                 document.getElementById('metricTradeCount').textContent = window.tradeCount;
                 
                 updateSessionDisplay();
+                log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
                 
-                // Get the predicted digit
-                let predictedDigit;
-                if (sessionState.sessionDigit !== null) {
-                    predictedDigit = sessionState.sessionDigit;
-                } else {
-                    predictedDigit = parseInt(document.getElementById('predictedDigit').value);
-                }
-                
-                const tickDigit = parseInt(tick.digit);
-                
-                // Check if this is a winning trade
-                const isWinningTrade = tickDigit === predictedDigit;
-                
-                if (isWinningTrade) {
-                    log(`🎯 WINNING TRADE #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit} matches ${predictedDigit})`, 'WIN');
-                    
-                    updateTradeStatus(
-                        'WINNING TRADE 🎯',
-                        `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} - DIGIT MATCH!`,
-                        'Executing final trade...',
-                        'trade'
-                    );
-                    
-                    // Mark this as a winning trade for execution
-                    executeTrade(tick, true);
-                } else {
-                    log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit} vs ${predictedDigit})`, 'TRADE');
-                    
-                    updateTradeStatus(
-                        'TRADING',
-                        `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${predictedDigit}`,
-                        'Executing trade...',
-                        'trade'
-                    );
-                    
-                    executeTrade(tick, false);
-                }
+                updateTradeStatus(
+                    'TRADING',
+                    `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${sessionState.sessionDigit || document.getElementById('predictedDigit').value}`,
+                    'Executing trade...',
+                    'trade'
+                );
                 
                 playAudioFeedback('EXECUTION');
+                executeTrade(tick);
                 
             } catch (error) {
                 log(`❌ Error: ${error}`, 'ERROR');
                 window.executionLock = false;
+                window.nextTradeAllowed = true;
                 updateTradeStatus('ERROR', `Trade failed: ${error}`, 'Retrying...', 'loss');
             }
         }
         
-        function executeTrade(tick, isWinningTrade = false) {
+        function executeTrade(tick) {
             const contractType = document.getElementById('contractType').value;
             const symbol = document.getElementById('symbol').value;
             let predictedDigit;
@@ -1830,14 +1808,13 @@
                 stake: stake,
                 contractType: contractType,
                 predictedDigit: predictedDigit,
-                startTime: Date.now(),
-                isWinningTrade: isWinningTrade // Mark if this is the winning trade
+                startTime: Date.now()
             });
             
             sendRequest(proposalRequest);
         }
         
-        // Update stake and check for winning trade completion
+        // IMPROVED: Update stake with better reanalysis
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -1847,41 +1824,18 @@
                 window.martingaleStep = 0;
                 window.consecutiveLosses = 0;
                 window.currentStake = window.baseStake;
+                log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
-                // CRITICAL: If this was a winning trade, STOP ALL FURTHER TRADING
-                if (window.winningTradeExecuted) {
-                    window.stopTrading = true;
-                    
-                    const payout = window.currentStake * 9;
-                    trackTradePayout(payout);
-                    
-                    log(`🏆 WINNING TRADE COMPLETED! Payout: $${payout.toFixed(2)}`, 'WIN');
-                    log(`🛑 STOPPING ALL FURTHER TRADES`, 'SYSTEM');
-                    
-                    updateTradeStatus(
-                        'VICTORY 🏆',
-                        `WON! Final trade executed - Payout: $${payout.toFixed(2)}`,
-                        'No more trades - Bot will stop',
-                        'win'
-                    );
-                    
-                    // Clear the tick queue to prevent any more trades
-                    window.tickQueue = [];
-                    
-                    // Stop bot after a delay to show the victory message
-                    setTimeout(() => stopBot(), 2000);
-                } else {
-                    const payout = window.currentStake * 9;
-                    trackTradePayout(payout);
-                    log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
-                    
-                    updateTradeStatus(
-                        'WIN 🎯',
-                        `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
-                        'Resetting stake to base',
-                        'win'
-                    );
-                }
+                const payout = window.currentStake * 9;
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
+                updateTradeStatus(
+                    'WIN 🎯',
+                    `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
+                    'Resetting stake to base',
+                    'win'
+                );
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
@@ -1892,9 +1846,9 @@
                     const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
                     
                     if (shouldRecheck) {
-                        // Simple recheck logic (simplified for clarity)
-                        if (window.consecutiveLosses >= window.recheckThreshold) {
-                            log(`🔍 Considering strategy change after ${window.consecutiveLosses} losses`, 'ANALYSIS');
+                        const changed = checkAndReanalyze(sessionState.sessionDigit);
+                        if (changed) {
+                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
                         }
                     }
                 }
@@ -1913,7 +1867,7 @@
                 updateTradeStatus(
                     'LOSS ❌',
                     `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
-                    'Increasing stake',
+                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
                     'loss'
                 );
                 
@@ -1965,10 +1919,6 @@
                 sessionState.sessionStarted = false;
             }
             
-            // Reset stop trading flag
-            window.stopTrading = false;
-            window.winningTradeExecuted = false;
-            
             window.isBotRunning = true;
             updateButtonState();
             
@@ -1977,8 +1927,6 @@
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
             log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
-            log(`⚡ Trading on EVERY tick`, 'SYSTEM');
-            log(`🛑 Will STOP after executing a winning trade`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
             updateStake('initial');
@@ -1998,12 +1946,15 @@
             
             window.isBotRunning = false;
             window.nextTradeAllowed = false;
-            window.stopTrading = false;
+            window.stopAfterWin = false;
             updateButtonState();
             
             log('⏹️ Bot stopped', 'SYSTEM');
             
-            connectionManager.disconnect();
+            if (window.ws) {
+                window.ws.close();
+                window.ws = null;
+            }
             window.tickSubscriptionSent = false;
             window.pendingProposals.clear();
             window.executionLock = false;
@@ -2120,7 +2071,6 @@
             if (type === 'CALCULATOR') color = 'text-purple-300 font-bold';
             if (type === 'STRATEGY') color = 'text-purple-300 font-bold';
             if (type === 'SETTINGS') color = 'text-blue-300 font-bold';
-            if (type === 'CONNECTION') color = 'text-cyan-300 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
@@ -2142,19 +2092,53 @@
         
         function startQueueProcessor() {
             setInterval(() => {
-                if (!window.isBotRunning) return;
+                if (!window.isBotRunning || window.stopAfterWin) return;
                 
-                // CRITICAL: Don't process queue if we've stopped trading
-                if (window.stopTrading) {
-                    return;
-                }
-                
-                // Process all ticks in queue
-                while (window.tickQueue.length > 0 && !window.executionLock) {
+                while (window.tickQueue.length > 0 && !window.executionLock && window.nextTradeAllowed) {
                     const tick = window.tickQueue.shift();
                     processTickImmediately(tick);
                 }
             }, 50);
+        }
+        
+        function checkForImmediateWin(tick) {
+            if (!window.isBotRunning || window.stopAfterWin) return false;
+            
+            let predictedDigit;
+            if (sessionState.sessionDigit !== null) {
+                predictedDigit = sessionState.sessionDigit;
+            } else {
+                predictedDigit = parseInt(document.getElementById('predictedDigit').value);
+            }
+            
+            const tickDigit = parseInt(tick.digit);
+            
+            if (tickDigit === predictedDigit) {
+                log(`🎯 IMMEDIATE WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
+                
+                window.lastTradeResult = 'win';
+                window.stopAfterWin = true;
+                window.stats.wins++;
+                window.tradeCount++;
+                
+                playAudioFeedback('WIN');
+                
+                const payout = window.currentStake * 9;
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
+                updateTradeStatus(
+                    'IMMEDIATE WIN 🎯',
+                    `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
+                    'Stopping bot after win',
+                    'win'
+                );
+                
+                updateStake('win');
+                return true;
+            }
+            
+            return false;
         }
         
         function sendRequest(request) {
@@ -2211,23 +2195,7 @@
             }
             
             window.currentBalance = newBalance;
-            const balanceElem = document.getElementById('metricAccountBalance');
-            balanceElem.textContent = `$${window.currentBalance.toFixed(2)}`;
-            balanceElem.className = 'text-lg font-bold balance-text';
-            
-            // Update balance status
-            const statusElem = document.getElementById('balanceStatus');
-            if (newBalance > window.startingBalance) {
-                statusElem.textContent = '↑ Profitable';
-                statusElem.className = 'text-xs text-green-400';
-            } else if (newBalance < window.startingBalance) {
-                statusElem.textContent = '↓ Down';
-                statusElem.className = 'text-xs text-red-400';
-            } else {
-                statusElem.textContent = '↔️ Even';
-                statusElem.className = 'text-xs text-gray-400';
-            }
-            
+            document.getElementById('metricAccountBalance').textContent = `$${window.currentBalance.toFixed(2)}`;
             updatePnL();
         }
         
@@ -2250,13 +2218,6 @@
             if (!pending) return;
         
             window.pendingProposals.delete(req_id);
-            
-            // Check if this is a winning trade
-            if (pending.isWinningTrade) {
-                log(`💰 Executing WINNING TRADE proposal`, 'WIN');
-                window.winningTradeExecuted = true;
-            }
-            
             executeBuy(proposal.id, proposal.ask_price, pending);
         }
         
@@ -2267,12 +2228,7 @@
                 req_id: getNextReqId()
             };
             
-            // Different log for winning trade
-            if (pending.isWinningTrade) {
-                log(`💰 Buying WINNING TRADE: $${pending.stake.toFixed(2)} on digit ${pending.predictedDigit}`, 'WIN');
-            } else {
-                log(`✅ Buying: $${pending.stake.toFixed(2)} on digit ${pending.predictedDigit}`, 'TRADE');
-            }
+            log(`✅ Buying: $${pending.stake.toFixed(2)} on digit ${pending.predictedDigit}`, 'TRADE');
             
             window.pendingProposals.set(buyRequest.req_id, {
                 ...pending,
@@ -2297,11 +2253,16 @@
         
         function onTradeComplete(isSuccess = true) {
             window.executionLock = false;
-            
+            window.nextTradeAllowed = true;
             updateSessionDisplay();
             
             if (!isSuccess) {
                 updateStake('loss');
+            }
+            
+            if (window.stopAfterWin) {
+                setTimeout(() => stopBot(), 100);
+                return;
             }
             
             if (window.tradeCount >= window.maxTrades) {
@@ -2319,10 +2280,6 @@
             window.lastAnalysisTime = 0;
             window.lastRecheckTime = 0;
             
-            // Reset stop trading flags
-            window.stopTrading = false;
-            window.winningTradeExecuted = false;
-            
             updateStake('initial');
             resetPnL();
             resetTradeStatus();
@@ -2333,8 +2290,6 @@
             
             document.getElementById('metricTradeCount').textContent = '0';
             document.getElementById('metricAccountBalance').textContent = '$---';
-            document.getElementById('metricAccountBalance').className = 'text-lg font-bold balance-text';
-            document.getElementById('balanceStatus').textContent = '-';
             document.getElementById('metricLiveTick').textContent = '---';
             document.getElementById('metricLastDigit').textContent = 'Digit: ?';
             
@@ -2350,17 +2305,13 @@
             window.executionLock = false;
             window.waitingForTradeResult = false;
             window.nextTradeAllowed = true;
+            window.stopAfterWin = false;
             
             const logArea = document.getElementById('log-area');
             logArea.innerHTML = '[00:00:00] 🤖 Bot reset. Ready.';
             
             log('🔄 Bot reset', 'SYSTEM');
             log('🔄 Adaptive system reset', 'SYSTEM');
-        }
-        
-        // Manual reconnect function
-        function manualReconnect() {
-            connectionManager.manualReconnect();
         }
     </script>
 </body>
