@@ -682,7 +682,7 @@
                     <div id="trade-result-container" class="bg-gray-900 rounded-lg p-3 shadow-inner border border-yellow-500/50 col-span-3">
                         <div class="flex justify-between items-center mb-2">
                             <p class="text-[10px] font-semibold text-yellow-500 uppercase">TRADE STATUS</p>
-                            <p id="metricTradeResult" class="text-xs font-bold text-gray-400">READY</p>
+                            <span id="metricTradeResult" class="text-xs font-bold text-gray-400">READY</span>
                         </div>
                         <div class="mb-2">
                             <p class="text-[10px] font-semibold text-gray-400 uppercase mb-1">Status:</p>
@@ -1452,41 +1452,60 @@
             }
         }
         
-        // TRADE STATUS UI FUNCTIONS
+        // TRADE STATUS UI FUNCTIONS - FIXED VERSION
         function updateTradeStatus(status, result, action, type = 'normal') {
-            tradeResultContainer.classList.remove('win-glow');
-            metricPreviousResult.textContent = result;
-            metricNextAction.textContent = action;
-            
-            switch(type) {
-                case 'win':
-                    metricTradeResult.textContent = 'WIN 🎯';
-                    metricTradeResult.className = 'text-xs font-bold status-win';
-                    metricPreviousResult.className = 'text-sm font-bold status-win';
-                    metricNextAction.className = 'text-sm font-bold text-green-400';
-                    tradeResultContainer.classList.add('win-glow');
-                    log(`🎯 Trade Status: ${result}`, 'WIN');
-                    break;
-                case 'loss':
-                    metricTradeResult.textContent = 'LOSS ❌';
-                    metricTradeResult.className = 'text-xs font-bold status-loss';
-                    metricPreviousResult.className = 'text-sm font-bold status-loss';
-                    metricNextAction.className = 'text-sm font-bold text-red-400';
-                    log(`❌ Trade Status: ${result}`, 'LOSS');
-                    break;
-                case 'trade':
-                    metricTradeResult.textContent = 'TRADING ⚡';
-                    metricTradeResult.className = 'text-xs font-bold status-trade';
-                    metricPreviousResult.className = 'text-sm font-bold status-trade';
-                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
-                    log(`⚡ Trade Status: ${result}`, 'TRADE');
-                    break;
-                default:
-                    metricTradeResult.textContent = status || 'READY';
-                    metricTradeResult.className = 'text-xs font-bold text-gray-400';
-                    metricPreviousResult.className = 'text-sm font-bold text-gray-300';
-                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
-                    break;
+            try {
+                // Safely get DOM elements
+                const tradeResultContainer = document.getElementById('trade-result-container');
+                const metricTradeResult = document.getElementById('metricTradeResult');
+                const metricPreviousResult = document.getElementById('metricPreviousResult');
+                const metricNextAction = document.getElementById('metricNextAction');
+                
+                if (!tradeResultContainer || !metricTradeResult || !metricPreviousResult || !metricNextAction) {
+                    console.error('Trade status elements not found');
+                    return;
+                }
+                
+                // Remove win glow class
+                tradeResultContainer.classList.remove('win-glow');
+                
+                // Update text content
+                metricPreviousResult.textContent = result;
+                metricNextAction.textContent = action;
+                
+                switch(type) {
+                    case 'win':
+                        metricTradeResult.textContent = 'WIN 🎯';
+                        metricTradeResult.className = 'text-xs font-bold status-win';
+                        metricPreviousResult.className = 'text-sm font-bold status-win';
+                        metricNextAction.className = 'text-sm font-bold text-green-400';
+                        tradeResultContainer.classList.add('win-glow');
+                        log(`🎯 Trade Status: ${result}`, 'WIN');
+                        break;
+                    case 'loss':
+                        metricTradeResult.textContent = 'LOSS ❌';
+                        metricTradeResult.className = 'text-xs font-bold status-loss';
+                        metricPreviousResult.className = 'text-sm font-bold status-loss';
+                        metricNextAction.className = 'text-sm font-bold text-red-400';
+                        log(`❌ Trade Status: ${result}`, 'LOSS');
+                        break;
+                    case 'trade':
+                        metricTradeResult.textContent = 'TRADING ⚡';
+                        metricTradeResult.className = 'text-xs font-bold status-trade';
+                        metricPreviousResult.className = 'text-sm font-bold status-trade';
+                        metricNextAction.className = 'text-sm font-bold text-yellow-400';
+                        log(`⚡ Trade Status: ${result}`, 'TRADE');
+                        break;
+                    default:
+                        metricTradeResult.textContent = status || 'READY';
+                        metricTradeResult.className = 'text-xs font-bold text-gray-400';
+                        metricPreviousResult.className = 'text-sm font-bold text-gray-300';
+                        metricNextAction.className = 'text-sm font-bold text-yellow-400';
+                        break;
+                }
+            } catch (error) {
+                console.error('Error updating trade status:', error);
+                log(`❌ Error updating trade status: ${error}`, 'ERROR');
             }
         }
         
@@ -1497,6 +1516,8 @@
         // PnL CALCULATION FUNCTIONS
         function updatePnL() {
             const pnlElem = document.getElementById('metricTotalProfit');
+            
+            if (!pnlElem) return 0;
             
             if (window.startingBalance > 0 && window.currentBalance > 0) {
                 window.netProfit = window.currentBalance - window.startingBalance;
