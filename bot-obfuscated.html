@@ -660,7 +660,7 @@
                     
                     <div class="bg-gray-700 rounded-lg p-2 shadow-inner border border-purple-500/50">
                         <p class="text-[10px] font-semibold text-purple-500 uppercase">Balance</p>
-                        <p id="metricAccountBalance" class="text-lg font-bold text-white">$---</p>
+                        <p id="metricAccountBalance" class="text-lg font-bold text-green-400">$---</p>
                     </div>
                     
                     <div class="bg-gray-700 rounded-lg p-2 shadow-inner">
@@ -2041,10 +2041,16 @@
             
             window.lastTick = tickData;
             
-            document.getElementById('metricLiveTick').textContent = price.toFixed(3);
-            document.getElementById('metricLastDigit').textContent = `Digit: ${digit}`;
-            document.getElementById('metricLiveTick').classList.add('tick-flash');
-            setTimeout(() => document.getElementById('metricLiveTick').classList.remove('tick-flash'), 50);
+            const metricLiveTick = document.getElementById('metricLiveTick');
+            const metricLastDigit = document.getElementById('metricLastDigit');
+            
+            if (metricLiveTick) metricLiveTick.textContent = price.toFixed(3);
+            if (metricLastDigit) metricLastDigit.textContent = `Digit: ${digit}`;
+            
+            if (metricLiveTick) {
+                metricLiveTick.classList.add('tick-flash');
+                setTimeout(() => metricLiveTick.classList.remove('tick-flash'), 50);
+            }
             
             window.stats.totalTicks++;
             window.botTickTimestamps.push(Date.now());
@@ -2096,7 +2102,9 @@
             try {
                 window.stats.tradesExecuted++;
                 window.tradeCount++;
-                document.getElementById('metricTradeCount').textContent = window.tradeCount;
+                
+                const metricTradeCount = document.getElementById('metricTradeCount');
+                if (metricTradeCount) metricTradeCount.textContent = window.tradeCount;
                 
                 updateSessionDisplay();
                 log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
@@ -2224,8 +2232,10 @@
             }
             
             const stakeElem = document.getElementById('metricCurrentStake');
-            stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
-            stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
+            if (stakeElem) {
+                stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
+                stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
+            }
             
             updatePnL();
         }
@@ -2337,7 +2347,9 @@
             const now = Date.now();
             window.botTickTimestamps = window.botTickTimestamps.filter(ts => now - ts < 5000);
             const tickRate = window.botTickTimestamps.length / 5;
-            document.getElementById('metricTickRate').textContent = `Ticks/sec: ${tickRate.toFixed(1)}`;
+            
+            const metricTickRate = document.getElementById('metricTickRate');
+            if (metricTickRate) metricTickRate.textContent = `Ticks/sec: ${tickRate.toFixed(1)}`;
         }
         
         function toggleSound() {
@@ -2539,7 +2551,11 @@
             }
             
             window.currentBalance = newBalance;
-            document.getElementById('metricAccountBalance').textContent = `$${window.currentBalance.toFixed(2)}`;
+            const metricAccountBalance = document.getElementById('metricAccountBalance');
+            if (metricAccountBalance) {
+                metricAccountBalance.textContent = `$${window.currentBalance.toFixed(2)}`;
+                metricAccountBalance.className = 'text-lg font-bold text-green-400'; // Bold green text
+            }
             updatePnL();
         }
         
@@ -2646,10 +2662,18 @@
             window.currentBalance = 0.0;
             window.netProfit = 0.0;
             
-            document.getElementById('metricTradeCount').textContent = '0';
-            document.getElementById('metricAccountBalance').textContent = '$---';
-            document.getElementById('metricLiveTick').textContent = '---';
-            document.getElementById('metricLastDigit').textContent = 'Digit: ?';
+            const metricTradeCount = document.getElementById('metricTradeCount');
+            const metricAccountBalance = document.getElementById('metricAccountBalance');
+            const metricLiveTick = document.getElementById('metricLiveTick');
+            const metricLastDigit = document.getElementById('metricLastDigit');
+            
+            if (metricTradeCount) metricTradeCount.textContent = '0';
+            if (metricAccountBalance) {
+                metricAccountBalance.textContent = '$---';
+                metricAccountBalance.className = 'text-lg font-bold text-green-400';
+            }
+            if (metricLiveTick) metricLiveTick.textContent = '---';
+            if (metricLastDigit) metricLastDigit.textContent = 'Digit: ?';
             
             window.stats = { totalTicks: 0, tradesExecuted: 0, wins: 0, losses: 0 };
             window.tickQueue = [];
@@ -2685,20 +2709,26 @@
         // Update the analysis UI function
         function updateAnalysisUI(currentDigit) {
             updateConnectionStatus();
-            document.getElementById('tick_counter').textContent = analysisDigits.length;
-            const progressPercent = Math.min(100, (analysisDigits.length / analysisWindowSize) * 100);
-            document.getElementById('tick_progress_bar').style.width = `${progressPercent}%`;
-            
+            const tickCounter = document.getElementById('tick_counter');
+            const tickProgressBar = document.getElementById('tick_progress_bar');
             const statusElem = document.getElementById('analysis_status');
-            if (analysisDigits.length < analysisWindowSize) {
-                statusElem.textContent = `Collecting: ${analysisDigits.length}/${analysisWindowSize}`;
-                statusElem.className = 'text-xs text-cyan-400';
-            } else {
-                statusElem.textContent = '✅ Analysis complete';
-                statusElem.className = 'text-xs text-green-400';
+            const windowSize = document.getElementById('window_size');
+            
+            if (tickCounter) tickCounter.textContent = analysisDigits.length;
+            const progressPercent = Math.min(100, (analysisDigits.length / analysisWindowSize) * 100);
+            if (tickProgressBar) tickProgressBar.style.width = `${progressPercent}%`;
+            
+            if (statusElem) {
+                if (analysisDigits.length < analysisWindowSize) {
+                    statusElem.textContent = `Collecting: ${analysisDigits.length}/${analysisWindowSize}`;
+                    statusElem.className = 'text-xs text-cyan-400';
+                } else {
+                    statusElem.textContent = '✅ Analysis complete';
+                    statusElem.className = 'text-xs text-green-400';
+                }
             }
             
-            document.getElementById('window_size').textContent = analysisWindowSize;
+            if (windowSize) windowSize.textContent = analysisWindowSize;
         }
         
         // Update recheck settings function
