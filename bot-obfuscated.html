@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Deriv DigitMatchStar Bot - LIVE MARKET</title>
+    <title>Deriv DigitMatchStar Bot - LIVE MARKET (AI Enhanced)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
@@ -200,6 +200,51 @@
             color: #ef4444 !important;
             animation: pulse-once 0.5s infinite;
         }
+        /* Enhanced Analysis Styles */
+        .analysis-high-confidence {
+            border: 2px solid #10b981 !important;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
+        }
+        .analysis-medium-confidence {
+            border: 2px solid #f59e0b !important;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.2)) !important;
+        }
+        .analysis-low-confidence {
+            border: 2px solid #ef4444 !important;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.2)) !important;
+        }
+        @keyframes analysis-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .analysis-pulse {
+            animation: analysis-pulse 0.5s ease-out;
+        }
+        .digit-hot {
+            background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+            color: white !important;
+        }
+        .digit-cold {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+            color: white !important;
+        }
+        .digit-neutral {
+            background: linear-gradient(135deg, #6b7280, #4b5563) !important;
+            color: white !important;
+        }
+        .ai-recommendation {
+            border-left: 3px solid #8b5cf6;
+            padding-left: 10px;
+            background: rgba(139, 92, 246, 0.05);
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fade-in 0.3s ease-out;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -319,6 +364,99 @@
                                 class="mt-2 w-full px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
                                 🔄 Run New Analysis
                             </button>
+                        </div>
+                    </div>
+                    
+                    <!-- ENHANCED ANALYSIS PANEL -->
+                    <div id="enhanced_analysis_panel" class="mt-4 p-3 bg-gray-800 rounded-lg border border-purple-500/30">
+                        <h3 class="text-sm font-bold text-purple-300 mb-3">Enhanced Analysis</h3>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <button id="runEnhancedAnalysis" onclick="runEnhancedAnalysis()" 
+                                class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
+                                🔍 Run Enhanced Analysis
+                            </button>
+                            <button id="toggleAdvancedView" onclick="toggleAdvancedView()" 
+                                class="px-3 py-1.5 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600 transition text-sm">
+                                📊 Toggle Details
+                            </button>
+                        </div>
+                        
+                        <div id="advancedAnalysisResults" class="space-y-2 text-xs hidden">
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-purple-400 font-bold mb-1">Frequency Analysis</div>
+                                <div id="frequencyResults" class="text-gray-300">-</div>
+                            </div>
+                            
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-blue-400 font-bold mb-1">Trend Detection</div>
+                                <div id="trendResults" class="text-gray-300">-</div>
+                            </div>
+                            
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-green-400 font-bold mb-1">Confidence Score</div>
+                                <div class="flex items-center">
+                                    <div class="w-full bg-gray-700 rounded-full h-2">
+                                        <div id="confidenceBar" class="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full" 
+                                             style="width: 0%"></div>
+                                    </div>
+                                    <span id="confidenceScore" class="ml-2 font-bold text-white">0%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-yellow-400 font-bold mb-1">Recommendation</div>
+                                <div id="aiRecommendation" class="text-gray-300">-</div>
+                            </div>
+                        </div>
+                        
+                        <div id="quickAnalysisDisplay" class="text-xs text-gray-400">
+                            <div class="flex justify-between mb-1">
+                                <span>Current Analysis:</span>
+                                <span id="analysisMethod" class="text-cyan-400">Basic</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Data Points:</span>
+                                <span id="dataPointsCount" class="font-bold">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PERFORMANCE DASHBOARD -->
+                    <div id="performance_dashboard" class="mt-4 p-3 bg-gray-800 rounded-lg border border-green-500/30">
+                        <h3 class="text-sm font-bold text-green-300 mb-3">Performance Dashboard</h3>
+                        
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-gray-400">Win Rate</div>
+                                <div id="winRate" class="text-lg font-bold text-green-400">0%</div>
+                            </div>
+                            
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-gray-400">Avg Win</div>
+                                <div id="avgWin" class="text-lg font-bold text-green-400">$0.00</div>
+                            </div>
+                            
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-gray-400">Avg Loss</div>
+                                <div id="avgLoss" class="text-lg font-bold text-red-400">$0.00</div>
+                            </div>
+                            
+                            <div class="p-2 bg-gray-900 rounded">
+                                <div class="text-gray-400">ROI</div>
+                                <div id="roi" class="text-lg font-bold text-blue-400">0%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 text-xs">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-gray-400">Session Profitability:</span>
+                                <span id="sessionProfitability" class="font-bold text-gray-300">Neutral</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Risk Level:</span>
+                                <span id="riskLevel" class="font-bold text-gray-300">Medium</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -581,6 +719,7 @@
 [00:00:00] 📊 Ready to connect to live market
 [00:00:00] 🧠 Smart analysis engine ready
 [00:00:00] 🔄 Adaptive strategy enabled
+[00:00:00] 🤖 AI Enhanced Analysis Activated
             </div>
         </div>
     </div>
@@ -775,7 +914,7 @@
         
         // Queue - INCREASED SIZE FOR BETTER REANALYSIS
         window.tickQueue = [];
-        window.maxQueueSize = 30; // Increased from 10 to 30
+        window.maxQueueSize = 30;
         
         // Analysis Engine
         let analysisDigits = [];
@@ -796,6 +935,398 @@
         };
         
         // ============================================================================
+        // ENHANCED PATTERN RECOGNITION ENGINE
+        // ============================================================================
+        
+        // Enhanced analysis with multiple pattern detection algorithms
+        window.advancedPatterns = {
+            frequencyAnalysis: (digits, lookback = 50) => {
+                const recent = digits.slice(-lookback);
+                const freq = Array(10).fill(0);
+                recent.forEach(d => {
+                    if (d >= 0 && d <= 9) freq[d]++;
+                });
+                
+                // Calculate probabilities and confidence scores
+                const total = recent.length;
+                const probabilities = freq.map(count => total > 0 ? count / total : 0);
+                
+                // Find hottest and coldest digits with confidence scores
+                const results = freq.map((count, digit) => ({
+                    digit,
+                    frequency: count,
+                    probability: probabilities[digit],
+                    lastSeen: recent.lastIndexOf(digit),
+                    streak: calculateStreak(digit, recent)
+                }));
+                
+                return results.sort((a, b) => a.frequency - b.frequency);
+            },
+            
+            sequenceAnalysis: (digits) => {
+                const patterns = [];
+                const recent = digits.slice(-30);
+                
+                // Detect repeating patterns
+                for (let patternLength = 2; patternLength <= 5; patternLength++) {
+                    for (let i = 0; i <= recent.length - patternLength; i++) {
+                        const pattern = recent.slice(i, i + patternLength);
+                        const patternStr = pattern.join(',');
+                        
+                        // Check if pattern repeats
+                        for (let j = i + patternLength; j <= recent.length - patternLength; j++) {
+                            const comparePattern = recent.slice(j, j + patternLength);
+                            if (patternStr === comparePattern.join(',')) {
+                                patterns.push({
+                                    pattern: pattern,
+                                    length: patternLength,
+                                    occurrences: 2,
+                                    nextExpected: pattern[0] // First digit of pattern for next occurrence
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                return patterns;
+            },
+            
+            timeBasedAnalysis: (digits, timestamps) => {
+                const results = [];
+                const now = Date.now();
+                
+                // Analyze digit distribution in different time windows
+                const windows = [
+                    { name: '15s', duration: 15000 },
+                    { name: '30s', duration: 30000 },
+                    { name: '60s', duration: 60000 }
+                ];
+                
+                windows.forEach(window => {
+                    const windowDigits = [];
+                    for (let i = 0; i < digits.length; i++) {
+                        if (timestamps[i] && (now - timestamps[i]) <= window.duration) {
+                            windowDigits.push(digits[i]);
+                        }
+                    }
+                    
+                    if (windowDigits.length > 0) {
+                        const freq = Array(10).fill(0);
+                        windowDigits.forEach(d => freq[d]++);
+                        
+                        const missingDigits = [];
+                        for (let i = 0; i < 10; i++) {
+                            if (freq[i] === 0) missingDigits.push(i);
+                        }
+                        
+                        results.push({
+                            window: window.name,
+                            totalDigits: windowDigits.length,
+                            missingDigits: missingDigits,
+                            hottestDigit: freq.indexOf(Math.max(...freq)),
+                            coldestDigit: freq.indexOf(Math.min(...freq.filter(f => f > 0)))
+                        });
+                    }
+                });
+                
+                return results;
+            },
+            
+            clusterAnalysis: (digits) => {
+                const clusters = Array(10).fill().map(() => []);
+                const recent = digits.slice(-50);
+                
+                // Group consecutive occurrences
+                let currentCluster = [];
+                let currentDigit = null;
+                
+                for (let i = 0; i < recent.length; i++) {
+                    if (recent[i] !== currentDigit) {
+                        if (currentCluster.length > 0) {
+                            clusters[currentDigit].push({
+                                length: currentCluster.length,
+                                position: i - currentCluster.length
+                            });
+                        }
+                        currentDigit = recent[i];
+                        currentCluster = [recent[i]];
+                    } else {
+                        currentCluster.push(recent[i]);
+                    }
+                }
+                
+                return clusters.map((cluster, digit) => ({
+                    digit,
+                    clusters: cluster.length,
+                    maxStreak: cluster.length > 0 ? Math.max(...cluster.map(c => c.length)) : 0,
+                    avgStreak: cluster.length > 0 ? 
+                        cluster.reduce((sum, c) => sum + c.length, 0) / cluster.length : 0
+                }));
+            }
+        };
+
+        function calculateStreak(digit, digitsArray) {
+            let streak = 0;
+            for (let i = digitsArray.length - 1; i >= 0; i--) {
+                if (digitsArray[i] === digit) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        // Enhanced analysis function that combines multiple methods
+        function enhancedDigitAnalysis() {
+            if (analysisDigits.length < 5) return null;
+            
+            const timestampData = tickTimestamps.slice(-analysisDigits.length);
+            
+            // Run all analysis methods
+            const frequencyResults = window.advancedPatterns.frequencyAnalysis(analysisDigits);
+            const sequenceResults = window.advancedPatterns.sequenceAnalysis(analysisDigits);
+            const timeResults = window.advancedPatterns.timeBasedAnalysis(analysisDigits, timestampData);
+            const clusterResults = window.advancedPatterns.clusterAnalysis(analysisDigits);
+            
+            // Score digits based on multiple factors
+            const digitScores = Array(10).fill(0);
+            
+            // Factor 1: Frequency (lower frequency = higher score)
+            frequencyResults.forEach((result, index) => {
+                const frequencyScore = (1 - result.probability) * 40; // 40% weight
+                digitScores[result.digit] += frequencyScore;
+            });
+            
+            // Factor 2: Time-based missing digits (30% weight)
+            timeResults.forEach(timeWindow => {
+                timeWindow.missingDigits.forEach(digit => {
+                    digitScores[digit] += 30 / timeResults.length;
+                });
+            });
+            
+            // Factor 3: Sequence patterns (20% weight)
+            if (sequenceResults.length > 0) {
+                const nextExpected = sequenceResults[0].nextExpected;
+                digitScores[nextExpected] += 20;
+            }
+            
+            // Factor 4: Cluster avoidance (10% weight)
+            clusterResults.forEach(cluster => {
+                if (cluster.avgStreak > 1.5) {
+                    // Avoid digits that have been clustering
+                    digitScores[cluster.digit] -= 10;
+                }
+            });
+            
+            // Find digit with highest score
+            let bestDigit = 0;
+            let bestScore = -Infinity;
+            
+            digitScores.forEach((score, digit) => {
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestDigit = digit;
+                }
+            });
+            
+            // Calculate confidence percentage
+            const totalScore = digitScores.reduce((a, b) => a + b, 0);
+            const confidence = totalScore > 0 ? 
+                Math.round((digitScores[bestDigit] / totalScore) * 100) : 50;
+            
+            return {
+                digit: bestDigit,
+                confidence: confidence,
+                analysis: {
+                    frequency: frequencyResults,
+                    sequences: sequenceResults,
+                    timeWindows: timeResults,
+                    clusters: clusterResults,
+                    scores: digitScores
+                }
+            };
+        }
+
+        // ============================================================================
+        // ML-BASED TREND DETECTION
+        // ============================================================================
+
+        window.trendDetector = {
+            history: [],
+            maxHistory: 100,
+            
+            addTick: function(tick) {
+                this.history.push({
+                    digit: tick.digit,
+                    price: tick.price,
+                    timestamp: Date.now(),
+                    volatility: this.calculateVolatility()
+                });
+                
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+            },
+            
+            calculateVolatility: function() {
+                if (this.history.length < 10) return 0;
+                
+                const recent = this.history.slice(-10);
+                const digits = recent.map(h => h.digit);
+                const mean = digits.reduce((a, b) => a + b, 0) / digits.length;
+                const variance = digits.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / digits.length;
+                
+                return Math.sqrt(variance);
+            },
+            
+            detectTrend: function() {
+                if (this.history.length < 20) return null;
+                
+                const recentDigits = this.history.slice(-20).map(h => h.digit);
+                
+                // Check for increasing trend
+                let increasing = 0;
+                for (let i = 1; i < recentDigits.length; i++) {
+                    if (recentDigits[i] > recentDigits[i-1]) increasing++;
+                }
+                
+                // Check for decreasing trend
+                let decreasing = 0;
+                for (let i = 1; i < recentDigits.length; i++) {
+                    if (recentDigits[i] < recentDigits[i-1]) decreasing++;
+                }
+                
+                const trendStrength = Math.abs(increasing - decreasing) / 20;
+                
+                if (trendStrength > 0.3) {
+                    return {
+                        direction: increasing > decreasing ? 'up' : 'down',
+                        strength: trendStrength,
+                        volatility: this.calculateVolatility()
+                    };
+                }
+                
+                return null;
+            },
+            
+            predictNextDigit: function() {
+                const trend = this.detectTrend();
+                if (!trend) return null;
+                
+                const lastDigit = this.history[this.history.length - 1].digit;
+                let prediction;
+                
+                if (trend.direction === 'up') {
+                    prediction = (lastDigit + 1) % 10;
+                } else {
+                    prediction = (lastDigit - 1 + 10) % 10;
+                }
+                
+                return {
+                    digit: prediction,
+                    confidence: Math.round(trend.strength * 100),
+                    basedOn: 'trend'
+                };
+            }
+        };
+
+        // ============================================================================
+        // PERFORMANCE TRACKING
+        // ============================================================================
+
+        window.performanceTracker = {
+            wins: 0,
+            losses: 0,
+            totalInvested: 0,
+            totalReturned: 0,
+            winAmounts: [],
+            lossAmounts: [],
+            
+            recordWin: function(amount) {
+                this.wins++;
+                this.winAmounts.push(amount);
+                this.totalReturned += amount;
+                this.updateDashboard();
+            },
+            
+            recordLoss: function(amount) {
+                this.losses++;
+                this.lossAmounts.push(amount);
+                this.totalInvested += amount;
+                this.updateDashboard();
+            },
+            
+            getWinRate: function() {
+                const totalTrades = this.wins + this.losses;
+                return totalTrades > 0 ? (this.wins / totalTrades) * 100 : 0;
+            },
+            
+            getAvgWin: function() {
+                return this.winAmounts.length > 0 ? 
+                    this.winAmounts.reduce((a, b) => a + b, 0) / this.winAmounts.length : 0;
+            },
+            
+            getAvgLoss: function() {
+                return this.lossAmounts.length > 0 ? 
+                    this.lossAmounts.reduce((a, b) => a + b, 0) / this.lossAmounts.length : 0;
+            },
+            
+            getROI: function() {
+                return this.totalInvested > 0 ? 
+                    ((this.totalReturned - this.totalInvested) / this.totalInvested) * 100 : 0;
+            },
+            
+            getRiskLevel: function() {
+                const winRate = this.getWinRate();
+                const avgWin = this.getAvgWin();
+                const avgLoss = this.getAvgLoss();
+                
+                if (winRate > 60 && avgWin > avgLoss) return 'Low';
+                if (winRate > 40 || avgWin >= avgLoss) return 'Medium';
+                return 'High';
+            },
+            
+            updateDashboard: function() {
+                const winRate = this.getWinRate();
+                const avgWin = this.getAvgWin();
+                const avgLoss = this.getAvgLoss();
+                const roi = this.getROI();
+                const riskLevel = this.getRiskLevel();
+                
+                document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
+                document.getElementById('avgWin').textContent = `$${avgWin.toFixed(2)}`;
+                document.getElementById('avgLoss').textContent = `$${avgLoss.toFixed(2)}`;
+                document.getElementById('roi').textContent = `${roi.toFixed(1)}%`;
+                document.getElementById('riskLevel').textContent = riskLevel;
+                
+                // Update session profitability
+                const profitability = roi > 0 ? 'Profitable' : roi < 0 ? 'Losing' : 'Neutral';
+                const color = roi > 0 ? 'text-green-400' : roi < 0 ? 'text-red-400' : 'text-gray-300';
+                document.getElementById('sessionProfitability').textContent = profitability;
+                document.getElementById('sessionProfitability').className = `font-bold ${color}`;
+            },
+            
+            reset: function() {
+                this.wins = 0;
+                this.losses = 0;
+                this.totalInvested = 0;
+                this.totalReturned = 0;
+                this.winAmounts = [];
+                this.lossAmounts = [];
+                this.updateDashboard();
+            }
+        };
+
+        function updatePerformanceTracking(isWin, amount) {
+            if (isWin) {
+                window.performanceTracker.recordWin(amount);
+            } else {
+                window.performanceTracker.recordLoss(amount);
+            }
+        }
+
+        // ============================================================================
         // ADAPTIVE RECHECK SYSTEM - IMPROVED
         // ============================================================================
         
@@ -808,7 +1339,264 @@
         window.lastRecheckTime = 0;
         window.recheckCooldown = 10000;
         
+        // ============================================================================
+        // ENHANCED ANALYSIS FUNCTIONS
+        // ============================================================================
+        
+        let advancedViewVisible = false;
+
+        function toggleAdvancedView() {
+            advancedViewVisible = !advancedViewVisible;
+            const advancedPanel = document.getElementById('advancedAnalysisResults');
+            const toggleButton = document.getElementById('toggleAdvancedView');
+            
+            if (advancedViewVisible) {
+                advancedPanel.classList.remove('hidden');
+                toggleButton.textContent = '📊 Hide Details';
+            } else {
+                advancedPanel.classList.add('hidden');
+                toggleButton.textContent = '📊 Show Details';
+            }
+        }
+
+        function runEnhancedAnalysis() {
+            if (analysisDigits.length < 5) {
+                log('❌ Need at least 5 digits for enhanced analysis', 'ANALYSIS');
+                return;
+            }
+            
+            log('🧠 Running enhanced analysis...', 'ANALYSIS');
+            
+            // Run enhanced analysis
+            const enhancedResult = enhancedDigitAnalysis();
+            const trendPrediction = window.trendDetector.predictNextDigit();
+            
+            // Combine predictions if available
+            let finalPrediction;
+            let confidence = 50;
+            let method = 'Basic Frequency';
+            
+            if (enhancedResult) {
+                finalPrediction = enhancedResult.digit;
+                confidence = enhancedResult.confidence;
+                method = 'Enhanced Analysis';
+                
+                // Update UI
+                document.getElementById('confidenceScore').textContent = `${confidence}%`;
+                document.getElementById('confidenceBar').style.width = `${confidence}%`;
+                document.getElementById('analysisMethod').textContent = method;
+                document.getElementById('dataPointsCount').textContent = analysisDigits.length;
+                
+                // Update prediction box with confidence
+                const box = document.getElementById('prediction_box');
+                box.innerHTML = `
+                    <div class="text-cyan-300 font-bold mb-1">Enhanced Prediction:</div>
+                    <div class="text-2xl font-bold mb-2 text-center text-green-400">${finalPrediction}</div>
+                    <div class="flex items-center justify-center mb-1">
+                        <div class="w-24 bg-gray-700 rounded-full h-2">
+                            <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full" 
+                                 style="width: ${confidence}%"></div>
+                        </div>
+                        <span class="ml-2 text-xs font-bold text-white">${confidence}%</span>
+                    </div>
+                    <div class="text-xs text-gray-300">Based on ${analysisDigits.length} ticks</div>
+                `;
+                
+                // Add confidence-based styling
+                box.classList.remove('analysis-high-confidence', 'analysis-medium-confidence', 'analysis-low-confidence');
+                if (confidence >= 70) {
+                    box.classList.add('analysis-high-confidence');
+                } else if (confidence >= 40) {
+                    box.classList.add('analysis-medium-confidence');
+                } else {
+                    box.classList.add('analysis-low-confidence');
+                }
+                
+                // Update advanced view if visible
+                if (advancedViewVisible) {
+                    updateAdvancedView(enhancedResult, trendPrediction);
+                }
+                
+                // Update digit recommendation
+                updateAIRecommendation(enhancedResult, trendPrediction);
+                
+                // Play analysis sound
+                playAnalysisSound(confidence);
+                
+                log(`🎯 Enhanced analysis complete: Digit ${finalPrediction} with ${confidence}% confidence`, 'ANALYSIS');
+                
+                // If in smart mode and no session digit set, use enhanced prediction
+                if (sessionState.mode === 'smart' && !sessionState.sessionStarted) {
+                    lockSessionDigit(finalPrediction);
+                    log(`🔒 Enhanced analysis locked digit ${finalPrediction} for session`, 'AI');
+                }
+            }
+        }
+
+        function updateAdvancedView(enhancedResult, trendPrediction) {
+            // Update frequency analysis display
+            const freqResults = enhancedResult.analysis.frequency.slice(0, 3);
+            const freqHTML = freqResults.map(r => 
+                `<div class="flex justify-between">
+                    <span>Digit ${r.digit}:</span>
+                    <span class="${r.frequency === 0 ? 'text-green-400' : 'text-gray-400'}">
+                        ${r.frequency} times (${Math.round(r.probability * 100)}%)
+                    </span>
+                </div>`
+            ).join('');
+            document.getElementById('frequencyResults').innerHTML = freqHTML;
+            
+            // Update trend detection
+            if (trendPrediction) {
+                document.getElementById('trendResults').innerHTML = `
+                    <div class="flex justify-between">
+                        <span>Direction:</span>
+                        <span class="${trendPrediction.direction === 'up' ? 'text-green-400' : 'text-red-400'}">
+                            ${trendPrediction.direction.toUpperCase()}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Strength:</span>
+                        <span>${trendPrediction.confidence}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Prediction:</span>
+                        <span class="font-bold">${trendPrediction.digit}</span>
+                    </div>
+                `;
+            } else {
+                document.getElementById('trendResults').innerHTML = 'No clear trend detected';
+            }
+        }
+
+        function updateAIRecommendation(enhancedResult, trendPrediction) {
+            let recommendation = '';
+            let reasoning = '';
+            
+            const confidence = enhancedResult.confidence;
+            
+            if (confidence >= 80) {
+                recommendation = `🎯 HIGH CONFIDENCE: Strongly recommend digit ${enhancedResult.digit}`;
+                reasoning = 'Excellent statistical basis with clear pattern';
+            } else if (confidence >= 60) {
+                recommendation = `👍 MEDIUM CONFIDENCE: Recommend digit ${enhancedResult.digit}`;
+                reasoning = 'Good statistical indicators present';
+            } else if (confidence >= 40) {
+                recommendation = `⚠️ LOW CONFIDENCE: Consider digit ${enhancedResult.digit}`;
+                reasoning = 'Limited data or conflicting signals';
+            } else {
+                recommendation = `❌ VERY LOW CONFIDENCE: Wait for more data`;
+                reasoning = 'Insufficient data or highly random pattern';
+            }
+            
+            // Add trend information if available
+            if (trendPrediction && trendPrediction.confidence > 60) {
+                if (trendPrediction.digit === enhancedResult.digit) {
+                    reasoning += ` (Trend analysis confirms)`;
+                } else {
+                    reasoning += ` (Note: Trend suggests ${trendPrediction.digit})`;
+                }
+            }
+            
+            // Update volatility warning
+            const volatility = window.trendDetector.calculateVolatility();
+            if (volatility > 3) {
+                reasoning += ` ⚠️ High volatility detected`;
+            }
+            
+            document.getElementById('aiRecommendation').innerHTML = `
+                <div class="font-bold ${confidence >= 60 ? 'text-green-400' : 'text-yellow-400'}">${recommendation}</div>
+                <div class="text-gray-300 text-xs mt-1">${reasoning}</div>
+            `;
+        }
+
+        function playAnalysisSound(confidence) {
+            if (!window.soundEnabled || !window.ToneInitialized) return;
+            
+            try {
+                if (confidence >= 80) {
+                    // High confidence - positive sound
+                    window.synth.triggerAttackRelease("G5", "8n", Tone.now(), 0.5);
+                    setTimeout(() => window.synth.triggerAttackRelease("C6", "8n"), 100);
+                } else if (confidence >= 50) {
+                    // Medium confidence - neutral sound
+                    window.synth.triggerAttackRelease("C5", "8n", Tone.now(), 0.3);
+                } else {
+                    // Low confidence - caution sound
+                    window.synth.triggerAttackRelease("C4", "16n", Tone.now(), 0.5);
+                }
+            } catch (e) {
+                console.error("Analysis sound error:", e);
+            }
+        }
+
+        // ============================================================================
+        // ENHANCED RECHECK WITH AI
+        // ============================================================================
+
+        function enhancedCheckAndReanalyze(currentDigit) {
+            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
+                return false;
+            }
+            
+            // Enhanced criteria for reanalysis
+            const now = Date.now();
+            const timeSinceAnalysis = now - window.lastAnalysisTime;
+            
+            // Criteria for reanalysis:
+            // 1. Consecutive losses threshold
+            // 2. Time-based (market may have changed)
+            // 3. Significant volatility increase
+            // 4. Confidence drop in current strategy
+            
+            const volatility = window.trendDetector.calculateVolatility();
+            const shouldRecheck = 
+                window.consecutiveLosses >= window.recheckThreshold ||
+                timeSinceAnalysis > 60000 || // 1 minute
+                volatility > 4; // High volatility
+            
+            if (shouldRecheck) {
+                log(`🔍 AI Reanalysis triggered (Losses: ${window.consecutiveLosses}, Volatility: ${volatility.toFixed(2)})`, 'AI');
+                
+                // Run enhanced analysis
+                runEnhancedAnalysis();
+                
+                // Get new prediction
+                const enhancedResult = enhancedDigitAnalysis();
+                
+                if (enhancedResult && enhancedResult.digit !== currentDigit) {
+                    if (enhancedResult.confidence >= 60) { // Only change if confident
+                        window.digitChangesThisSession++;
+                        window.lastRecheckTime = now;
+                        
+                        log(`🤖 AI Strategy Change: ${currentDigit} → ${enhancedResult.digit} (Confidence: ${enhancedResult.confidence}%)`, 'AI');
+                        
+                        sessionState.sessionDigit = enhancedResult.digit;
+                        document.getElementById('predictedDigit').value = enhancedResult.digit;
+                        
+                        updatePredictionBox();
+                        updateSessionDisplay();
+                        
+                        // Update trade status with AI insights
+                        updateTradeStatus('AI ADJUSTMENT', 
+                            `AI changed to digit ${enhancedResult.digit} (${enhancedResult.confidence}% confidence)`,
+                            `Continuing martingale with $${window.currentStake.toFixed(2)}`,
+                            'normal');
+                        
+                        return true;
+                    } else {
+                        log(`🤖 AI recommends sticking with digit ${currentDigit} (Confidence too low: ${enhancedResult.confidence}%)`, 'AI');
+                    }
+                }
+            }
+            
+            return false;
+        }
+
+        // ============================================================================
         // DOM Elements
+        // ============================================================================
+        
         const toggleButton = document.getElementById('toggleButton');
         const soundToggleButton = document.getElementById('soundToggle');
         const sessionDisplay = document.getElementById('session_display');
@@ -957,145 +1745,6 @@
             
             log(`📊 All digits present, choosing least frequent: ${leastFrequent} (appeared ${minFreq} times)`, 'ANALYSIS');
             return leastFrequent;
-        }
-        
-        // IMPROVED: Fallback reanalysis when normal methods fail
-        function fallbackReanalysis() {
-            const recentDigits = [];
-            
-            // Try to get any available data
-            if (analysisDigits && analysisDigits.length > 0) {
-                // Use all available analysis digits
-                const startIdx = Math.max(0, analysisDigits.length - 50);
-                for (let i = startIdx; i < analysisDigits.length; i++) {
-                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
-                        recentDigits.push(analysisDigits[i]);
-                    }
-                }
-            }
-            
-            // Also check tick queue
-            if (recentDigits.length < 10 && window.tickQueue && window.tickQueue.length > 0) {
-                const startIdx = Math.max(0, window.tickQueue.length - 20);
-                for (let i = startIdx; i < window.tickQueue.length; i++) {
-                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
-                        const digit = parseInt(window.tickQueue[i].digit);
-                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
-                            recentDigits.push(digit);
-                        }
-                    }
-                }
-            }
-            
-            return [...new Set(recentDigits)]; // Return unique digits
-        }
-        
-        // IMPROVED: Main recheck function with fallback
-        function checkAndReanalyze(currentDigit) {
-            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
-                return false;
-            }
-            
-            // Check cooldown period
-            const now = Date.now();
-            if (now - window.lastRecheckTime < window.recheckCooldown) {
-                return false;
-            }
-            
-            // Check if we've changed digits too many times
-            if (window.digitChangesThisSession >= window.maxDigitChanges) {
-                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
-                return false;
-            }
-            
-            // Check if we need to reanalyze
-            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
-            const timeSinceAnalysis = now - window.lastAnalysisTime;
-            const marketChanged = timeSinceAnalysis > 30000;
-            
-            if (needRecheck || marketChanged) {
-                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
-                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
-                
-                // Store current state
-                const currentSessionDigit = sessionState.sessionDigit;
-                const currentStake = window.currentStake;
-                const currentMartingaleStep = window.martingaleStep;
-                
-                // Try normal data collection first
-                let freshAnalysis = collectQuickAnalysis(10);
-                
-                // Log available data
-                log(`📊 Reanalysis data: ${freshAnalysis.length} recent digits available`, 'ANALYSIS');
-                
-                // If normal collection fails, try fallback
-                if (freshAnalysis.length < 2) {
-                    log(`🔄 Normal data collection insufficient, trying fallback...`, 'ANALYSIS');
-                    const fallbackData = fallbackReanalysis();
-                    if (fallbackData.length > 0) {
-                        freshAnalysis = fallbackData.slice(-10); // Use last 10 from fallback
-                        log(`📊 Fallback data: ${freshAnalysis.length} digits from history`, 'ANALYSIS');
-                    }
-                }
-                
-                // We need at least SOME data
-                if (freshAnalysis.length >= 1) {
-                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
-                    
-                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
-                        window.digitChangesThisSession++;
-                        window.lastRecheckTime = now;
-                        
-                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
-                        log(`📊 Based on ${freshAnalysis.length} recent digits: [${freshAnalysis.join(', ')}]`, 'STRATEGY');
-                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
-                        
-                        // Update session with new digit - KEEP current stake & martingale step
-                        sessionState.sessionDigit = newSuggestedDigit;
-                        sessionState.manualOverride = false;
-                        document.getElementById('predictedDigit').value = newSuggestedDigit;
-                        
-                        // Update analysis time
-                        window.lastAnalysisTime = now;
-                        
-                        updatePredictionBox();
-                        updateSessionDisplay();
-                        
-                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
-                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
-                        
-                        updateTradeStatus('STRATEGY CHANGE', 
-                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
-                            `Continuing with $${currentStake.toFixed(2)} stake`,
-                            'normal');
-                        
-                        return true;
-                    } else if (newSuggestedDigit === currentSessionDigit) {
-                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit})`, 'ANALYSIS');
-                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
-                        
-                        // Still update the timestamp to prevent frequent rechecks
-                        window.lastRecheckTime = now;
-                        window.lastAnalysisTime = now;
-                        
-                        updateTradeStatus('ANALYSIS', 
-                            `Reanalysis confirms digit ${currentSessionDigit}`,
-                            `Continuing with current strategy`,
-                            'normal');
-                    }
-                } else {
-                    log(`⚠️ No data available for reanalysis`, 'ANALYSIS');
-                    log(`💡 Waiting for more market data...`, 'ANALYSIS');
-                    
-                    // Still update timestamp to prevent constant checking
-                    window.lastRecheckTime = now;
-                    window.lastAnalysisTime = now;
-                }
-                
-                return false;
-            }
-            
-            return false;
         }
         
         // ============================================================================
@@ -1253,6 +1902,7 @@
                 amount: parseFloat(amount),
                 timestamp: Date.now()
             });
+            window.performanceTracker.recordWin(amount);
             updatePnL();
             log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
         }
@@ -1378,12 +2028,20 @@
                 
                 updateAnalysisUI(digit);
                 
+                // Add to trend detector
+                window.trendDetector.addTick({digit: digit, price: price});
+                
                 if (!sessionState.sessionStarted && analysisDigits.length >= analysisWindowSize) {
                     performAnalysis();
                 }
                 
                 if (totalTicksReceived <= 5) {
                     log(`📊 Tick #${totalTicksReceived}: ${price.toFixed(3)} (Digit ${digit})`, 'TICK');
+                }
+                
+                // Auto-run enhanced analysis when we have enough data
+                if (analysisDigits.length >= analysisWindowSize && !sessionState.sessionStarted) {
+                    setTimeout(() => runEnhancedAnalysis(), 100);
                 }
                 
             } catch (error) {
@@ -1789,6 +2447,7 @@
             
             let stake = window.currentStake;
             trackTradeInvestment(stake);
+            window.performanceTracker.recordLoss(stake);
             
             const proposalRequest = {
                 proposal: 1,
@@ -1846,7 +2505,7 @@
                     const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
                     
                     if (shouldRecheck) {
-                        const changed = checkAndReanalyze(sessionState.sessionDigit);
+                        const changed = enhancedCheckAndReanalyze(sessionState.sessionDigit);
                         if (changed) {
                             log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
                         }
@@ -1927,6 +2586,7 @@
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
             log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
+            log(`🤖 AI Enhanced Analysis Activated`, 'AI');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
             updateStake('initial');
@@ -1939,6 +2599,7 @@
             });
             
             document.getElementById('new_analysis_btn').disabled = false;
+            document.getElementById('runEnhancedAnalysis').disabled = false;
         }
         
         function stopBot() {
@@ -1965,6 +2626,7 @@
             });
             
             document.getElementById('new_analysis_btn').disabled = true;
+            document.getElementById('runEnhancedAnalysis').disabled = true;
             
             updateConnectionStatus();
             const finalPnL = updatePnL();
@@ -2071,6 +2733,7 @@
             if (type === 'CALCULATOR') color = 'text-purple-300 font-bold';
             if (type === 'STRATEGY') color = 'text-purple-300 font-bold';
             if (type === 'SETTINGS') color = 'text-blue-300 font-bold';
+            if (type === 'AI') color = 'text-purple-400 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
@@ -2282,6 +2945,7 @@
             
             updateStake('initial');
             resetPnL();
+            window.performanceTracker.reset();
             resetTradeStatus();
             
             window.startingBalance = 0.0;
@@ -2312,6 +2976,7 @@
             
             log('🔄 Bot reset', 'SYSTEM');
             log('🔄 Adaptive system reset', 'SYSTEM');
+            log('🤖 AI Analysis Ready', 'AI');
         }
     </script>
 </body>
