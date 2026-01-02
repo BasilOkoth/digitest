@@ -443,6 +443,10 @@
                                     <div id="session_confidence" class="text-sm font-bold text-cyan-400">-</div>
                                 </div>
                                 <div>
+                                    <div class="text-xs text-gray-300">Mode:</div>
+                                    <div id="session_mode" class="text-sm font-bold text-yellow-400">-</div>
+                                </div>
+                                <div>
                                     <div class="text-xs text-gray-300">Trades:</div>
                                     <div id="session_trades" class="text-sm font-bold text-yellow-400">0/10</div>
                                 </div>
@@ -1517,8 +1521,12 @@
         function updatePnL() {
             const pnlElem = document.getElementById('metricTotalProfit');
             
-            if (!pnlElem) return 0;
+            if (!pnlElem) {
+                console.error('PnL element not found');
+                return 0;
+            }
             
+            // First try to calculate from balance changes
             if (window.startingBalance > 0 && window.currentBalance > 0) {
                 window.netProfit = window.currentBalance - window.startingBalance;
                 const formattedProfit = window.netProfit.toFixed(2);
@@ -1535,6 +1543,7 @@
                 return window.netProfit;
             }
             
+            // Fallback to tracker if balance not available
             if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
                 window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
                 const formattedProfit = window.netProfit.toFixed(2);
@@ -1558,25 +1567,39 @@
         }
         
         function trackTradeInvestment(amount) {
-            window.pnlTracker.totalInvestment += parseFloat(amount);
+            const investment = parseFloat(amount);
+            if (isNaN(investment) || investment <= 0) {
+                console.error('Invalid investment amount:', amount);
+                return;
+            }
+            
+            window.pnlTracker.totalInvestment += investment;
             window.pnlTracker.trades.push({
                 type: 'investment',
-                amount: parseFloat(amount),
+                amount: investment,
                 timestamp: Date.now()
             });
+            
+            log(`💰 Investment tracked: $${investment.toFixed(2)} (Total: $${window.pnlTracker.totalInvestment.toFixed(2)})`, 'PNL');
             updatePnL();
-            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
         }
         
         function trackTradePayout(amount) {
-            window.pnlTracker.totalPayout += parseFloat(amount);
+            const payout = parseFloat(amount);
+            if (isNaN(payout) || payout <= 0) {
+                console.error('Invalid payout amount:', amount);
+                return;
+            }
+            
+            window.pnlTracker.totalPayout += payout;
             window.pnlTracker.trades.push({
                 type: 'payout',
-                amount: parseFloat(amount),
+                amount: payout,
                 timestamp: Date.now()
             });
+            
+            log(`💰 Payout tracked: $${payout.toFixed(2)} (Total: $${window.pnlTracker.totalPayout.toFixed(2)})`, 'PNL');
             updatePnL();
-            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
         }
         
         function resetPnL() {
@@ -1615,6 +1638,8 @@
         }
         
         function updateSessionDisplay() {
+            if (!sessionDisplay) return;
+            
             if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
                 document.getElementById('session_digit').textContent = sessionState.sessionDigit;
                 document.getElementById('session_confidence').textContent = `${Math.round(window.predictionConfidence * 100)}%`;
@@ -2020,7 +2045,7 @@
             };
         }
         
-        // TICK HANDLER
+        // TICK HANDLER - FIXED VERSION
         function handleTick(tick) {
             if (!window.isBotRunning) return;
             
@@ -2041,6 +2066,7 @@
             
             window.lastTick = tickData;
             
+            // Update UI
             const metricLiveTick = document.getElementById('metricLiveTick');
             const metricLastDigit = document.getElementById('metricLastDigit');
             
@@ -2056,6 +2082,10 @@
             window.botTickTimestamps.push(Date.now());
             
             addTickToQueue(tickData);
+            
+            // Check for immediate win BEFORE adding to queue for processing
+            checkForImmediateWin(tickData);
+            
             playAudioFeedback('TICK');
         }
         
@@ -2082,10 +2112,6 @@
             if (window.stopAfterWin) return;
             
             if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
-                return;
-            }
-            
-            if (checkForImmediateWin(tick)) {
                 return;
             }
             
@@ -2141,6 +2167,8 @@
             let stake = window.currentStake;
             trackTradeInvestment(stake);
             
+            log(`📊 Executing trade: $${stake.toFixed(2)} on digit ${predictedDigit} (Symbol: ${symbol})`, 'TRADE');
+            
             const proposalRequest = {
                 proposal: 1,
                 amount: stake.toFixed(2),
@@ -2165,79 +2193,91 @@
             sendRequest(proposalRequest);
         }
         
-        // IMPROVED: Update stake with better reanalysis
+        // FIXED: Update stake with proper martingale calculation
         function updateStake(winOrLoss) {
-            window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
-            window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
-            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
-            
-            if (winOrLoss === 'win') {
-                window.martingaleStep = 0;
-                window.consecutiveLosses = 0;
-                window.currentStake = window.baseStake;
-                log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
+            try {
+                window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
+                window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
+                window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
                 
-                const payout = window.currentStake * 9;
-                trackTradePayout(payout);
-                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
-                
-                updateTradeStatus(
-                    'WIN 🎯',
-                    `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
-                    'Resetting stake to base',
-                    'win'
-                );
-                
-            } else if (winOrLoss === 'loss') {
-                window.martingaleStep++;
-                window.consecutiveLosses++;
-                
-                // ADAPTIVE RECHECK
-                if (sessionState.mode === 'smart' && window.recheckEnabled) {
-                    const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
+                if (winOrLoss === 'win') {
+                    window.martingaleStep = 0;
+                    window.consecutiveLosses = 0;
+                    window.currentStake = window.baseStake;
                     
-                    if (shouldRecheck) {
-                        const changed = checkAndReanalyze(sessionState.sessionDigit);
-                        if (changed) {
-                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
+                    const payout = window.currentStake * 9;
+                    trackTradePayout(payout);
+                    
+                    log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
+                    log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                    
+                    updateTradeStatus(
+                        'WIN 🎯',
+                        `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
+                        'Resetting stake to base',
+                        'win'
+                    );
+                    
+                } else if (winOrLoss === 'loss') {
+                    window.martingaleStep++;
+                    window.consecutiveLosses++;
+                    
+                    // ADAPTIVE RECHECK
+                    if (sessionState.mode === 'smart' && window.recheckEnabled) {
+                        const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
+                        
+                        if (shouldRecheck) {
+                            const changed = checkAndReanalyze(sessionState.sessionDigit);
+                            if (changed) {
+                                log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
+                            }
                         }
                     }
+                    
+                    if (window.martingaleStep >= window.maxTrades) {
+                        log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
+                        updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
+                        stopBot();
+                        return;
+                    }
+                    
+                    // Calculate new stake: base * multiplier^(martingaleStep)
+                    const newStake = window.baseStake * Math.pow(window.multiplier, window.martingaleStep);
+                    window.currentStake = parseFloat(newStake.toFixed(2));
+                    
+                    log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)} (Loss streak: ${window.consecutiveLosses}, Step: ${window.martingaleStep})`, 'LOSS');
+                    
+                    updateTradeStatus(
+                        'LOSS ❌',
+                        `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
+                        window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
+                        'loss'
+                    );
+                    
+                } else {
+                    // Initial state
+                    window.martingaleStep = 0;
+                    window.consecutiveLosses = 0;
+                    window.digitChangesThisSession = 0;
+                    window.currentStake = window.baseStake;
+                    
+                    log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
+                    updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
                 }
                 
-                if (window.martingaleStep >= window.maxTrades) {
-                    log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
-                    updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
-                    stopBot();
-                    return;
+                // Update UI
+                const stakeElem = document.getElementById('metricCurrentStake');
+                if (stakeElem) {
+                    stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
+                    stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
                 }
                 
-                const newStake = window.currentStake * window.multiplier;
-                window.currentStake = parseFloat(newStake.toFixed(2));
-                log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)} (Loss streak: ${window.consecutiveLosses}, Step: ${window.martingaleStep})`, 'LOSS');
+                updatePnL();
                 
-                updateTradeStatus(
-                    'LOSS ❌',
-                    `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
-                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
-                    'loss'
-                );
-                
-            } else {
-                window.martingaleStep = 0;
-                window.consecutiveLosses = 0;
-                window.digitChangesThisSession = 0;
-                window.currentStake = window.baseStake;
-                log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
-                updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
+            } catch (error) {
+                console.error('Error updating stake:', error);
+                log(`❌ Error updating stake: ${error}`, 'ERROR');
             }
-            
-            const stakeElem = document.getElementById('metricCurrentStake');
-            if (stakeElem) {
-                stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
-                stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
-            }
-            
-            updatePnL();
         }
         
         // START/STOP BOT
@@ -2556,13 +2596,22 @@
                 metricAccountBalance.textContent = `$${window.currentBalance.toFixed(2)}`;
                 metricAccountBalance.className = 'text-lg font-bold text-green-400'; // Bold green text
             }
+            
+            // Update PnL
             updatePnL();
+            log(`💰 Balance updated: $${window.currentBalance.toFixed(2)} (PnL: ${window.netProfit >= 0 ? '+' : ''}$${window.netProfit.toFixed(2)})`, 'PNL');
         }
         
         function subscribeToTicks(symbol) {
             if (window.tickSubscriptionSent) return;
             
-            sendRequest({ ticks: symbol, subscribe: 1, req_id: getNextReqId() });
+            // FIXED: Correct tick subscription format
+            sendRequest({ 
+                ticks: symbol, 
+                subscribe: 1, 
+                req_id: getNextReqId() 
+            });
+            
             window.tickSubscriptionSent = true;
             log(`✅ Subscribed to ${symbol} ticks`, 'SYSTEM');
         }
@@ -2571,6 +2620,8 @@
             if (!proposal || !proposal.id) {
                 log(`❌ Proposal failed`, 'ERROR');
                 updateTradeStatus('ERROR', 'Proposal failed', 'Retrying...', 'loss');
+                window.executionLock = false;
+                window.nextTradeAllowed = true;
                 return;
             }
         
