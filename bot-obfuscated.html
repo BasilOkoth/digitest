@@ -958,6 +958,28 @@
         };
         
         // ============================================================================
+        // ADAPTIVE RECHECK SYSTEM
+        // ============================================================================
+        
+        window.recheckThreshold = 5;
+        window.consecutiveLosses = 0;
+        window.lastAnalysisTime = 0;
+        window.recheckEnabled = true;
+        window.digitChangesThisSession = 0;
+        window.maxDigitChanges = 3;
+        window.lastRecheckTime = 0;
+        window.recheckCooldown = 10000;
+        
+        // DOM Elements
+        const toggleButton = document.getElementById('toggleButton');
+        const soundToggleButton = document.getElementById('soundToggle');
+        const sessionDisplay = document.getElementById('session_display');
+        const tradeResultContainer = document.getElementById('trade-result-container');
+        const metricPreviousResult = document.getElementById('metricPreviousResult');
+        const metricNextAction = document.getElementById('metricNextAction');
+        const metricTradeResult = document.getElementById('metricTradeResult');
+        
+        // ============================================================================
         // AI ANALYSIS FUNCTIONS
         // ============================================================================
         
@@ -1378,8 +1400,260 @@
         }
         
         // ============================================================================
-        // IMPROVED ANALYSIS ENGINE
+        // CORE BOT FUNCTIONS
         // ============================================================================
+        
+        // Check for authentication token
+        function checkAuthToken() {
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+            if (!token) {
+                log('⚠️ No API token found. Please authenticate first.', 'WARNING');
+                document.getElementById('prediction_text').textContent = 'Authentication required';
+                return false;
+            }
+            return true;
+        }
+        
+        // Initialize account toggle
+        function initializeToggleState() {
+            const token = localStorage.getItem('active_token');
+            const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
+            
+            if (token && allAccounts.length > 0) {
+                const currentAccount = allAccounts.find(acc => acc.token === token);
+                if (currentAccount) {
+                    const isReal = !currentAccount.account.startsWith('VR');
+                    document.getElementById('accTypeToggle').checked = isReal;
+                    log(`Account: ${isReal ? 'REAL' : 'DEMO'} (${currentAccount.account})`, 'SYSTEM');
+                }
+            }
+        }
+        
+        // Switch account
+        function switchAccount() {
+            const isRealRequested = document.getElementById('accTypeToggle').checked;
+            const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
+            
+            const targetAccount = allAccounts.find(acc => 
+                isRealRequested ? !acc.account.startsWith('VR') : acc.account.startsWith('VR')
+            );
+        
+            if (targetAccount) {
+                localStorage.setItem('active_token', targetAccount.token);
+                log(`Switched to ${isRealRequested ? 'REAL' : 'DEMO'} account`, 'SYSTEM');
+                
+                if (window.isBotRunning) {
+                    stopBot();
+                    setTimeout(() => startBot(), 1000);
+                }
+            } else {
+                alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found`);
+                document.getElementById('accTypeToggle').checked = !isRealRequested;
+            }
+        }
+        
+        // TRADE STATUS UI FUNCTIONS
+        function updateTradeStatus(status, result, action, type = 'normal') {
+            tradeResultContainer.classList.remove('win-glow');
+            metricPreviousResult.textContent = result;
+            metricNextAction.textContent = action;
+            
+            switch(type) {
+                case 'win':
+                    metricTradeResult.textContent = 'WIN 🎯';
+                    metricTradeResult.className = 'text-xs font-bold status-win';
+                    metricPreviousResult.className = 'text-sm font-bold status-win';
+                    metricNextAction.className = 'text-sm font-bold text-green-400';
+                    tradeResultContainer.classList.add('win-glow');
+                    log(`🎯 Trade Status: ${result}`, 'WIN');
+                    break;
+                case 'loss':
+                    metricTradeResult.textContent = 'LOSS ❌';
+                    metricTradeResult.className = 'text-xs font-bold status-loss';
+                    metricPreviousResult.className = 'text-sm font-bold status-loss';
+                    metricNextAction.className = 'text-sm font-bold text-red-400';
+                    log(`❌ Trade Status: ${result}`, 'LOSS');
+                    break;
+                case 'trade':
+                    metricTradeResult.textContent = 'TRADING ⚡';
+                    metricTradeResult.className = 'text-xs font-bold status-trade';
+                    metricPreviousResult.className = 'text-sm font-bold status-trade';
+                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
+                    log(`⚡ Trade Status: ${result}`, 'TRADE');
+                    break;
+                default:
+                    metricTradeResult.textContent = status || 'READY';
+                    metricTradeResult.className = 'text-xs font-bold text-gray-400';
+                    metricPreviousResult.className = 'text-sm font-bold text-gray-300';
+                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
+                    break;
+            }
+        }
+        
+        function resetTradeStatus() {
+            updateTradeStatus('READY', 'Waiting for connection...', 'Start bot to begin', 'normal');
+        }
+        
+        // PnL CALCULATION FUNCTIONS
+        function updatePnL() {
+            const pnlElem = document.getElementById('metricTotalProfit');
+            
+            if (window.startingBalance > 0 && window.currentBalance > 0) {
+                window.netProfit = window.currentBalance - window.startingBalance;
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) pnlElem.classList.add('profit-positive');
+                else if (isNegative) pnlElem.classList.add('profit-negative');
+                else pnlElem.classList.add('profit-neutral');
+                
+                return window.netProfit;
+            }
+            
+            if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
+                window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) pnlElem.classList.add('profit-positive');
+                else if (isNegative) pnlElem.classList.add('profit-negative');
+                else pnlElem.classList.add('profit-neutral');
+                
+                return window.netProfit;
+            }
+            
+            pnlElem.textContent = '$0.00';
+            pnlElem.classList.remove('profit-positive', 'profit-negative');
+            pnlElem.classList.add('profit-neutral');
+            return 0;
+        }
+        
+        function trackTradeInvestment(amount) {
+            window.pnlTracker.totalInvestment += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'investment',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            updatePnL();
+            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function trackTradePayout(amount) {
+            window.pnlTracker.totalPayout += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'payout',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            updatePnL();
+            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function resetPnL() {
+            window.pnlTracker = { totalInvestment: 0.0, totalPayout: 0.0, netProfit: 0.0, trades: [] };
+            window.startingBalance = 0.0;
+            window.currentBalance = 0.0;
+            window.netProfit = 0.0;
+            updatePnL();
+            log('💰 PnL reset', 'PNL');
+        }
+        
+        // SESSION MANAGEMENT
+        function startNewAnalysis() {
+            if (!window.isBotRunning) {
+                log('❌ Bot is not running', 'ERROR');
+                return;
+            }
+            
+            if (sessionState.sessionStarted && window.tradeCount > 0) {
+                const confirmReset = confirm('⚠️ Starting new analysis will reset current session. Continue?');
+                if (!confirmReset) return;
+            }
+            
+            analysisDigits = [];
+            analysisComplete = false;
+            suggestedDigit = null;
+            sessionState.sessionDigit = null;
+            sessionState.manualOverride = false;
+            
+            document.getElementById('prediction_text').textContent = 'Running new analysis...';
+            document.getElementById('prediction_box').classList.remove('analysis-complete');
+            
+            updateAnalysisUI('?');
+            log('🔄 Starting new analysis...', 'ANALYSIS');
+            sessionDisplay.classList.add('hidden');
+        }
+        
+        function updateSessionDisplay() {
+            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
+                document.getElementById('session_digit').textContent = sessionState.sessionDigit;
+                document.getElementById('session_confidence').textContent = `${Math.round(window.predictionConfidence * 100)}%`;
+                document.getElementById('session_mode').textContent = sessionState.mode.toUpperCase();
+                document.getElementById('session_trades').textContent = `${window.tradeCount}/${window.maxTrades}`;
+                sessionDisplay.classList.remove('hidden');
+            } else {
+                sessionDisplay.classList.add('hidden');
+            }
+        }
+        
+        function lockSessionDigit(digit) {
+            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
+                log(`🔒 Digit ${digit} is already locked for this session`, 'SESSION');
+                return sessionState.sessionDigit;
+            }
+            
+            sessionState.sessionDigit = digit;
+            sessionState.sessionStarted = true;
+            sessionState.manualOverride = false;
+            document.getElementById('predictedDigit').value = digit;
+            updateSessionDisplay();
+            log(`🔒 Digit ${digit} locked for current session`, 'SESSION');
+            return digit;
+        }
+        
+        // ANALYSIS ENGINE
+        function updateConnectionStatus() {
+            const isConnected = window.ws && window.ws.readyState === WebSocket.OPEN;
+            const isConnecting = window.isConnecting || false;
+            
+            if (isConnected) {
+                document.getElementById('status-badge').textContent = '🟢 CONNECTED';
+                document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connected text-white shadow-md';
+                document.getElementById('market_status').textContent = 'Live';
+                document.getElementById('market_status').className = 'ml-2 font-bold text-green-400';
+                updateTradeStatus('CONNECTED', 'Market live - Ready to trade', 'Set parameters and start trading', 'normal');
+            } else if (isConnecting) {
+                document.getElementById('status-badge').textContent = '🟡 CONNECTING';
+                document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-connecting text-white shadow-md';
+                document.getElementById('market_status').textContent = 'Connecting...';
+                document.getElementById('market_status').className = 'ml-2 font-bold text-yellow-400';
+                updateTradeStatus('CONNECTING', 'Connecting to market...', 'Please wait', 'normal');
+            } else {
+                document.getElementById('status-badge').textContent = '🔴 DISCONNECTED';
+                document.getElementById('status-badge').className = 'ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-disconnected text-white shadow-md';
+                document.getElementById('market_status').textContent = 'Offline';
+                document.getElementById('market_status').className = 'ml-2 font-bold text-red-400';
+                updateTradeStatus('DISCONNECTED', 'Market offline', 'Start bot to connect', 'normal');
+            }
+            
+            document.getElementById('current_symbol').textContent = 
+                document.getElementById('symbol').options[document.getElementById('symbol').selectedIndex].text;
+            document.getElementById('ticks_received').textContent = totalTicksReceived;
+            
+            const now = Date.now();
+            const recentTicks = tickTimestamps.filter(ts => now - ts < 5000);
+            const tickRate = recentTicks.length / 5;
+            document.getElementById('current_tick_rate').textContent = tickRate.toFixed(1) + '/s';
+        }
         
         function processTickForAnalysis(tick) {
             try {
@@ -1520,52 +1794,61 @@
             }
         }
         
-        // ============================================================================
-        // ADAPTIVE RECHECK SYSTEM - IMPROVED
-        // ============================================================================
-        
-        window.recheckThreshold = 5;
-        window.consecutiveLosses = 0;
-        window.lastAnalysisTime = 0;
-        window.recheckEnabled = true;
-        window.digitChangesThisSession = 0;
-        window.maxDigitChanges = 3;
-        window.lastRecheckTime = 0;
-        window.recheckCooldown = 10000;
-        
-        // DOM Elements
-        const toggleButton = document.getElementById('toggleButton');
-        const soundToggleButton = document.getElementById('soundToggle');
-        const sessionDisplay = document.getElementById('session_display');
-        const tradeResultContainer = document.getElementById('trade-result-container');
-        const metricPreviousResult = document.getElementById('metricPreviousResult');
-        const metricNextAction = document.getElementById('metricNextAction');
-        const metricTradeResult = document.getElementById('metricTradeResult');
-        
-        function updateRecheckSettings() {
-            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
-            window.recheckEnabled = document.getElementById('enableRecheck').checked;
-            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
+        // MODE MANAGEMENT
+        function switchMode(mode) {
+            sessionState.mode = mode;
             
-            // Update AI settings
-            window.enablePatternRecognition = document.getElementById('enablePatternRecognition').checked;
-            window.enableTrendAnalysis = document.getElementById('enableTrendAnalysis').checked;
+            document.getElementById('mode_instant').classList.remove('bg-green-600', 'bg-blue-600');
+            document.getElementById('mode_smart').classList.remove('bg-green-600', 'bg-blue-600');
             
-            log(`⚙️ AI Settings: Pattern recognition ${window.enablePatternRecognition ? 'ON' : 'OFF'}, Trend analysis ${window.enableTrendAnalysis ? 'ON' : 'OFF'}`, 'AI');
-            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
-            
-            // Update badge visibility
-            const badge = document.getElementById('recheck-badge');
-            if (window.recheckEnabled) {
-                badge.classList.remove('hidden');
+            if (mode === 'instant') {
+                document.getElementById('mode_instant').classList.add('bg-green-600');
+                document.getElementById('mode_smart').classList.add('bg-blue-600');
+                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick';
+                log('🔄 Switched to INSTANT mode', 'SYSTEM');
+                window.nextTradeAllowed = true;
+                
+                if (window.isBotRunning && !sessionState.manualOverride) {
+                    const manualDigit = parseInt(document.getElementById('predictedDigit').value);
+                    if (!isNaN(manualDigit) && manualDigit >= 0 && manualDigit <= 9) {
+                        sessionState.sessionDigit = manualDigit;
+                        sessionState.sessionStarted = true;
+                        sessionState.manualOverride = true;
+                        updateSessionDisplay();
+                        updatePredictionBox();
+                        log(`🔒 Digit ${manualDigit} set manually for instant mode`, 'SESSION');
+                    }
+                }
             } else {
-                badge.classList.add('hidden');
+                document.getElementById('mode_smart').classList.add('bg-green-600');
+                document.getElementById('mode_instant').classList.add('bg-blue-600');
+                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade';
+                log('🔄 Switched to SMART mode', 'SYSTEM');
+                
+                if (sessionState.sessionDigit !== null) {
+                    log(`🔒 Using locked digit ${sessionState.sessionDigit}`, 'SESSION');
+                    updateExecutionLogic();
+                } else {
+                    updateExecutionLogic();
+                }
             }
         }
         
-        // ============================================================================
-        // CORE BOT FUNCTIONS (Updated with AI)
-        // ============================================================================
+        function updateExecutionLogic() {
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+                log('🧠 Waiting for analysis...', 'ANALYSIS');
+                window.nextTradeAllowed = false;
+                updateTradeStatus('ANALYZING', 'Analyzing market data...', 'Waiting for analysis completion', 'normal');
+            } else if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
+                log(`🧠 Ready! Using locked digit: ${sessionState.sessionDigit}`, 'SESSION');
+                window.nextTradeAllowed = true;
+                document.getElementById('predictedDigit').value = sessionState.sessionDigit;
+                updateTradeStatus('READY', `Digit ${sessionState.sessionDigit} locked`, 'Ready to trade', 'normal');
+            } else if (sessionState.mode === 'instant') {
+                window.nextTradeAllowed = true;
+                updateTradeStatus('READY', 'Instant mode active', 'Trading on each tick', 'normal');
+            }
+        }
         
         // DOM Ready
         document.addEventListener('DOMContentLoaded', () => {
@@ -1652,42 +1935,667 @@
             });
         });
         
-        // ... (Keep all other existing functions from previous version, 
-        // but replace performAnalysis() calls with performEnhancedAnalysis())
-        
-        // Update the analysis UI function
-        function updateAnalysisUI(currentDigit) {
+        // WEBSOCKET CONNECTION
+        function connectWebSocket() {
+            if (window.ws) {
+                try {
+                    window.ws.close();
+                } catch (e) {}
+            }
+            
+            window.isConnecting = true;
             updateConnectionStatus();
-            document.getElementById('tick_counter').textContent = analysisDigits.length;
-            const progressPercent = Math.min(100, (analysisDigits.length / analysisWindowSize) * 100);
-            document.getElementById('tick_progress_bar').style.width = `${progressPercent}%`;
             
-            const statusElem = document.getElementById('analysis_status');
-            if (analysisDigits.length < analysisWindowSize) {
-                statusElem.textContent = `Collecting: ${analysisDigits.length}/${analysisWindowSize}`;
-                statusElem.className = 'text-xs text-cyan-400';
-            } else {
-                statusElem.textContent = '✅ Analysis complete';
-                statusElem.className = 'text-xs text-green-400';
-            }
+            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
+            log('🔗 Connecting to Deriv API...', 'SYSTEM');
             
-            document.getElementById('window_size').textContent = analysisWindowSize;
+            window.ws = new WebSocket(wsUrl);
+            
+            window.ws.onopen = () => {
+                window.isConnecting = false;
+                log('✅ WebSocket connected', 'SYSTEM');
+                updateConnectionStatus();
+                
+                const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+                if (!token) {
+                    log('❌ No API token found in storage', 'ERROR');
+                    stopBot();
+                    return;
+                }
+                
+                sendRequest({ 
+                    authorize: token, 
+                    req_id: getNextReqId() 
+                });
+            };
+            
+            window.ws.onmessage = (msg) => {
+                try {
+                    const data = JSON.parse(msg.data);
+                    handleAPIResponse(data);
+                } catch (e) {
+                    console.error('WebSocket message error:', e);
+                }
+            };
+            
+            window.ws.onclose = () => {
+                window.isConnecting = false;
+                updateConnectionStatus();
+                log('🔌 WebSocket disconnected', 'SYSTEM');
+                
+                if (window.isBotRunning) {
+                    log('🔄 Attempting to reconnect...', 'SYSTEM');
+                    setTimeout(() => {
+                        if (window.isBotRunning) {
+                            connectWebSocket();
+                        }
+                    }, 2000);
+                }
+            };
+            
+            window.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                log('❌ WebSocket connection error', 'ERROR');
+            };
         }
         
-        // Update session display to show confidence
-        function updateSessionDisplay() {
-            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
-                document.getElementById('session_digit').textContent = sessionState.sessionDigit;
-                document.getElementById('session_confidence').textContent = `${Math.round(window.predictionConfidence * 100)}%`;
-                document.getElementById('session_mode').textContent = sessionState.mode.toUpperCase();
-                document.getElementById('session_trades').textContent = `${window.tradeCount}/${window.maxTrades}`;
-                sessionDisplay.classList.remove('hidden');
-            } else {
-                sessionDisplay.classList.add('hidden');
+        // TICK HANDLER
+        function handleTick(tick) {
+            if (!window.isBotRunning) return;
+            
+            processTickForAnalysis(tick);
+            
+            const price = parseFloat(tick.quote);
+            const symbol = document.getElementById('symbol').value;
+            let decimalPlaces = 3;
+            if (symbol === 'R_100') decimalPlaces = 2;
+            const formattedPrice = price.toFixed(decimalPlaces);
+            const digit = formattedPrice.charAt(formattedPrice.length - 1);
+            
+            const tickData = { 
+                digit: digit, 
+                price: price, 
+                time: Date.now() 
+            };
+            
+            window.lastTick = tickData;
+            
+            document.getElementById('metricLiveTick').textContent = price.toFixed(3);
+            document.getElementById('metricLastDigit').textContent = `Digit: ${digit}`;
+            document.getElementById('metricLiveTick').classList.add('tick-flash');
+            setTimeout(() => document.getElementById('metricLiveTick').classList.remove('tick-flash'), 50);
+            
+            window.stats.totalTicks++;
+            window.botTickTimestamps.push(Date.now());
+            
+            addTickToQueue(tickData);
+            playAudioFeedback('TICK');
+        }
+        
+        // IMPROVED: Add tick to queue and analysisDigits
+        function addTickToQueue(tick) {
+            window.tickQueue.push(tick);
+            if (window.tickQueue.length > window.maxQueueSize) {
+                window.tickQueue.shift();
+            }
+            
+            // Also add to analysisDigits for reanalysis
+            const digit = parseInt(tick.digit);
+            if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                analysisDigits.push(digit);
+                if (analysisDigits.length > 100) {
+                    analysisDigits.shift();
+                }
+            }
+            
+            return true;
+        }
+        
+        function processTickImmediately(tick) {
+            if (window.stopAfterWin) return;
+            
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+                return;
+            }
+            
+            if (checkForImmediateWin(tick)) {
+                return;
+            }
+            
+            if (window.tradeCount >= window.maxTrades) {
+                log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
+                updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
+                stopBot();
+                return;
+            }
+            
+            window.executionLock = true;
+            window.nextTradeAllowed = false;
+            
+            try {
+                window.stats.tradesExecuted++;
+                window.tradeCount++;
+                document.getElementById('metricTradeCount').textContent = window.tradeCount;
+                
+                updateSessionDisplay();
+                log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
+                
+                updateTradeStatus(
+                    'TRADING',
+                    `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${sessionState.sessionDigit || document.getElementById('predictedDigit').value}`,
+                    'Executing trade...',
+                    'trade'
+                );
+                
+                playAudioFeedback('EXECUTION');
+                executeTrade(tick);
+                
+            } catch (error) {
+                log(`❌ Error: ${error}`, 'ERROR');
+                window.executionLock = false;
+                window.nextTradeAllowed = true;
+                updateTradeStatus('ERROR', `Trade failed: ${error}`, 'Retrying...', 'loss');
             }
         }
         
-        // Reset all state with AI
+        function executeTrade(tick) {
+            const contractType = document.getElementById('contractType').value;
+            const symbol = document.getElementById('symbol').value;
+            let predictedDigit;
+            
+            if (sessionState.sessionDigit !== null) {
+                predictedDigit = sessionState.sessionDigit;
+            } else {
+                predictedDigit = parseInt(document.getElementById('predictedDigit').value);
+            }
+            
+            let stake = window.currentStake;
+            trackTradeInvestment(stake);
+            
+            const proposalRequest = {
+                proposal: 1,
+                amount: stake.toFixed(2),
+                basis: "stake",
+                contract_type: contractType,
+                currency: "USD",
+                duration: 1,
+                duration_unit: "t",
+                symbol: symbol,
+                barrier: predictedDigit.toString(),
+                req_id: getNextReqId()
+            };
+            
+            window.pendingProposals.set(proposalRequest.req_id, {
+                tick: tick,
+                stake: stake,
+                contractType: contractType,
+                predictedDigit: predictedDigit,
+                startTime: Date.now()
+            });
+            
+            sendRequest(proposalRequest);
+        }
+        
+        // IMPROVED: Update stake with better reanalysis
+        function updateStake(winOrLoss) {
+            window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
+            window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
+            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            
+            if (winOrLoss === 'win') {
+                window.martingaleStep = 0;
+                window.consecutiveLosses = 0;
+                window.currentStake = window.baseStake;
+                log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
+                
+                const payout = window.currentStake * 9;
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
+                updateTradeStatus(
+                    'WIN 🎯',
+                    `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
+                    'Resetting stake to base',
+                    'win'
+                );
+                
+            } else if (winOrLoss === 'loss') {
+                window.martingaleStep++;
+                window.consecutiveLosses++;
+                
+                // ADAPTIVE RECHECK
+                if (sessionState.mode === 'smart' && window.recheckEnabled) {
+                    const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
+                    
+                    if (shouldRecheck) {
+                        const changed = checkAndReanalyze(sessionState.sessionDigit);
+                        if (changed) {
+                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
+                        }
+                    }
+                }
+                
+                if (window.martingaleStep >= window.maxTrades) {
+                    log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
+                    updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
+                    stopBot();
+                    return;
+                }
+                
+                const newStake = window.currentStake * window.multiplier;
+                window.currentStake = parseFloat(newStake.toFixed(2));
+                log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)} (Loss streak: ${window.consecutiveLosses}, Step: ${window.martingaleStep})`, 'LOSS');
+                
+                updateTradeStatus(
+                    'LOSS ❌',
+                    `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
+                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
+                    'loss'
+                );
+                
+            } else {
+                window.martingaleStep = 0;
+                window.consecutiveLosses = 0;
+                window.digitChangesThisSession = 0;
+                window.currentStake = window.baseStake;
+                log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
+                updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
+            }
+            
+            const stakeElem = document.getElementById('metricCurrentStake');
+            stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
+            stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
+            
+            updatePnL();
+        }
+        
+        // START/STOP BOT
+        function startBot() {
+            if (window.isBotRunning) {
+                stopBot();
+                return;
+            }
+            
+            window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+            if (!token) {
+                log('❌ No API token found. Please authenticate first.', 'CRITICAL');
+                document.getElementById('prediction_text').textContent = 'Authentication required';
+                updateTradeStatus('ERROR', 'No API token found', 'Please authenticate first', 'loss');
+                return;
+            }
+            
+            resetAllState();
+            
+            analysisDigits = [];
+            analysisComplete = false;
+            if (!sessionState.manualOverride) {
+                suggestedDigit = null;
+            }
+            totalTicksReceived = 0;
+            tickTimestamps = [];
+            
+            if (!sessionState.manualOverride) {
+                sessionState.sessionDigit = null;
+                sessionState.sessionStarted = false;
+            }
+            
+            window.isBotRunning = true;
+            updateButtonState();
+            
+            log('🚀 Starting bot...', 'SYSTEM');
+            log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
+            log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
+            log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
+            log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
+            
+            updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
+            updateStake('initial');
+            initTone();
+            connectWebSocket();
+            
+            document.querySelectorAll('#symbol, #predictedDigit, #contractType, #baseStake, #multiplier, #maxTrades').forEach(control => {
+                control.disabled = true;
+                control.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+            
+            document.getElementById('new_analysis_btn').disabled = false;
+        }
+        
+        function stopBot() {
+            if (!window.isBotRunning) return;
+            
+            window.isBotRunning = false;
+            window.nextTradeAllowed = false;
+            window.stopAfterWin = false;
+            updateButtonState();
+            
+            log('⏹️ Bot stopped', 'SYSTEM');
+            
+            if (window.ws) {
+                window.ws.close();
+                window.ws = null;
+            }
+            window.tickSubscriptionSent = false;
+            window.pendingProposals.clear();
+            window.executionLock = false;
+            
+            document.querySelectorAll('#symbol, #predictedDigit, #contractType, #baseStake, #multiplier, #maxTrades').forEach(control => {
+                control.disabled = false;
+                control.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+            
+            document.getElementById('new_analysis_btn').disabled = true;
+            
+            updateConnectionStatus();
+            const finalPnL = updatePnL();
+            log(`💰 Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`, 'PNL');
+            
+            updateTradeStatus(
+                'STOPPED',
+                `Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`,
+                'Bot stopped - Ready for new session',
+                finalPnL > 0 ? 'win' : 'normal'
+            );
+            
+            sessionState.sessionStarted = false;
+            sessionDisplay.classList.add('hidden');
+        }
+        
+        function toggleBot() {
+            if (window.isBotRunning) {
+                stopBot();
+            } else {
+                startBot();
+            }
+        }
+        
+        // HELPER FUNCTIONS
+        function calculateRates() {
+            const now = Date.now();
+            window.botTickTimestamps = window.botTickTimestamps.filter(ts => now - ts < 5000);
+            const tickRate = window.botTickTimestamps.length / 5;
+            document.getElementById('metricTickRate').textContent = `Ticks/sec: ${tickRate.toFixed(1)}`;
+        }
+        
+        function toggleSound() {
+            window.soundEnabled = !window.soundEnabled;
+            localStorage.setItem('soundEnabled', window.soundEnabled);
+            updateSoundButton();
+            log(`🔊 Sound ${window.soundEnabled ? 'ON' : 'OFF'}`, 'SYSTEM');
+        }
+        
+        function updateSoundButton() {
+            if (soundToggleButton) {
+                soundToggleButton.textContent = window.soundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF';
+                soundToggleButton.className = window.soundEnabled ? 
+                    'px-4 py-2 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition' :
+                    'px-4 py-2 bg-gray-600 text-white font-bold rounded-lg shadow hover:bg-gray-700 transition';
+            }
+        }
+        
+        async function initTone() {
+            if (!window.soundEnabled) return;
+            
+            if (typeof Tone === 'undefined') {
+                console.error("Tone.js not loaded");
+                return;
+            }
+            
+            try {
+                await Tone.start();
+                window.synth = new Tone.Synth().toDestination();
+                window.ToneInitialized = true;
+            } catch (e) {
+                console.error("Audio init error:", e);
+            }
+        }
+        
+        function playAudioFeedback(type) {
+            if (!window.soundEnabled || !window.ToneInitialized || !window.synth) return;
+            
+            try {
+                if (type === 'WIN') {
+                    window.synth.triggerAttackRelease("C5", "8n");
+                    setTimeout(() => window.synth.triggerAttackRelease("E5", "8n"), 100);
+                    setTimeout(() => window.synth.triggerAttackRelease("G5", "8n"), 200);
+                } else if (type === 'TICK') {
+                    window.synth.triggerAttackRelease("C4", "32n", Tone.now(), 0.3);
+                } else if (type === 'EXECUTION') {
+                    window.synth.triggerAttackRelease("E5", "16n", Tone.now(), 0.5);
+                }
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+        
+        function log(message, type = 'INFO') {
+            const logArea = document.getElementById('log-area');
+            const timestamp = new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            
+            let color = 'text-lime-400';
+            if (type === 'ERROR') color = 'text-red-500 font-bold'; 
+            if (type === 'WARNING') color = 'text-yellow-400';
+            if (type === 'TRADE') color = 'text-green-300';
+            if (type === 'WIN') color = 'text-green-400 font-bold';
+            if (type === 'LOSS') color = 'text-red-400 font-bold';
+            if (type === 'TICK') color = 'text-cyan-300';
+            if (type === 'SYSTEM') color = 'text-white';
+            if (type === 'ANALYSIS') color = 'text-cyan-300 font-bold';
+            if (type === 'PNL') color = 'text-purple-300 font-bold';
+            if (type === 'SESSION') color = 'text-blue-300 font-bold';
+            if (type === 'CALCULATOR') color = 'text-purple-300 font-bold';
+            if (type === 'STRATEGY') color = 'text-purple-300 font-bold';
+            if (type === 'SETTINGS') color = 'text-blue-300 font-bold';
+            if (type === 'AI') color = 'text-purple-300 font-bold';
+            
+            logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        function updateButtonState() {
+            if (!toggleButton) return;
+            
+            if (window.isBotRunning) {
+                toggleButton.innerHTML = '<span class="flex items-center justify-center"><span class="mr-2">⏹️</span> STOP BOT</span>';
+                toggleButton.classList.remove('bg-green-600', 'hover:bg-green-700', 'start-button-active');
+                toggleButton.classList.add('stop-button-active', 'hover:bg-red-700');
+            } else {
+                toggleButton.innerHTML = '<span class="flex items-center justify-center"><span class="mr-2">🚀</span> START BOT</span>';
+                toggleButton.classList.remove('stop-button-active', 'hover:bg-red-700');
+                toggleButton.classList.add('bg-green-600', 'hover:bg-green-700', 'start-button-active');
+            }
+        }
+        
+        function startQueueProcessor() {
+            setInterval(() => {
+                if (!window.isBotRunning || window.stopAfterWin) return;
+                
+                while (window.tickQueue.length > 0 && !window.executionLock && window.nextTradeAllowed) {
+                    const tick = window.tickQueue.shift();
+                    processTickImmediately(tick);
+                }
+            }, 50);
+        }
+        
+        function checkForImmediateWin(tick) {
+            if (!window.isBotRunning || window.stopAfterWin) return false;
+            
+            let predictedDigit;
+            if (sessionState.sessionDigit !== null) {
+                predictedDigit = sessionState.sessionDigit;
+            } else {
+                predictedDigit = parseInt(document.getElementById('predictedDigit').value);
+            }
+            
+            const tickDigit = parseInt(tick.digit);
+            
+            if (tickDigit === predictedDigit) {
+                log(`🎯 IMMEDIATE WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
+                
+                window.lastTradeResult = 'win';
+                window.stopAfterWin = true;
+                window.stats.wins++;
+                window.tradeCount++;
+                
+                playAudioFeedback('WIN');
+                
+                const payout = window.currentStake * 9;
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
+                updateTradeStatus(
+                    'IMMEDIATE WIN 🎯',
+                    `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
+                    'Stopping bot after win',
+                    'win'
+                );
+                
+                updateStake('win');
+                return true;
+            }
+            
+            return false;
+        }
+        
+        function sendRequest(request) {
+            if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+                const message = JSON.stringify(request);
+                window.ws.send(message);
+                return request.req_id;
+            }
+            return null;
+        }
+        
+        function getNextReqId() {
+            return ++window.req_id;
+        }
+        
+        function handleAPIResponse(data) {
+            if (data.error) {
+                log(`API Error: ${data.error.message}`, 'ERROR');
+                if (data.error.code === 'InvalidToken') {
+                    log('❌ Invalid API Token. Please check your authentication.', 'CRITICAL');
+                    stopBot();
+                }
+                return;
+            }
+        
+            if (data.msg_type === 'authorize') {
+                if (data.authorize) {
+                    log(`🔐 Authorized as ${data.authorize.loginid}`, 'SYSTEM');
+                    subscribeToTicks(document.getElementById('symbol').value);
+                    subscribeToBalance();
+                }
+            } else if (data.msg_type === 'tick') {
+                handleTick(data.tick);
+            } else if (data.msg_type === 'proposal') {
+                handleProposalResponse(data.proposal, data.req_id);
+            } else if (data.msg_type === 'buy') {
+                handleBuyResponse(data.buy);
+            } else if (data.msg_type === 'balance') {
+                handleBalanceUpdate(data.balance);
+            }
+        }
+        
+        function subscribeToBalance() {
+            sendRequest({ balance: 1, subscribe: 1, req_id: getNextReqId() });
+            log('💰 Subscribed to balance', 'SYSTEM');
+        }
+        
+        function handleBalanceUpdate(balanceData) {
+            const newBalance = parseFloat(balanceData.balance);
+            
+            if (window.startingBalance === 0) {
+                window.startingBalance = newBalance;
+                log(`💰 Starting Balance: $${window.startingBalance.toFixed(2)}`, 'PNL');
+            }
+            
+            window.currentBalance = newBalance;
+            document.getElementById('metricAccountBalance').textContent = `$${window.currentBalance.toFixed(2)}`;
+            updatePnL();
+        }
+        
+        function subscribeToTicks(symbol) {
+            if (window.tickSubscriptionSent) return;
+            
+            sendRequest({ ticks: symbol, subscribe: 1, req_id: getNextReqId() });
+            window.tickSubscriptionSent = true;
+            log(`✅ Subscribed to ${symbol} ticks`, 'SYSTEM');
+        }
+        
+        function handleProposalResponse(proposal, req_id) {
+            if (!proposal || !proposal.id) {
+                log(`❌ Proposal failed`, 'ERROR');
+                updateTradeStatus('ERROR', 'Proposal failed', 'Retrying...', 'loss');
+                return;
+            }
+        
+            const pending = window.pendingProposals.get(req_id);
+            if (!pending) return;
+        
+            window.pendingProposals.delete(req_id);
+            executeBuy(proposal.id, proposal.ask_price, pending);
+        }
+        
+        function executeBuy(proposal_id, ask_price, pending) {
+            const buyRequest = {
+                buy: proposal_id,
+                price: ask_price,
+                req_id: getNextReqId()
+            };
+            
+            log(`✅ Buying: $${pending.stake.toFixed(2)} on digit ${pending.predictedDigit}`, 'TRADE');
+            
+            window.pendingProposals.set(buyRequest.req_id, {
+                ...pending,
+                proposal_id: proposal_id,
+                buyStartTime: Date.now()
+            });
+            
+            sendRequest(buyRequest);
+        }
+        
+        function handleBuyResponse(buyData) {
+            if (buyData.contract_id) {
+                log(`✅ Trade executed successfully`, 'TRADE');
+                updateStake('loss');
+                onTradeComplete(true);
+            } else {
+                log(`❌ Trade failed`, 'ERROR');
+                updateTradeStatus('ERROR', 'Trade execution failed', 'Retrying...', 'loss');
+                onTradeComplete(false);
+            }
+        }
+        
+        function onTradeComplete(isSuccess = true) {
+            window.executionLock = false;
+            window.nextTradeAllowed = true;
+            updateSessionDisplay();
+            
+            if (!isSuccess) {
+                updateStake('loss');
+            }
+            
+            if (window.stopAfterWin) {
+                setTimeout(() => stopBot(), 100);
+                return;
+            }
+            
+            if (window.tradeCount >= window.maxTrades) {
+                log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
+                updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
+                stopBot();
+                return;
+            }
+        }
+        
         function resetAllState() {
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             window.consecutiveLosses = 0;
@@ -1753,164 +2661,274 @@
             log('🔄 AI Analysis Engine reset', 'AI');
         }
         
-        // ... (Keep all other functions from previous version)
+        // Update the analysis UI function
+        function updateAnalysisUI(currentDigit) {
+            updateConnectionStatus();
+            document.getElementById('tick_counter').textContent = analysisDigits.length;
+            const progressPercent = Math.min(100, (analysisDigits.length / analysisWindowSize) * 100);
+            document.getElementById('tick_progress_bar').style.width = `${progressPercent}%`;
+            
+            const statusElem = document.getElementById('analysis_status');
+            if (analysisDigits.length < analysisWindowSize) {
+                statusElem.textContent = `Collecting: ${analysisDigits.length}/${analysisWindowSize}`;
+                statusElem.className = 'text-xs text-cyan-400';
+            } else {
+                statusElem.textContent = '✅ Analysis complete';
+                statusElem.className = 'text-xs text-green-400';
+            }
+            
+            document.getElementById('window_size').textContent = analysisWindowSize;
+        }
         
-        // Helper functions (copy from previous version)
-        function checkAuthToken() {
-            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
-            if (!token) {
-                log('⚠️ No API token found. Please authenticate first.', 'WARNING');
-                document.getElementById('prediction_text').textContent = 'Authentication required';
+        // Update recheck settings function
+        function updateRecheckSettings() {
+            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
+            window.recheckEnabled = document.getElementById('enableRecheck').checked;
+            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
+            
+            // Update AI settings
+            window.enablePatternRecognition = document.getElementById('enablePatternRecognition').checked;
+            window.enableTrendAnalysis = document.getElementById('enableTrendAnalysis').checked;
+            
+            log(`⚙️ AI Settings: Pattern recognition ${window.enablePatternRecognition ? 'ON' : 'OFF'}, Trend analysis ${window.enableTrendAnalysis ? 'ON' : 'OFF'}`, 'AI');
+            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
+            
+            // Update badge visibility
+            const badge = document.getElementById('recheck-badge');
+            if (window.recheckEnabled) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        function updateLossStreakDisplay() {
+            const streakElem = document.getElementById('currentLossStreak');
+            const changesElem = document.getElementById('digitChangesCount');
+            
+            if (streakElem) {
+                streakElem.textContent = window.consecutiveLosses;
+                if (window.consecutiveLosses >= window.recheckThreshold) {
+                    streakElem.classList.add('loss-streak-high');
+                } else {
+                    streakElem.classList.remove('loss-streak-high');
+                }
+            }
+            
+            if (changesElem) {
+                changesElem.textContent = window.digitChangesThisSession;
+            }
+        }
+        
+        // Adaptive recheck functions
+        function collectQuickAnalysis(count) {
+            const recentDigits = [];
+            
+            // Method 1: Use tick queue if available
+            if (window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - count);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
+            }
+            
+            // Method 2: Use the global analysisDigits array
+            if (recentDigits.length < count && analysisDigits && analysisDigits.length > 0) {
+                const startIdx = Math.max(0, analysisDigits.length - count);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            // Method 3: Use last tick if available
+            if (recentDigits.length === 0 && window.lastTick && window.lastTick.digit !== undefined) {
+                const digit = parseInt(window.lastTick.digit);
+                if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                    recentDigits.push(digit);
+                }
+            }
+            
+            // Return unique digits to avoid duplicates
+            return [...new Set(recentDigits)].slice(-count);
+        }
+        
+        function analyzeDigitsQuick(digitsArray) {
+            if (!digitsArray || digitsArray.length === 0) return null;
+            
+            // Log what we're analyzing for debugging
+            if (digitsArray.length < 3) {
+                log(`📊 Quick analysis: Only ${digitsArray.length} digits available`, 'ANALYSIS');
+            }
+            
+            const freq = Array(10).fill(0);
+            digitsArray.forEach(d => {
+                if (d >= 0 && d <= 9) freq[d]++;
+            });
+            
+            // For very small data sets (1-2 digits), use a different approach
+            if (digitsArray.length < 3) {
+                const usedDigits = [...new Set(digitsArray)];
+                const possibleDigits = [];
+                
+                // Find digits that haven't been used recently
+                for (let i = 0; i < 10; i++) {
+                    if (!usedDigits.includes(i)) {
+                        possibleDigits.push(i);
+                    }
+                }
+                
+                if (possibleDigits.length > 0) {
+                    const randomDigit = possibleDigits[Math.floor(Math.random() * possibleDigits.length)];
+                    log(`🎲 Small data set: Choosing random digit ${randomDigit} from ${possibleDigits.length} options`, 'ANALYSIS');
+                    return randomDigit;
+                } else {
+                    // If all digits appear (unlikely with 1-2 digits), pick one randomly
+                    const randomDigit = Math.floor(Math.random() * 10);
+                    log(`🎲 All digits in small set: Choosing random digit ${randomDigit}`, 'ANALYSIS');
+                    return randomDigit;
+                }
+            }
+            
+            // Normal analysis for larger data sets
+            // Find missing digits first
+            const missing = [];
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] === 0) missing.push(i);
+            }
+            
+            if (missing.length > 0) {
+                const randomMissing = missing[Math.floor(Math.random() * missing.length)];
+                log(`📊 Found ${missing.length} missing digits, choosing ${randomMissing}`, 'ANALYSIS');
+                return randomMissing;
+            }
+            
+            // Find least frequent
+            let leastFrequent = 0;
+            let minFreq = Infinity;
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] < minFreq) {
+                    minFreq = freq[i];
+                    leastFrequent = i;
+                }
+            }
+            
+            log(`📊 All digits present, choosing least frequent: ${leastFrequent} (appeared ${minFreq} times)`, 'ANALYSIS');
+            return leastFrequent;
+        }
+        
+        function checkAndReanalyze(currentDigit) {
+            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
                 return false;
             }
-            return true;
-        }
-        
-        function initializeToggleState() {
-            const token = localStorage.getItem('active_token');
-            const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
             
-            if (token && allAccounts.length > 0) {
-                const currentAccount = allAccounts.find(acc => acc.token === token);
-                if (currentAccount) {
-                    const isReal = !currentAccount.account.startsWith('VR');
-                    document.getElementById('accTypeToggle').checked = isReal;
-                    log(`Account: ${isReal ? 'REAL' : 'DEMO'} (${currentAccount.account})`, 'SYSTEM');
-                }
-            }
-        }
-        
-        function switchAccount() {
-            const isRealRequested = document.getElementById('accTypeToggle').checked;
-            const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
-            
-            const targetAccount = allAccounts.find(acc => 
-                isRealRequested ? !acc.account.startsWith('VR') : acc.account.startsWith('VR')
-            );
-        
-            if (targetAccount) {
-                localStorage.setItem('active_token', targetAccount.token);
-                log(`Switched to ${isRealRequested ? 'REAL' : 'DEMO'} account`, 'SYSTEM');
-                
-                if (window.isBotRunning) {
-                    stopBot();
-                    setTimeout(() => startBot(), 1000);
-                }
-            } else {
-                alert(`No ${isRealRequested ? 'Real' : 'Demo'} account found`);
-                document.getElementById('accTypeToggle').checked = !isRealRequested;
-            }
-        }
-        
-        function updateTradeStatus(status, result, action, type = 'normal') {
-            tradeResultContainer.classList.remove('win-glow');
-            metricPreviousResult.textContent = result;
-            metricNextAction.textContent = action;
-            
-            switch(type) {
-                case 'win':
-                    metricTradeResult.textContent = 'WIN 🎯';
-                    metricTradeResult.className = 'text-xs font-bold status-win';
-                    metricPreviousResult.className = 'text-sm font-bold status-win';
-                    metricNextAction.className = 'text-sm font-bold text-green-400';
-                    tradeResultContainer.classList.add('win-glow');
-                    log(`🎯 Trade Status: ${result}`, 'WIN');
-                    break;
-                case 'loss':
-                    metricTradeResult.textContent = 'LOSS ❌';
-                    metricTradeResult.className = 'text-xs font-bold status-loss';
-                    metricPreviousResult.className = 'text-sm font-bold status-loss';
-                    metricNextAction.className = 'text-sm font-bold text-red-400';
-                    log(`❌ Trade Status: ${result}`, 'LOSS');
-                    break;
-                case 'trade':
-                    metricTradeResult.textContent = 'TRADING ⚡';
-                    metricTradeResult.className = 'text-xs font-bold status-trade';
-                    metricPreviousResult.className = 'text-sm font-bold status-trade';
-                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
-                    log(`⚡ Trade Status: ${result}`, 'TRADE');
-                    break;
-                default:
-                    metricTradeResult.textContent = status || 'READY';
-                    metricTradeResult.className = 'text-xs font-bold text-gray-400';
-                    metricPreviousResult.className = 'text-sm font-bold text-gray-300';
-                    metricNextAction.className = 'text-sm font-bold text-yellow-400';
-                    break;
-            }
-        }
-        
-        function resetTradeStatus() {
-            updateTradeStatus('READY', 'Waiting for connection...', 'Start bot to begin', 'normal');
-        }
-        
-        // ... (Copy all other helper functions from previous version)
-        
-        // WEBSOCKET CONNECTION (same as before)
-        function connectWebSocket() {
-            if (window.ws) {
-                try {
-                    window.ws.close();
-                } catch (e) {}
+            // Check cooldown period
+            const now = Date.now();
+            if (now - window.lastRecheckTime < window.recheckCooldown) {
+                return false;
             }
             
-            window.isConnecting = true;
-            updateConnectionStatus();
+            // Check if we've changed digits too many times
+            if (window.digitChangesThisSession >= window.maxDigitChanges) {
+                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
+                return false;
+            }
             
-            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
-            log('🔗 Connecting to Deriv API...', 'SYSTEM');
+            // Check if we need to reanalyze
+            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
+            const timeSinceAnalysis = now - window.lastAnalysisTime;
+            const marketChanged = timeSinceAnalysis > 30000;
             
-            window.ws = new WebSocket(wsUrl);
-            
-            window.ws.onopen = () => {
-                window.isConnecting = false;
-                log('✅ WebSocket connected', 'SYSTEM');
-                updateConnectionStatus();
+            if (needRecheck || marketChanged) {
+                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
+                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
                 
-                const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
-                if (!token) {
-                    log('❌ No API token found in storage', 'ERROR');
-                    stopBot();
-                    return;
+                // Store current state
+                const currentSessionDigit = sessionState.sessionDigit;
+                const currentStake = window.currentStake;
+                const currentMartingaleStep = window.martingaleStep;
+                
+                // Try normal data collection first
+                let freshAnalysis = collectQuickAnalysis(10);
+                
+                // Log available data
+                log(`📊 Reanalysis data: ${freshAnalysis.length} recent digits available`, 'ANALYSIS');
+                
+                // If normal collection fails, try fallback
+                if (freshAnalysis.length < 2) {
+                    log(`🔄 Normal data collection insufficient, trying fallback...`, 'ANALYSIS');
+                    const fallbackData = analysisDigits.slice(-20);
+                    if (fallbackData.length > 0) {
+                        freshAnalysis = fallbackData.slice(-10); // Use last 10 from fallback
+                        log(`📊 Fallback data: ${freshAnalysis.length} digits from history`, 'ANALYSIS');
+                    }
                 }
                 
-                sendRequest({ 
-                    authorize: token, 
-                    req_id: getNextReqId() 
-                });
-            };
-            
-            window.ws.onmessage = (msg) => {
-                try {
-                    const data = JSON.parse(msg.data);
-                    handleAPIResponse(data);
-                } catch (e) {
-                    console.error('WebSocket message error:', e);
+                // We need at least SOME data
+                if (freshAnalysis.length >= 1) {
+                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
+                    
+                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
+                        window.digitChangesThisSession++;
+                        window.lastRecheckTime = now;
+                        
+                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`📊 Based on ${freshAnalysis.length} recent digits: [${freshAnalysis.join(', ')}]`, 'STRATEGY');
+                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
+                        
+                        // Update session with new digit - KEEP current stake & martingale step
+                        sessionState.sessionDigit = newSuggestedDigit;
+                        sessionState.manualOverride = false;
+                        document.getElementById('predictedDigit').value = newSuggestedDigit;
+                        
+                        // Update analysis time
+                        window.lastAnalysisTime = now;
+                        
+                        updatePredictionBox();
+                        updateSessionDisplay();
+                        
+                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
+                        
+                        updateTradeStatus('STRATEGY CHANGE', 
+                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
+                            `Continuing with $${currentStake.toFixed(2)} stake`,
+                            'normal');
+                        
+                        return true;
+                    } else if (newSuggestedDigit === currentSessionDigit) {
+                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit})`, 'ANALYSIS');
+                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
+                        
+                        // Still update the timestamp to prevent frequent rechecks
+                        window.lastRecheckTime = now;
+                        window.lastAnalysisTime = now;
+                        
+                        updateTradeStatus('ANALYSIS', 
+                            `Reanalysis confirms digit ${currentSessionDigit}`,
+                            `Continuing with current strategy`,
+                            'normal');
+                    }
+                } else {
+                    log(`⚠️ No data available for reanalysis`, 'ANALYSIS');
+                    log(`💡 Waiting for more market data...`, 'ANALYSIS');
+                    
+                    // Still update timestamp to prevent constant checking
+                    window.lastRecheckTime = now;
+                    window.lastAnalysisTime = now;
                 }
-            };
-            
-            window.ws.onclose = () => {
-                window.isConnecting = false;
-                updateConnectionStatus();
-                log('🔌 WebSocket disconnected', 'SYSTEM');
                 
-                if (window.isBotRunning) {
-                    log('🔄 Attempting to reconnect...', 'SYSTEM');
-                    setTimeout(() => {
-                        if (window.isBotRunning) {
-                            connectWebSocket();
-                        }
-                    }, 2000);
-                }
-            };
+                return false;
+            }
             
-            window.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                log('❌ WebSocket connection error', 'ERROR');
-            };
+            return false;
         }
-        
-        // ... (Copy all other functions from previous version, replacing performAnalysis with performEnhancedAnalysis where needed)
-        
     </script>
 </body>
 </html>
