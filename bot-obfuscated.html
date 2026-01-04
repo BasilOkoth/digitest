@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>DigitMatchStar Bot - MULTI-DIGIT QUEUE</title>
+    <title>Deriv DigitMatchStar Bot - MULTI-DIGIT QUEUE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
@@ -17,19 +17,29 @@
             0% { 
                 box-shadow: 0 0 5px #10B981, 0 0 10px rgba(16, 185, 129, 0.5); 
                 border-color: #10B981;
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
             } 
             50% { 
-                box-shadow: 0 0 20px #10B981, 0 0 30px rgba(16, 185, 129, 0.8); 
+                box-shadow: 0 0 30px #10B981, 0 0 50px rgba(16, 185, 129, 0.8); 
                 border-color: #34d399;
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.4)) !important;
             } 
             100% { 
                 box-shadow: 0 0 5px #10B981, 0 0 10px rgba(16, 185, 129, 0.5); 
                 border-color: #10B981;
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
             } 
         }
         .win-glow {
             animation: win-pulse 1s infinite;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
+        }
+        .pnl-update-animation {
+            animation: pnl-pulse 0.5s ease-in-out;
+        }
+        @keyframes pnl-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
         .queue-digit { 
             width: 32px; 
@@ -137,12 +147,15 @@
         }
         .profit-positive {
             color: #10b981 !important;
+            font-weight: bold !important;
         }
         .profit-negative {
             color: #ef4444 !important;
+            font-weight: bold !important;
         }
         .profit-neutral {
             color: #d1d5db !important;
+            font-weight: bold !important;
         }
         .session-digit-locked {
             background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
@@ -152,6 +165,7 @@
         .status-win {
             color: #10b981 !important;
             font-weight: bold !important;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
         }
         .status-loss {
             color: #ef4444 !important;
@@ -258,7 +272,7 @@
     <div class="w-full max-w-6xl bg-gray-800 text-gray-100 shadow-2xl rounded-xl p-5 md:p-6">
         <div class="flex justify-between items-center mb-4">
             <h1 class="text-3xl font-extrabold text-green-400 border-b border-gray-700 pb-2">
-                DigitMatchStar Bot 
+                Deriv DigitMatchStar Bot 
                 <span id="status-badge" class="ml-3 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full connection-badge-disconnected text-white shadow-md">
                     🔴 DISCONNECTED
                 </span>
@@ -1366,6 +1380,11 @@
             trades: []
         };
         
+        // PnL Update Timer
+        window.pnlUpdateInterval = null;
+        window.pnlUpdateStartTime = 0;
+        window.pnlUpdateDuration = 3000; // 3 seconds
+        
         // Execution State
         window.lastTick = null;
         window.nextTradeAllowed = true;
@@ -1424,6 +1443,7 @@
         const metricPreviousResult = document.getElementById('metricPreviousResult');
         const metricNextAction = document.getElementById('metricNextAction');
         const metricTradeResult = document.getElementById('metricTradeResult');
+        const metricTotalProfit = document.getElementById('metricTotalProfit');
         
         // ============================================================================
         // DIGIT QUEUE TRADE FUNCTIONS - SIMPLIFIED
@@ -1461,6 +1481,139 @@
             updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
             
             return window.digitQueue.currentDigit;
+        }
+        
+        // ============================================================================
+        // PnL UPDATE FUNCTIONS - ENHANCED FOR 3+ SECOND UPDATES
+        // ============================================================================
+        
+        function startExtendedPnlUpdate(payout) {
+            window.pnlUpdateStartTime = Date.now();
+            
+            // Clear any existing interval
+            if (window.pnlUpdateInterval) {
+                clearInterval(window.pnlUpdateInterval);
+            }
+            
+            // Start with immediate update
+            updatePnL();
+            
+            // Start continuous updates for 3+ seconds
+            window.pnlUpdateInterval = setInterval(() => {
+                const elapsed = Date.now() - window.pnlUpdateStartTime;
+                
+                if (elapsed >= window.pnlUpdateDuration) {
+                    // Stop after 3 seconds
+                    clearInterval(window.pnlUpdateInterval);
+                    window.pnlUpdateInterval = null;
+                    log('💰 PnL update sequence completed (3 seconds)', 'PNL');
+                    
+                    // Final update
+                    updatePnL();
+                    
+                    // Stop bot after PnL updates are complete
+                    setTimeout(() => {
+                        if (window.isBotRunning) {
+                            stopBot();
+                        }
+                    }, 100);
+                } else {
+                    // Continue updating PnL with visual feedback
+                    updatePnL();
+                    
+                    // Add visual pulse every 500ms
+                    if (elapsed % 500 < 50) {
+                        metricTotalProfit.classList.add('pnl-update-animation');
+                        setTimeout(() => {
+                            metricTotalProfit.classList.remove('pnl-update-animation');
+                        }, 500);
+                    }
+                    
+                    // Log progress every second
+                    if (elapsed % 1000 < 50) {
+                        const secondsLeft = Math.ceil((window.pnlUpdateDuration - elapsed) / 1000);
+                        log(`💰 PnL updating... ${secondsLeft}s`, 'PNL');
+                    }
+                }
+            }, 100); // Update every 100ms for smooth animation
+        }
+        
+        function updatePnL() {
+            const pnlElem = document.getElementById('metricTotalProfit');
+            
+            if (window.startingBalance > 0 && window.currentBalance > 0) {
+                window.netProfit = window.currentBalance - window.startingBalance;
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) pnlElem.classList.add('profit-positive');
+                else if (isNegative) pnlElem.classList.add('profit-negative');
+                else pnlElem.classList.add('profit-neutral');
+                
+                return window.netProfit;
+            }
+            
+            if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
+                window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) pnlElem.classList.add('profit-positive');
+                else if (isNegative) pnlElem.classList.add('profit-negative');
+                else pnlElem.classList.add('profit-neutral');
+                
+                return window.netProfit;
+            }
+            
+            pnlElem.textContent = '$0.00';
+            pnlElem.classList.remove('profit-positive', 'profit-negative');
+            pnlElem.classList.add('profit-neutral');
+            return 0;
+        }
+        
+        function trackTradeInvestment(amount) {
+            window.pnlTracker.totalInvestment += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'investment',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            updatePnL();
+            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function trackTradePayout(amount) {
+            window.pnlTracker.totalPayout += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'payout',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            updatePnL();
+            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function resetPnL() {
+            window.pnlTracker = { totalInvestment: 0.0, totalPayout: 0.0, netProfit: 0.0, trades: [] };
+            window.startingBalance = 0.0;
+            window.currentBalance = 0.0;
+            window.netProfit = 0.0;
+            
+            if (window.pnlUpdateInterval) {
+                clearInterval(window.pnlUpdateInterval);
+                window.pnlUpdateInterval = null;
+            }
+            
+            updatePnL();
+            log('💰 PnL reset', 'PNL');
         }
         
         // ============================================================================
@@ -1556,79 +1709,6 @@
         
         function resetTradeStatus() {
             updateTradeStatus('READY', 'Waiting for connection...', 'Start bot to begin', 'normal');
-        }
-        
-        // PnL CALCULATION FUNCTIONS
-        function updatePnL() {
-            const pnlElem = document.getElementById('metricTotalProfit');
-            
-            if (window.startingBalance > 0 && window.currentBalance > 0) {
-                window.netProfit = window.currentBalance - window.startingBalance;
-                const formattedProfit = window.netProfit.toFixed(2);
-                const isPositive = window.netProfit > 0;
-                const isNegative = window.netProfit < 0;
-                
-                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
-                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
-                
-                if (isPositive) pnlElem.classList.add('profit-positive');
-                else if (isNegative) pnlElem.classList.add('profit-negative');
-                else pnlElem.classList.add('profit-neutral');
-                
-                return window.netProfit;
-            }
-            
-            if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
-                window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
-                const formattedProfit = window.netProfit.toFixed(2);
-                const isPositive = window.netProfit > 0;
-                const isNegative = window.netProfit < 0;
-                
-                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
-                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
-                
-                if (isPositive) pnlElem.classList.add('profit-positive');
-                else if (isNegative) pnlElem.classList.add('profit-negative');
-                else pnlElem.classList.add('profit-neutral');
-                
-                return window.netProfit;
-            }
-            
-            pnlElem.textContent = '$0.00';
-            pnlElem.classList.remove('profit-positive', 'profit-negative');
-            pnlElem.classList.add('profit-neutral');
-            return 0;
-        }
-        
-        function trackTradeInvestment(amount) {
-            window.pnlTracker.totalInvestment += parseFloat(amount);
-            window.pnlTracker.trades.push({
-                type: 'investment',
-                amount: parseFloat(amount),
-                timestamp: Date.now()
-            });
-            updatePnL();
-            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
-        }
-        
-        function trackTradePayout(amount) {
-            window.pnlTracker.totalPayout += parseFloat(amount);
-            window.pnlTracker.trades.push({
-                type: 'payout',
-                amount: parseFloat(amount),
-                timestamp: Date.now()
-            });
-            updatePnL();
-            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
-        }
-        
-        function resetPnL() {
-            window.pnlTracker = { totalInvestment: 0.0, totalPayout: 0.0, netProfit: 0.0, trades: [] };
-            window.startingBalance = 0.0;
-            window.currentBalance = 0.0;
-            window.netProfit = 0.0;
-            updatePnL();
-            log('💰 PnL reset', 'PNL');
         }
         
         // SESSION MANAGEMENT
@@ -2225,10 +2305,13 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
+                // Start extended PnL updates for 3+ seconds
+                startExtendedPnlUpdate(payout);
+                
                 updateTradeStatus(
                     'IMMEDIATE WIN 🎯',
                     `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
-                    'Stopping bot after win',
+                    'PnL updating for 3 seconds...',
                     'win'
                 );
                 
@@ -2239,7 +2322,7 @@
             return false;
         }
         
-        // Update stake function - FIXED: Update PnL BEFORE stopping bot
+        // Update stake function - FIXED: Update PnL for 3+ seconds before stopping
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -2251,25 +2334,24 @@
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
-                // Handle win - update PnL first
+                // Handle win - update PnL FIRST
                 handleWinInQueue();
                 
                 const payout = window.currentStake * 9;
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Update PnL BEFORE stopping
-                updatePnL();
+                // Start extended PnL updates for 3+ seconds
+                startExtendedPnlUpdate(payout);
                 
                 updateTradeStatus(
                     'WIN 🎯',
                     `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
-                    'Bot stopped after win',
+                    'PnL updating for 3 seconds...',
                     'win'
                 );
                 
-                // STOP BOT AFTER WIN - but PnL is already updated
-                setTimeout(() => stopBot(), 100);
+                // Bot will be stopped after PnL updates complete (in startExtendedPnlUpdate)
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
@@ -2308,6 +2390,9 @@
                     'loss'
                 );
                 
+                // Always update PnL
+                updatePnL();
+                
             } else {
                 window.martingaleStep = 0;
                 window.consecutiveLosses = 0;
@@ -2320,9 +2405,6 @@
             const stakeElem = document.getElementById('metricCurrentStake');
             stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
             stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
-            
-            // Always update PnL
-            updatePnL();
         }
         
         // START/STOP BOT - MODIFIED to ensure PnL updates
@@ -2388,6 +2470,12 @@
             updateButtonState();
             
             log('⏹️ Bot stopped', 'SYSTEM');
+            
+            // Stop any ongoing PnL updates
+            if (window.pnlUpdateInterval) {
+                clearInterval(window.pnlUpdateInterval);
+                window.pnlUpdateInterval = null;
+            }
             
             if (window.ws) {
                 window.ws.close();
