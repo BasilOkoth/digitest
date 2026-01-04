@@ -2239,7 +2239,7 @@
             return false;
         }
         
-        // Update stake function - SIMPLIFIED: stop on win, continue on loss with same digit
+        // Update stake function - FIXED: Update PnL BEFORE stopping bot
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -2251,12 +2251,15 @@
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
-                // Handle win - bot stops
+                // Handle win - update PnL first
                 handleWinInQueue();
                 
                 const payout = window.currentStake * 9;
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
+                
+                // Update PnL BEFORE stopping
+                updatePnL();
                 
                 updateTradeStatus(
                     'WIN 🎯',
@@ -2265,7 +2268,7 @@
                     'win'
                 );
                 
-                // STOP BOT AFTER WIN
+                // STOP BOT AFTER WIN - but PnL is already updated
                 setTimeout(() => stopBot(), 100);
                 
             } else if (winOrLoss === 'loss') {
@@ -2318,10 +2321,11 @@
             stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
             stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
             
+            // Always update PnL
             updatePnL();
         }
         
-        // START/STOP BOT
+        // START/STOP BOT - MODIFIED to ensure PnL updates
         function startBot() {
             if (window.isBotRunning) {
                 stopBot();
@@ -2401,6 +2405,8 @@
             document.getElementById('new_analysis_btn').disabled = true;
             
             updateConnectionStatus();
+            
+            // Ensure PnL is updated one more time before showing final status
             const finalPnL = updatePnL();
             log(`💰 Final PnL: ${finalPnL >= 0 ? '+' : ''}$${finalPnL.toFixed(2)}`, 'PNL');
             
@@ -2662,7 +2668,7 @@
             }
             
             if (window.stopAfterWin) {
-                setTimeout(() => stopBot(), 100);
+                // Don't immediately stop, let updateStake handle it
                 return;
             }
             
