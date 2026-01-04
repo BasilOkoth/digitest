@@ -1426,7 +1426,7 @@
         const metricTradeResult = document.getElementById('metricTradeResult');
         
         // ============================================================================
-        // DIGIT QUEUE TRADE FUNCTIONS
+        // DIGIT QUEUE TRADE FUNCTIONS - SIMPLIFIED
         // ============================================================================
         
         // Get predicted digit from queue or single input
@@ -1440,72 +1440,27 @@
             return parseInt(document.getElementById('predictedDigit').value);
         }
         
-        // Handle win - move to next digit in queue if enabled
+        // Handle win - move to next digit in queue if enabled, but STOP bot
         function handleWinInQueue() {
             if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnWin) {
                 const oldDigit = window.digitQueue.currentDigit;
                 const newDigit = getNextDigitFromQueue();
                 
-                log(`🎯 WIN! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Win! Digit changed: ${oldDigit} → ${newDigit}`, 'Continuing with next digit', 'win');
-                
-                // Update session digit in smart mode
-                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
-                    sessionState.sessionDigit = newDigit;
-                }
+                log(`🎯 WIN! Would move to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Win! Bot stopped. Next would be: ${oldDigit} → ${newDigit}`, 'Bot stopped after win', 'win');
                 
                 return newDigit;
             }
             return window.digitQueue.currentDigit;
         }
         
-        // Handle loss - ALWAYS move to next digit in queue
+        // Handle loss - DON'T move to next digit, just continue with same digit and increase stake
         function handleLossInQueue() {
-            if (window.digitQueue.active && window.digitQueue.digits.length > 1) {
-                const oldDigit = window.digitQueue.currentDigit;
-                const newDigit = getNextDigitFromQueue();
-                
-                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Loss! Digit changed: ${oldDigit} → ${newDigit}`, 'Continuing with next digit', 'loss');
-                
-                // Update session digit in smart mode
-                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
-                    sessionState.sessionDigit = newDigit;
-                }
-                
-                return newDigit;
-            }
-            return window.digitQueue.currentDigit;
-        }
-        
-        // Progress queue after trade (both win and loss)
-        function progressQueueAfterTrade(wasWin) {
-            if (!window.digitQueue.active || window.digitQueue.digits.length <= 1) return;
+            // On loss, we DON'T change the digit - we keep the same digit for martingale
+            log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
+            updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
             
-            // If win and cycleOnWin is enabled, move to next digit
-            if (wasWin && window.digitQueue.cycleOnWin) {
-                const oldDigit = window.digitQueue.currentDigit;
-                const newDigit = getNextDigitFromQueue();
-                
-                log(`🎯 WIN! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                
-                // Update session digit in smart mode
-                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
-                    sessionState.sessionDigit = newDigit;
-                }
-            }
-            // If loss, always move to next digit (as per your requirement)
-            else if (!wasWin) {
-                const oldDigit = window.digitQueue.currentDigit;
-                const newDigit = getNextDigitFromQueue();
-                
-                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                
-                // Update session digit in smart mode
-                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
-                    sessionState.sessionDigit = newDigit;
-                }
-            }
+            return window.digitQueue.currentDigit;
         }
         
         // ============================================================================
@@ -2256,7 +2211,7 @@
             if (tickDigit === predictedDigit) {
                 log(`🎯 IMMEDIATE WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
                 
-                // Handle queue cycling on win
+                // Handle win - bot stops
                 handleWinInQueue();
                 
                 window.lastTradeResult = 'win';
@@ -2284,7 +2239,7 @@
             return false;
         }
         
-        // Update stake function to handle queue on win/loss
+        // Update stake function - SIMPLIFIED: stop on win, continue on loss with same digit
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -2296,7 +2251,7 @@
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
-                // Handle queue cycling
+                // Handle win - bot stops
                 handleWinInQueue();
                 
                 const payout = window.currentStake * 9;
@@ -2306,15 +2261,18 @@
                 updateTradeStatus(
                     'WIN 🎯',
                     `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
-                    'Resetting stake to base',
+                    'Bot stopped after win',
                     'win'
                 );
+                
+                // STOP BOT AFTER WIN
+                setTimeout(() => stopBot(), 100);
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
                 window.consecutiveLosses++;
                 
-                // MOVE TO NEXT DIGIT IN QUEUE ON LOSS
+                // Handle loss - keep same digit, don't move queue
                 handleLossInQueue();
                 
                 // ADAPTIVE RECHECK (only if we have queue disabled or want additional logic)
@@ -2684,9 +2642,6 @@
                 
                 // Check if this was a win or loss
                 const wasWin = buyData.longcode && buyData.longcode.includes("win");
-                
-                // Progress queue based on win/loss
-                progressQueueAfterTrade(wasWin);
                 
                 updateStake(wasWin ? 'win' : 'loss');
                 onTradeComplete(true);
