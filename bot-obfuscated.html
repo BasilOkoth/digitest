@@ -996,7 +996,7 @@
             // Update main predicted digit input
             document.getElementById('predictedDigit').value = nextDigit;
             
-            // Update session digit if in smart mode
+            // Update session digit in smart mode
             if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
                 sessionState.sessionDigit = nextDigit;
             }
@@ -1334,7 +1334,7 @@
         }
         
         // ============================================================================
-        // INITIALIZATION
+        // CORE BOT FUNCTIONS
         // ============================================================================
         
         // Global State
@@ -1426,7 +1426,7 @@
         const metricTradeResult = document.getElementById('metricTradeResult');
         
         // ============================================================================
-        // MODIFIED TRADE FUNCTIONS TO USE QUEUE
+        // DIGIT QUEUE TRADE FUNCTIONS
         // ============================================================================
         
         // Get predicted digit from queue or single input
@@ -1459,8 +1459,57 @@
             return window.digitQueue.currentDigit;
         }
         
+        // Handle loss - ALWAYS move to next digit in queue
+        function handleLossInQueue() {
+            if (window.digitQueue.active && window.digitQueue.digits.length > 1) {
+                const oldDigit = window.digitQueue.currentDigit;
+                const newDigit = getNextDigitFromQueue();
+                
+                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Loss! Digit changed: ${oldDigit} → ${newDigit}`, 'Continuing with next digit', 'loss');
+                
+                // Update session digit in smart mode
+                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
+                    sessionState.sessionDigit = newDigit;
+                }
+                
+                return newDigit;
+            }
+            return window.digitQueue.currentDigit;
+        }
+        
+        // Progress queue after trade (both win and loss)
+        function progressQueueAfterTrade(wasWin) {
+            if (!window.digitQueue.active || window.digitQueue.digits.length <= 1) return;
+            
+            // If win and cycleOnWin is enabled, move to next digit
+            if (wasWin && window.digitQueue.cycleOnWin) {
+                const oldDigit = window.digitQueue.currentDigit;
+                const newDigit = getNextDigitFromQueue();
+                
+                log(`🎯 WIN! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                
+                // Update session digit in smart mode
+                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
+                    sessionState.sessionDigit = newDigit;
+                }
+            }
+            // If loss, always move to next digit (as per your requirement)
+            else if (!wasWin) {
+                const oldDigit = window.digitQueue.currentDigit;
+                const newDigit = getNextDigitFromQueue();
+                
+                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                
+                // Update session digit in smart mode
+                if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
+                    sessionState.sessionDigit = newDigit;
+                }
+            }
+        }
+        
         // ============================================================================
-        // CORE BOT FUNCTIONS
+        // CORE BOT FUNCTIONS CONTINUED
         // ============================================================================
         
         // Check for authentication token
@@ -2189,7 +2238,9 @@
                 stake: stake,
                 contractType: contractType,
                 predictedDigit: predictedDigit,
-                startTime: Date.now()
+                startTime: Date.now(),
+                tradeNumber: window.tradeCount,
+                martingaleStep: window.martingaleStep
             });
             
             sendRequest(proposalRequest);
@@ -2233,7 +2284,7 @@
             return false;
         }
         
-        // Update stake function to handle queue on win
+        // Update stake function to handle queue on win/loss
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -2263,7 +2314,10 @@
                 window.martingaleStep++;
                 window.consecutiveLosses++;
                 
-                // ADAPTIVE RECHECK
+                // MOVE TO NEXT DIGIT IN QUEUE ON LOSS
+                handleLossInQueue();
+                
+                // ADAPTIVE RECHECK (only if we have queue disabled or want additional logic)
                 if (sessionState.mode === 'smart' && window.recheckEnabled) {
                     const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
                     
@@ -2627,7 +2681,14 @@
         function handleBuyResponse(buyData) {
             if (buyData.contract_id) {
                 log(`✅ Trade executed successfully`, 'TRADE');
-                updateStake('loss');
+                
+                // Check if this was a win or loss
+                const wasWin = buyData.longcode && buyData.longcode.includes("win");
+                
+                // Progress queue based on win/loss
+                progressQueueAfterTrade(wasWin);
+                
+                updateStake(wasWin ? 'win' : 'loss');
                 onTradeComplete(true);
             } else {
                 log(`❌ Trade failed`, 'ERROR');
