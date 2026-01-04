@@ -394,12 +394,14 @@
                             <div class="text-xs font-semibold text-gray-300 mb-2">Queue Settings</div>
                             <div class="space-y-1">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-400">Progress on loss:</span>
-                                    <span class="text-xs text-green-400 font-bold">✓ ENABLED</span>
+                                    <span class="text-xs text-gray-400">Cycle on win:</span>
+                                    <input type="checkbox" id="queueCycleOnWin" checked 
+                                        class="rounded bg-gray-700 border-gray-600 text-green-600 focus:ring-green-500">
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-400">Stop on win:</span>
-                                    <span class="text-xs text-green-400 font-bold">✓ ENABLED</span>
+                                    <span class="text-xs text-gray-400">Restart at end:</span>
+                                    <input type="checkbox" id="queueRestartAtEnd" checked 
+                                        class="rounded bg-gray-700 border-gray-600 text-green-600 focus:ring-green-500">
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs text-gray-400">Max cycles:</span>
@@ -831,7 +833,7 @@
             currentDigit: null,    // Current digit being used
             cyclesCompleted: 0,    // Number of cycles completed
             maxCycles: 1,          // Maximum cycles before stopping
-            cycleOnWin: false,     // CHANGED: Don't move to next digit on win
+            cycleOnWin: true,      // Move to next digit on win
             restartAtEnd: true,    // Restart from beginning when queue ends
             queueExpanded: true,   // UI state
             shuffledDigits: [],    // For random mode
@@ -1205,8 +1207,8 @@
         
         // Initialize queue settings from UI
         function initializeQueueSettings() {
-            window.digitQueue.cycleOnWin = false; // CHANGED: Always false - don't cycle on win
-            window.digitQueue.restartAtEnd = true; // Keep restart at end
+            window.digitQueue.cycleOnWin = document.getElementById('queueCycleOnWin').checked;
+            window.digitQueue.restartAtEnd = document.getElementById('queueRestartAtEnd').checked;
             window.digitQueue.maxCycles = parseInt(document.getElementById('queueMaxCycles').value) || 1;
         }
         
@@ -1444,7 +1446,7 @@
         const metricTotalProfit = document.getElementById('metricTotalProfit');
         
         // ============================================================================
-        // DIGIT QUEUE TRADE FUNCTIONS - MODIFIED TO PROGRESS ON LOSS
+        // DIGIT QUEUE TRADE FUNCTIONS - SIMPLIFIED
         // ============================================================================
         
         // Get predicted digit from queue or single input
@@ -1458,31 +1460,23 @@
             return parseInt(document.getElementById('predictedDigit').value);
         }
         
-        // Handle win - STOP bot and DON'T move to next digit
+        // Handle win - move to next digit in queue if enabled, but STOP bot
         function handleWinInQueue() {
-            // On win, we STOP the bot and don't move to next digit
-            const oldDigit = window.digitQueue.currentDigit;
-            
-            log(`🎯 WIN! Bot stopped. Keeping digit: ${oldDigit}`, 'QUEUE');
-            updateTradeStatus('QUEUE', `Win! Bot stopped. Digit remains: ${oldDigit}`, 'Bot stopped after win', 'win');
-            
-            // Return same digit (though bot will stop)
-            return window.digitQueue.currentDigit;
-        }
-        
-        // Handle loss - MOVE to next digit in queue
-        function handleLossInQueue() {
-            if (window.digitQueue.active && window.digitQueue.digits.length > 1) {
+            if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnWin) {
                 const oldDigit = window.digitQueue.currentDigit;
                 const newDigit = getNextDigitFromQueue();
                 
-                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Loss! Next digit: ${oldDigit} → ${newDigit}`, 'Continuing with new digit', 'loss');
+                log(`🎯 WIN! Would move to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Win! Bot stopped. Next would be: ${oldDigit} → ${newDigit}`, 'Bot stopped after win', 'win');
                 
                 return newDigit;
             }
-            
-            // If only one digit or queue not active, keep same digit
+            return window.digitQueue.currentDigit;
+        }
+        
+        // Handle loss - DON'T move to next digit, just continue with same digit and increase stake
+        function handleLossInQueue() {
+            // On loss, we DON'T change the digit - we keep the same digit for martingale
             log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
             updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
             
@@ -2015,6 +2009,10 @@
             updateQueueStatus();
             
             // Add event listeners for queue settings
+            document.getElementById('queueCycleOnWin').addEventListener('change', function() {
+                window.digitQueue.cycleOnWin = this.checked;
+            });
+            
             document.getElementById('queueRestartAtEnd').addEventListener('change', function() {
                 window.digitQueue.restartAtEnd = this.checked;
             });
@@ -2324,7 +2322,7 @@
             return false;
         }
         
-        // Update stake function - MODIFIED: Progress queue on loss, stop on win
+        // Update stake function - FIXED: Update PnL for 3+ seconds before stopping
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -2336,7 +2334,7 @@
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
-                // Handle win - STOP bot and don't move queue
+                // Handle win - update PnL FIRST
                 handleWinInQueue();
                 
                 const payout = window.currentStake * 9;
@@ -2359,19 +2357,8 @@
                 window.martingaleStep++;
                 window.consecutiveLosses++;
                 
-                // Handle loss - MOVE to next digit in queue
-                const newDigit = handleLossInQueue();
-                
-                // Update predicted digit input with new digit from queue
-                if (newDigit !== null && newDigit !== window.digitQueue.currentDigit) {
-                    window.digitQueue.currentDigit = newDigit;
-                    document.getElementById('predictedDigit').value = newDigit;
-                    
-                    // Update session digit in smart mode
-                    if (sessionState.mode === 'smart' && sessionState.sessionStarted) {
-                        sessionState.sessionDigit = newDigit;
-                    }
-                }
+                // Handle loss - keep same digit, don't move queue
+                handleLossInQueue();
                 
                 // ADAPTIVE RECHECK (only if we have queue disabled or want additional logic)
                 if (sessionState.mode === 'smart' && window.recheckEnabled) {
