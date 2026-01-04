@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ensure the pnl is upsated and the trade status glow after a win in ths bot <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -15,28 +15,21 @@
         .tick-flash { animation: pulse-once 0.1s ease-out; }
         @keyframes win-pulse { 
             0% { 
-                box-shadow: 0 0 10px #10B981, 0 0 20px rgba(16, 185, 129, 0.5),
-                            inset 0 0 10px rgba(16, 185, 129, 0.2); 
+                box-shadow: 0 0 5px #10B981, 0 0 10px rgba(16, 185, 129, 0.5); 
                 border-color: #10B981;
-                transform: scale(1);
             } 
             50% { 
-                box-shadow: 0 0 25px #10B981, 0 0 40px rgba(16, 185, 129, 0.8),
-                            inset 0 0 15px rgba(16, 185, 129, 0.3); 
+                box-shadow: 0 0 20px #10B981, 0 0 30px rgba(16, 185, 129, 0.8); 
                 border-color: #34d399;
-                transform: scale(1.01);
             } 
             100% { 
-                box-shadow: 0 0 10px #10B981, 0 0 20px rgba(16, 185, 129, 0.5),
-                            inset 0 0 10px rgba(16, 185, 129, 0.2); 
+                box-shadow: 0 0 5px #10B981, 0 0 10px rgba(16, 185, 129, 0.5); 
                 border-color: #10B981;
-                transform: scale(1);
             } 
         }
         .win-glow {
             animation: win-pulse 1s infinite;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.25)) !important;
-            border: 2px solid #10B981 !important;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2)) !important;
         }
         .queue-digit { 
             width: 32px; 
@@ -1453,17 +1446,11 @@
                 const oldDigit = window.digitQueue.currentDigit;
                 const newDigit = getNextDigitFromQueue();
                 
-                log(`🎯 WIN! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Win! Moving to next digit: ${oldDigit} → ${newDigit}`, 'Continuing with new digit', 'win');
+                log(`🎯 WIN! Would move to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Win! Bot stopped. Next would be: ${oldDigit} → ${newDigit}`, 'Bot stopped after win', 'win');
                 
                 return newDigit;
             }
-            
-            // If not cycling on win or queue has only one digit, stop bot
-            window.stopAfterWin = true;
-            log(`🎯 WIN! Stopping bot after win`, 'QUEUE');
-            updateTradeStatus('QUEUE', `Win! Bot stopped.`, 'Bot stopped after win', 'win');
-            
             return window.digitQueue.currentDigit;
         }
         
@@ -2136,12 +2123,11 @@
         function processTickImmediately(tick) {
             if (window.stopAfterWin) return;
             
-            // Check for immediate win BEFORE anything else
-            if (checkForImmediateWin(tick)) {
-                return; // Exit if immediate win was detected
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+                return;
             }
             
-            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+            if (checkForImmediateWin(tick)) {
                 return;
             }
             
@@ -2225,15 +2211,7 @@
             if (tickDigit === predictedDigit) {
                 log(`🎯 IMMEDIATE WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
                 
-                // Track payout immediately
-                const payout = window.currentStake * 9;
-                trackTradePayout(payout);
-                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
-                
-                // Update PnL before anything else
-                updatePnL();
-                
-                // Handle win in queue (may move to next digit or stop)
+                // Handle win - bot stops
                 handleWinInQueue();
                 
                 window.lastTradeResult = 'win';
@@ -2243,15 +2221,9 @@
                 
                 playAudioFeedback('WIN');
                 
-                // Add win glow animation
-                const tradeResultContainer = document.getElementById('trade-result-container');
-                tradeResultContainer.classList.add('win-glow');
-                
-                // Ensure the glow animation is visible
-                setTimeout(() => {
-                    tradeResultContainer.classList.remove('win-glow');
-                    tradeResultContainer.classList.add('win-glow');
-                }, 10);
+                const payout = window.currentStake * 9;
+                trackTradePayout(payout);
+                log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
                 updateTradeStatus(
                     'IMMEDIATE WIN 🎯',
@@ -2260,11 +2232,7 @@
                     'win'
                 );
                 
-                // Stop bot after a brief delay to show win status
-                setTimeout(() => {
-                    stopBot();
-                }, 1500);
-                
+                updateStake('win');
                 return true;
             }
             
@@ -2283,16 +2251,15 @@
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
-                // CRITICAL: Track payout BEFORE anything else
+                // Handle win - update PnL first
+                handleWinInQueue();
+                
                 const payout = window.currentStake * 9;
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Update PnL immediately
+                // Update PnL BEFORE stopping
                 updatePnL();
-                
-                // Handle win - this may move to next digit or stop bot
-                handleWinInQueue();
                 
                 updateTradeStatus(
                     'WIN 🎯',
@@ -2301,22 +2268,8 @@
                     'win'
                 );
                 
-                // Add win glow to trade status container
-                const tradeResultContainer = document.getElementById('trade-result-container');
-                tradeResultContainer.classList.add('win-glow');
-                
-                // Ensure the glow animation starts
-                setTimeout(() => {
-                    tradeResultContainer.classList.remove('win-glow');
-                    tradeResultContainer.classList.add('win-glow');
-                }, 10);
-                
                 // STOP BOT AFTER WIN - but PnL is already updated
-                setTimeout(() => {
-                    stopBot();
-                }, 1500); // Give time to see the win glow
-                
-                return; // Exit early since bot will be stopped
+                setTimeout(() => stopBot(), 100);
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
@@ -2372,7 +2325,7 @@
             updatePnL();
         }
         
-        // START/STOP BOT - MODIFIED to ensure PnL updates happen
+        // START/STOP BOT - MODIFIED to ensure PnL updates
         function startBot() {
             if (window.isBotRunning) {
                 stopBot();
@@ -2427,10 +2380,6 @@
         }
         
         function stopBot() {
-            // Remove win glow if present
-            const tradeResultContainer = document.getElementById('trade-result-container');
-            tradeResultContainer.classList.remove('win-glow');
-            
             if (!window.isBotRunning) return;
             
             window.isBotRunning = false;
