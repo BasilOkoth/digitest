@@ -821,95 +821,9 @@
 
     <script>
         // ============================================================================
-        // CORE BOT FUNCTIONS
+        // DIGIT QUEUE SYSTEM
         // ============================================================================
-
-        // Global State
-        window.ws = null;
-        window.req_id = 0;
-        window.isBotRunning = false;
-        window.isConnecting = false;
-        window.soundEnabled = true;
-        window.ToneInitialized = false;
-        window.synth = null;
-
-        // Trading State
-        window.baseStake = 1.0;
-        window.currentStake = 1.0;
-        window.multiplier = 1.15;
-        window.maxTrades = 10;
-        window.tradeCount = 0;
-        window.martingaleStep = 0;
-        window.accountBalance = 0.0;
-        window.startingBalance = 0.0;
-        window.currentBalance = 0.0;
-        window.netProfit = 0.0;
-
-        // PnL Tracking
-        window.pnlTracker = {
-            totalInvestment: 0.0,
-            totalPayout: 0.0,
-            netProfit: 0.0,
-            trades: []
-        };
-
-        // PnL Update Timer
-        window.pnlUpdateInterval = null;
-        window.pnlUpdateDuration = 3000; // 3 seconds
-
-        // Execution State
-        window.lastTick = null;
-        window.nextTradeAllowed = true;
-        window.stopAfterWin = false;
-        window.pendingProposals = new Map();
-        window.executionLock = false;
-
-        // Statistics
-        window.stats = {
-            totalTicks: 0,
-            tradesExecuted: 0,
-            wins: 0,
-            losses: 0
-        };
-
-        // Rate tracking
-        window.botTickTimestamps = [];
-
-        // Queue - INCREASED SIZE FOR BETTER REANALYSIS
-        window.tickQueue = [];
-        window.maxQueueSize = 30;
-
-        // Analysis Engine
-        let analysisDigits = [];
-        let analysisWindowSize = 10;
-        let analysisComplete = false;
-        let suggestedDigit = null;
-        let totalTicksReceived = 0;
-        let lastTickTime = 0;
-        let tickTimestamps = [];
-
-        // Session State
-        let sessionState = {
-            active: false,
-            mode: 'instant',
-            sessionDigit: null,
-            sessionStarted: false,
-            manualOverride: false
-        };
-
-        // ADAPTIVE RECHECK SYSTEM - MODIFIED FOR QUEUE INTEGRATION
-        window.recheckThreshold = 5;
-        window.consecutiveLosses = 0;
-        window.lastAnalysisTime = 0;
-        window.recheckEnabled = false; // Disabled in favor of queue system
-        window.digitChangesThisSession = 0;
-        window.maxDigitChanges = 3;
-        window.lastRecheckTime = 0;
-        window.recheckCooldown = 10000;
-
-        // Constants for Integration
-        window.SMART_QUEUE_SIZE = 5;
-
+        
         // Queue state
         window.digitQueue = {
             digits: [],            // Array of digits to cycle through
@@ -925,184 +839,6 @@
             shuffledDigits: [],    // For random mode
             shufflePosition: 0     // For random mode
         };
-
-        // DOM Elements
-        const toggleButton = document.getElementById('toggleButton');
-        const soundToggleButton = document.getElementById('soundToggle');
-        const sessionDisplay = document.getElementById('session_display');
-        const tradeResultContainer = document.getElementById('trade-result-container');
-        const metricPreviousResult = document.getElementById('metricPreviousResult');
-        const metricNextAction = document.getElementById('metricNextAction');
-        const metricTradeResult = document.getElementById('metricTradeResult');
-        const metricTotalProfit = document.getElementById('metricTotalProfit');
-
-        // ============================================================================
-        // INTEGRATION 1: Automated Queue Population from Analysis
-        // ============================================================================
-
-        /**
-         * INTEGRATION 1: Automated Queue Population from Analysis
-         * Overwrites the standard analysis handler to feed the Digit Queue.
-         */
-        function processAnalysisResults() {
-            if (analysisDigits.length < analysisWindowSize) return;
-            
-            // Calculate digit frequencies
-            const digitFrequencies = Array(10).fill(0);
-            analysisDigits.forEach(d => {
-                if (d >= 0 && d <= 9) digitFrequencies[d]++;
-            });
-            
-            // Sort digits by occurrence frequency (descending)
-            const sortedDigits = [];
-            for (let i = 0; i < 10; i++) {
-                sortedDigits.push({ digit: i, count: digitFrequencies[i] });
-            }
-            sortedDigits.sort((a, b) => b.count - a.count);
-            
-            // Extract the Top 5 digits
-            const top5 = sortedDigits.slice(0, window.SMART_QUEUE_SIZE).map(item => item.digit);
-            
-            log(`🧠 Analysis Complete. Loading Top ${top5.length} into Queue: ${top5.join(', ')}`, 'ANALYSIS');
-            
-            // Populate the Global Digit Queue
-            window.digitQueue.digits = top5;
-            window.digitQueue.position = 0;
-            window.digitQueue.active = true;
-            
-            // Refresh the UI to reflect the new queue
-            updateDigitQueueDisplay();
-            
-            // Set the first digit from the new queue as the target
-            const initialDigit = window.digitQueue.digits[0];
-            document.getElementById('predictedDigit').value = initialDigit;
-            window.digitQueue.currentDigit = initialDigit;
-            
-            // Update session digit in smart mode
-            if (sessionState.mode === 'smart' && !sessionState.manualOverride) {
-                sessionState.sessionDigit = initialDigit;
-                sessionState.sessionStarted = true;
-                sessionState.manualOverride = false;
-            }
-            
-            log(`🎯 Queue Active. Starting with Prediction: ${initialDigit}`, 'QUEUE');
-            
-            // Update all UI elements
-            updateQueueStatus();
-            updateSessionDisplay();
-            updatePredictionBox();
-        }
-
-        // Override the original performAnalysis function
-        window.performAnalysis = function() {
-            if (analysisDigits.length < analysisWindowSize) return;
-            
-            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
-                log(`🔒 Session active - digit ${sessionState.sessionDigit} remains locked`, 'SESSION');
-                return;
-            }
-            
-            try {
-                processAnalysisResults();
-                analysisComplete = true;
-                window.lastAnalysisTime = Date.now();
-                updatePredictionBox();
-                updateExecutionLogic();
-                
-            } catch (error) {
-                console.error('Analysis error:', error);
-            }
-        };
-
-        // ============================================================================
-        // INTEGRATION 2: Loss-Driven Queue Rotation
-        // ============================================================================
-
-        /**
-         * INTEGRATION 2: Loss-Driven Queue Rotation
-         * Modified handler to skip to the next digit in the analysis queue after a loss.
-         */
-        function handleContractResult(isWin) {
-            if (isWin) {
-                log("💰 WIN! Resetting stake to base.", "TRADE");
-                window.currentStake = window.baseStake;
-                window.martingaleStep = 0;
-                window.consecutiveLosses = 0;
-                
-                // Optional: Move to next digit on win if the checkbox is checked
-                if (window.digitQueue.cycleOnWin && window.digitQueue.digits.length > 1) {
-                    rotateQueue();
-                } else {
-                    // Bot stops after win by default
-                    window.stopAfterWin = true;
-                }
-            } else {
-                window.consecutiveLosses++;
-                log(`❌ LOSS (${window.consecutiveLosses}). Rotating to next predicted digit.`, "TRADE");
-                
-                // Apply Martingale Multiplier
-                window.currentStake = window.currentStake * window.multiplier;
-                
-                // Execute the rotation to the next digit in the analysis queue
-                rotateQueue();
-            }
-            
-            updateMetricsUI();
-        }
-
-        /**
-         * Rotates the active digit based on current mode (Sequential or Random)
-         */
-        function rotateQueue() {
-            if (window.digitQueue.digits.length === 0) {
-                log("⚠️ Queue is empty. Re-run analysis or add digits.", "QUEUE");
-                return;
-            }
-
-            if (window.digitQueue.mode === 'random') {
-                // For random mode, shuffle if needed
-                if (!window.digitQueue.shuffledDigits || window.digitQueue.shuffledDigits.length === 0) {
-                    window.digitQueue.shuffledDigits = [...window.digitQueue.digits];
-                    shuffleArray(window.digitQueue.shuffledDigits);
-                    window.digitQueue.shufflePosition = 0;
-                }
-                
-                window.digitQueue.shufflePosition++;
-                
-                // Check if we completed a cycle
-                if (window.digitQueue.shufflePosition >= window.digitQueue.shuffledDigits.length) {
-                    window.digitQueue.shuffledDigits = [];
-                    window.digitQueue.cyclesCompleted++;
-                    window.digitQueue.shufflePosition = 0;
-                }
-                
-                const nextDigit = window.digitQueue.shuffledDigits[window.digitQueue.shufflePosition] || 
-                                 window.digitQueue.digits[0];
-                window.digitQueue.currentDigit = nextDigit;
-                
-            } else {
-                // Sequential rotation
-                window.digitQueue.position = (window.digitQueue.position + 1) % window.digitQueue.digits.length;
-                const nextDigit = window.digitQueue.digits[window.digitQueue.position];
-                window.digitQueue.currentDigit = nextDigit;
-            }
-
-            document.getElementById('predictedDigit').value = window.digitQueue.currentDigit;
-            
-            // Update session digit
-            if (sessionState.mode === 'smart') {
-                sessionState.sessionDigit = window.digitQueue.currentDigit;
-            }
-            
-            log(`⏭️ Queue Rotation: Next Digit is ${window.digitQueue.currentDigit}`, 'QUEUE');
-            updateDigitQueueDisplay();
-            updateQueueStatus();
-            updateSessionDisplay();
-        }
-
-        // ============================================================================
-        // DIGIT QUEUE SYSTEM FUNCTIONS
-        // ============================================================================
         
         // Toggle queue panel visibility
         function toggleQueuePanel() {
@@ -1475,27 +1211,7 @@
             window.digitQueue.restartAtEnd = document.getElementById('queueRestartAtEnd').checked;
             window.digitQueue.maxCycles = parseInt(document.getElementById('queueMaxCycles').value) || 1;
         }
-
-        // ============================================================================
-        // REMOVAL: Adaptive Strategy Override
-        // ============================================================================
-
-        /**
-         * REMOVAL: Adaptive Strategy
-         * This function is now empty to prevent re-analysis during a loss streak.
-         * The Queue system now handles strategy adjustments.
-         */
-        function checkAdaptiveStrategy() {
-            // Disabled: The bot now follows the Top 5 Queue on loss 
-            // instead of pausing for re-analysis.
-            return false; 
-        }
-
-        // Override the original checkAndReanalyze function
-        window.checkAndReanalyze = function() {
-            return false; // Disable adaptive reanalysis
-        };
-
+        
         // ============================================================================
         // MARTINGALE CALCULATOR FUNCTIONS
         // ============================================================================
@@ -1630,7 +1346,276 @@
             // Auto-calculate when main controls change
             calculateMartingale();
         }
-
+        
+        // ============================================================================
+        // CORE BOT FUNCTIONS
+        // ============================================================================
+        
+        // Global State
+        window.ws = null;
+        window.req_id = 0;
+        window.isBotRunning = false;
+        window.isConnecting = false;
+        window.soundEnabled = true;
+        window.ToneInitialized = false;
+        window.synth = null;
+        
+        // Trading State
+        window.baseStake = 1.0;
+        window.currentStake = 1.0;
+        window.multiplier = 1.15;
+        window.maxTrades = 10;
+        window.tradeCount = 0;
+        window.martingaleStep = 0;
+        window.accountBalance = 0.0;
+        window.startingBalance = 0.0;
+        window.currentBalance = 0.0;
+        window.netProfit = 0.0;
+        
+        // PnL Tracking
+        window.pnlTracker = {
+            totalInvestment: 0.0,
+            totalPayout: 0.0,
+            netProfit: 0.0,
+            trades: []
+        };
+        
+        // PnL Update Timer
+        window.pnlUpdateInterval = null;
+        window.pnlUpdateStartTime = 0;
+        window.pnlUpdateDuration = 3000; // 3 seconds
+        
+        // Execution State
+        window.lastTick = null;
+        window.nextTradeAllowed = true;
+        window.stopAfterWin = false;
+        window.pendingProposals = new Map();
+        window.executionLock = false;
+        
+        // Statistics
+        window.stats = {
+            totalTicks: 0,
+            tradesExecuted: 0,
+            wins: 0,
+            losses: 0
+        };
+        
+        // Rate tracking
+        window.botTickTimestamps = [];
+        
+        // Queue - INCREASED SIZE FOR BETTER REANALYSIS
+        window.tickQueue = [];
+        window.maxQueueSize = 30;
+        
+        // Analysis Engine
+        let analysisDigits = [];
+        let analysisWindowSize = 10;
+        let analysisComplete = false;
+        let suggestedDigit = null;
+        let totalTicksReceived = 0;
+        let lastTickTime = 0;
+        let tickTimestamps = [];
+        
+        // Session State
+        let sessionState = {
+            active: false,
+            mode: 'instant',
+            sessionDigit: null,
+            sessionStarted: false,
+            manualOverride: false
+        };
+        
+        // ADAPTIVE RECHECK SYSTEM
+        window.recheckThreshold = 5;
+        window.consecutiveLosses = 0;
+        window.lastAnalysisTime = 0;
+        window.recheckEnabled = true;
+        window.digitChangesThisSession = 0;
+        window.maxDigitChanges = 3;
+        window.lastRecheckTime = 0;
+        window.recheckCooldown = 10000;
+        
+        // DOM Elements
+        const toggleButton = document.getElementById('toggleButton');
+        const soundToggleButton = document.getElementById('soundToggle');
+        const sessionDisplay = document.getElementById('session_display');
+        const tradeResultContainer = document.getElementById('trade-result-container');
+        const metricPreviousResult = document.getElementById('metricPreviousResult');
+        const metricNextAction = document.getElementById('metricNextAction');
+        const metricTradeResult = document.getElementById('metricTradeResult');
+        const metricTotalProfit = document.getElementById('metricTotalProfit');
+        
+        // ============================================================================
+        // DIGIT QUEUE TRADE FUNCTIONS - SIMPLIFIED
+        // ============================================================================
+        
+        // Get predicted digit from queue or single input
+        function getPredictedDigit() {
+            // If queue is active and has digits, use queue
+            if (window.digitQueue.active && window.digitQueue.digits.length > 0 && window.digitQueue.currentDigit !== null) {
+                return window.digitQueue.currentDigit;
+            }
+            
+            // Otherwise use single digit input
+            return parseInt(document.getElementById('predictedDigit').value);
+        }
+        
+        // Handle win - move to next digit in queue if enabled, but STOP bot
+        function handleWinInQueue() {
+            if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnWin) {
+                const oldDigit = window.digitQueue.currentDigit;
+                const newDigit = getNextDigitFromQueue();
+                
+                log(`🎯 WIN! Would move to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Win! Bot stopped. Next would be: ${oldDigit} → ${newDigit}`, 'Bot stopped after win', 'win');
+                
+                return newDigit;
+            }
+            return window.digitQueue.currentDigit;
+        }
+        
+        // Handle loss - DON'T move to next digit, just continue with same digit and increase stake
+        function handleLossInQueue() {
+            // On loss, we DON'T change the digit - we keep the same digit for martingale
+            log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
+            updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
+            
+            return window.digitQueue.currentDigit;
+        }
+        
+        // ============================================================================
+        // PnL UPDATE FUNCTIONS - ENHANCED FOR 3+ SECOND UPDATES
+        // ============================================================================
+        
+        function startExtendedPnlUpdate(payout) {
+            window.pnlUpdateStartTime = Date.now();
+            
+            // Clear any existing interval
+            if (window.pnlUpdateInterval) {
+                clearInterval(window.pnlUpdateInterval);
+            }
+            
+            // Start with immediate update
+            updatePnL();
+            
+            // Start continuous updates for 3+ seconds
+            window.pnlUpdateInterval = setInterval(() => {
+                const elapsed = Date.now() - window.pnlUpdateStartTime;
+                
+                if (elapsed >= window.pnlUpdateDuration) {
+                    // Stop after 3 seconds
+                    clearInterval(window.pnlUpdateInterval);
+                    window.pnlUpdateInterval = null;
+                    log('💰 PnL update sequence completed (3 seconds)', 'PNL');
+                    
+                    // Final update
+                    updatePnL();
+                    
+                    // Stop bot after PnL updates are complete
+                    setTimeout(() => {
+                        if (window.isBotRunning) {
+                            stopBot();
+                        }
+                    }, 100);
+                } else {
+                    // Continue updating PnL with visual feedback
+                    updatePnL();
+                    
+                    // Add visual pulse every 500ms
+                    if (elapsed % 500 < 50) {
+                        metricTotalProfit.classList.add('pnl-update-animation');
+                        setTimeout(() => {
+                            metricTotalProfit.classList.remove('pnl-update-animation');
+                        }, 500);
+                    }
+                    
+                    // Log progress every second
+                    if (elapsed % 1000 < 50) {
+                        const secondsLeft = Math.ceil((window.pnlUpdateDuration - elapsed) / 1000);
+                        log(`💰 PnL updating... ${secondsLeft}s`, 'PNL');
+                    }
+                }
+            }, 100); // Update every 100ms for smooth animation
+        }
+        
+        function updatePnL() {
+            const pnlElem = document.getElementById('metricTotalProfit');
+            
+            if (window.startingBalance > 0 && window.currentBalance > 0) {
+                window.netProfit = window.currentBalance - window.startingBalance;
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) pnlElem.classList.add('profit-positive');
+                else if (isNegative) pnlElem.classList.add('profit-negative');
+                else pnlElem.classList.add('profit-neutral');
+                
+                return window.netProfit;
+            }
+            
+            if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
+                window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
+                const formattedProfit = window.netProfit.toFixed(2);
+                const isPositive = window.netProfit > 0;
+                const isNegative = window.netProfit < 0;
+                
+                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
+                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
+                
+                if (isPositive) pnlElem.classList.add('profit-positive');
+                else if (isNegative) pnlElem.classList.add('profit-negative');
+                else pnlElem.classList.add('profit-neutral');
+                
+                return window.netProfit;
+            }
+            
+            pnlElem.textContent = '$0.00';
+            pnlElem.classList.remove('profit-positive', 'profit-negative');
+            pnlElem.classList.add('profit-neutral');
+            return 0;
+        }
+        
+        function trackTradeInvestment(amount) {
+            window.pnlTracker.totalInvestment += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'investment',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            updatePnL();
+            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function trackTradePayout(amount) {
+            window.pnlTracker.totalPayout += parseFloat(amount);
+            window.pnlTracker.trades.push({
+                type: 'payout',
+                amount: parseFloat(amount),
+                timestamp: Date.now()
+            });
+            updatePnL();
+            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
+        }
+        
+        function resetPnL() {
+            window.pnlTracker = { totalInvestment: 0.0, totalPayout: 0.0, netProfit: 0.0, trades: [] };
+            window.startingBalance = 0.0;
+            window.currentBalance = 0.0;
+            window.netProfit = 0.0;
+            
+            if (window.pnlUpdateInterval) {
+                clearInterval(window.pnlUpdateInterval);
+                window.pnlUpdateInterval = null;
+            }
+            
+            updatePnL();
+            log('💰 PnL reset', 'PNL');
+        }
+        
         // ============================================================================
         // CORE BOT FUNCTIONS CONTINUED
         // ============================================================================
@@ -1869,6 +1854,56 @@
             document.getElementById('window_size').textContent = analysisWindowSize;
         }
         
+        function performAnalysis() {
+            if (analysisDigits.length < analysisWindowSize) return;
+            
+            if (sessionState.sessionStarted && sessionState.sessionDigit !== null) {
+                log(`🔒 Session active - digit ${sessionState.sessionDigit} remains locked`, 'SESSION');
+                return;
+            }
+            
+            try {
+                const freq = Array(10).fill(0);
+                analysisDigits.forEach(d => {
+                    if (d >= 0 && d <= 9) freq[d]++;
+                });
+                
+                const missing = [];
+                for (let i = 0; i < 10; i++) {
+                    if (freq[i] === 0) missing.push(i);
+                }
+                
+                if (missing.length > 0) {
+                    suggestedDigit = missing[Math.floor(Math.random() * missing.length)];
+                    log(`🧠 Analysis: Digit ${suggestedDigit} missing from last ${analysisWindowSize} ticks`, 'ANALYSIS');
+                } else {
+                    let leastFrequent = 0;
+                    let minFreq = Infinity;
+                    for (let i = 0; i < 10; i++) {
+                        if (freq[i] < minFreq) {
+                            minFreq = freq[i];
+                            leastFrequent = i;
+                        }
+                    }
+                    suggestedDigit = leastFrequent;
+                    log(`🧠 Analysis: Digit ${suggestedDigit} is least frequent`, 'ANALYSIS');
+                }
+                
+                analysisComplete = true;
+                window.lastAnalysisTime = Date.now();
+                updatePredictionBox();
+                
+                if (sessionState.mode === 'smart' && suggestedDigit !== null) {
+                    lockSessionDigit(suggestedDigit);
+                }
+                
+                updateExecutionLogic();
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+            }
+        }
+        
         function updatePredictionBox() {
             const box = document.getElementById('prediction_box');
             if (suggestedDigit !== null) {
@@ -1996,11 +2031,7 @@
             setInterval(updateLossStreakDisplay, 500);
             
             calculateMartingale();
-            
-            // Disable adaptive recheck since we're using queue system
-            document.getElementById('enableRecheck').checked = false;
-            window.recheckEnabled = false;
-            document.getElementById('recheck-badge').classList.add('hidden');
+            updateRecheckSettings();
             
             document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('multiplier').addEventListener('change', syncCalculatorWithMain);
@@ -2014,6 +2045,10 @@
             document.getElementById('calc_max_trades').addEventListener('change', () => {
                 document.getElementById('maxTrades').value = document.getElementById('calc_max_trades').value;
             });
+            
+            document.getElementById('enableRecheck').addEventListener('change', updateRecheckSettings);
+            document.getElementById('recheckThreshold').addEventListener('change', updateRecheckSettings);
+            document.getElementById('maxDigitChanges').addEventListener('change', updateRecheckSettings);
             
             log('🤖 Bot ready with Digit Queue System', 'SYSTEM');
             switchMode('instant');
@@ -2246,17 +2281,6 @@
             sendRequest(proposalRequest);
         }
         
-        // Get predicted digit from queue or single input
-        function getPredictedDigit() {
-            // If queue is active and has digits, use queue
-            if (window.digitQueue.active && window.digitQueue.digits.length > 0 && window.digitQueue.currentDigit !== null) {
-                return window.digitQueue.currentDigit;
-            }
-            
-            // Otherwise use single digit input
-            return parseInt(document.getElementById('predictedDigit').value);
-        }
-        
         // Update checkForImmediateWin to use queue
         function checkForImmediateWin(tick) {
             if (!window.isBotRunning || window.stopAfterWin) return false;
@@ -2267,8 +2291,8 @@
             if (tickDigit === predictedDigit) {
                 log(`🎯 IMMEDIATE WIN! Digit ${tickDigit} matches ${predictedDigit}`, 'WIN');
                 
-                // Handle win - call contract result handler
-                handleContractResult(true);
+                // Handle win - bot stops
+                handleWinInQueue();
                 
                 window.lastTradeResult = 'win';
                 window.stopAfterWin = true;
@@ -2291,161 +2315,27 @@
                     'win'
                 );
                 
+                updateStake('win');
                 return true;
             }
             
             return false;
         }
         
-        // PnL UPDATE FUNCTIONS - ENHANCED FOR 3+ SECOND UPDATES
-        function startExtendedPnlUpdate(payout) {
-            window.pnlUpdateStartTime = Date.now();
-            
-            // Clear any existing interval
-            if (window.pnlUpdateInterval) {
-                clearInterval(window.pnlUpdateInterval);
-            }
-            
-            // Start with immediate update
-            updatePnL();
-            
-            // Start continuous updates for 3+ seconds
-            window.pnlUpdateInterval = setInterval(() => {
-                const elapsed = Date.now() - window.pnlUpdateStartTime;
-                
-                if (elapsed >= window.pnlUpdateDuration) {
-                    // Stop after 3 seconds
-                    clearInterval(window.pnlUpdateInterval);
-                    window.pnlUpdateInterval = null;
-                    log('💰 PnL update sequence completed (3 seconds)', 'PNL');
-                    
-                    // Final update
-                    updatePnL();
-                    
-                    // Stop bot after PnL updates are complete
-                    setTimeout(() => {
-                        if (window.isBotRunning) {
-                            stopBot();
-                        }
-                    }, 100);
-                } else {
-                    // Continue updating PnL with visual feedback
-                    updatePnL();
-                    
-                    // Add visual pulse every 500ms
-                    if (elapsed % 500 < 50) {
-                        metricTotalProfit.classList.add('pnl-update-animation');
-                        setTimeout(() => {
-                            metricTotalProfit.classList.remove('pnl-update-animation');
-                        }, 500);
-                    }
-                    
-                    // Log progress every second
-                    if (elapsed % 1000 < 50) {
-                        const secondsLeft = Math.ceil((window.pnlUpdateDuration - elapsed) / 1000);
-                        log(`💰 PnL updating... ${secondsLeft}s`, 'PNL');
-                    }
-                }
-            }, 100); // Update every 100ms for smooth animation
-        }
-        
-        function updatePnL() {
-            const pnlElem = document.getElementById('metricTotalProfit');
-            
-            if (window.startingBalance > 0 && window.currentBalance > 0) {
-                window.netProfit = window.currentBalance - window.startingBalance;
-                const formattedProfit = window.netProfit.toFixed(2);
-                const isPositive = window.netProfit > 0;
-                const isNegative = window.netProfit < 0;
-                
-                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
-                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
-                
-                if (isPositive) pnlElem.classList.add('profit-positive');
-                else if (isNegative) pnlElem.classList.add('profit-negative');
-                else pnlElem.classList.add('profit-neutral');
-                
-                return window.netProfit;
-            }
-            
-            if (window.pnlTracker.totalPayout > 0 || window.pnlTracker.totalInvestment > 0) {
-                window.netProfit = window.pnlTracker.totalPayout - window.pnlTracker.totalInvestment;
-                const formattedProfit = window.netProfit.toFixed(2);
-                const isPositive = window.netProfit > 0;
-                const isNegative = window.netProfit < 0;
-                
-                pnlElem.textContent = `${isPositive ? '+' : ''}$${formattedProfit}`;
-                pnlElem.classList.remove('profit-positive', 'profit-negative', 'profit-neutral');
-                
-                if (isPositive) pnlElem.classList.add('profit-positive');
-                else if (isNegative) pnlElem.classList.add('profit-negative');
-                else pnlElem.classList.add('profit-neutral');
-                
-                return window.netProfit;
-            }
-            
-            pnlElem.textContent = '$0.00';
-            pnlElem.classList.remove('profit-positive', 'profit-negative');
-            pnlElem.classList.add('profit-neutral');
-            return 0;
-        }
-        
-        function trackTradeInvestment(amount) {
-            window.pnlTracker.totalInvestment += parseFloat(amount);
-            window.pnlTracker.trades.push({
-                type: 'investment',
-                amount: parseFloat(amount),
-                timestamp: Date.now()
-            });
-            updatePnL();
-            log(`💰 Investment tracked: $${amount.toFixed(2)}`, 'PNL');
-        }
-        
-        function trackTradePayout(amount) {
-            window.pnlTracker.totalPayout += parseFloat(amount);
-            window.pnlTracker.trades.push({
-                type: 'payout',
-                amount: parseFloat(amount),
-                timestamp: Date.now()
-            });
-            updatePnL();
-            log(`💰 Payout tracked: $${amount.toFixed(2)}`, 'PNL');
-        }
-        
-        function resetPnL() {
-            window.pnlTracker = { totalInvestment: 0.0, totalPayout: 0.0, netProfit: 0.0, trades: [] };
-            window.startingBalance = 0.0;
-            window.currentBalance = 0.0;
-            window.netProfit = 0.0;
-            
-            if (window.pnlUpdateInterval) {
-                clearInterval(window.pnlUpdateInterval);
-                window.pnlUpdateInterval = null;
-            }
-            
-            updatePnL();
-            log('💰 PnL reset', 'PNL');
-        }
-        
-        // Update metrics UI
-        function updateMetricsUI() {
-            const stakeElem = document.getElementById('metricCurrentStake');
-            stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
-            
-            document.getElementById('metricTradeCount').textContent = window.tradeCount;
-            updatePnL();
-            updateLossStreakDisplay();
-        }
-        
-        // Update stake function - MODIFIED for queue integration
+        // Update stake function - FIXED: Update PnL for 3+ seconds before stopping
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             
             if (winOrLoss === 'win') {
-                // Call contract result handler
-                handleContractResult(true);
+                window.martingaleStep = 0;
+                window.consecutiveLosses = 0;
+                window.currentStake = window.baseStake;
+                log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
+                
+                // Handle win - update PnL FIRST
+                handleWinInQueue();
                 
                 const payout = window.currentStake * 9;
                 trackTradePayout(payout);
@@ -2461,11 +2351,26 @@
                     'win'
                 );
                 
+                // Bot will be stopped after PnL updates complete (in startExtendedPnlUpdate)
+                
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep++;
+                window.consecutiveLosses++;
                 
-                // Call contract result handler
-                handleContractResult(false);
+                // Handle loss - keep same digit, don't move queue
+                handleLossInQueue();
+                
+                // ADAPTIVE RECHECK (only if we have queue disabled or want additional logic)
+                if (sessionState.mode === 'smart' && window.recheckEnabled) {
+                    const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
+                    
+                    if (shouldRecheck) {
+                        const changed = checkAndReanalyze(sessionState.sessionDigit);
+                        if (changed) {
+                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
+                        }
+                    }
+                }
                 
                 if (window.martingaleStep >= window.maxTrades) {
                     log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
@@ -2481,7 +2386,7 @@
                 updateTradeStatus(
                     'LOSS ❌',
                     `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
-                    'Rotating to next digit in queue',
+                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
                     'loss'
                 );
                 
@@ -2497,7 +2402,9 @@
                 updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
             }
             
-            updateMetricsUI();
+            const stakeElem = document.getElementById('metricCurrentStake');
+            stakeElem.textContent = `$${window.currentStake.toFixed(2)}`;
+            stakeElem.className = winOrLoss === 'win' ? 'text-lg font-bold text-green-400' : 'text-lg font-bold text-white';
         }
         
         // START/STOP BOT - MODIFIED to ensure PnL updates
@@ -2538,7 +2445,7 @@
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
-            log(`🔄 Using Queue System (Top ${window.SMART_QUEUE_SIZE} digits)`, 'SYSTEM');
+            log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
@@ -2912,13 +2819,33 @@
             
             log('🔄 Bot reset', 'SYSTEM');
             log('🔄 Queue system reset', 'QUEUE');
+            log('🔄 Adaptive system reset', 'SYSTEM');
             
             // Update queue display
             updateDigitQueueDisplay();
             updateQueueStatus();
         }
         
-        // Update loss streak display
+        // ============================================================================
+        // ADAPTIVE RECHECK FUNCTIONS
+        // ============================================================================
+        
+        function updateRecheckSettings() {
+            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
+            window.recheckEnabled = document.getElementById('enableRecheck').checked;
+            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
+            
+            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
+            
+            // Update badge visibility
+            const badge = document.getElementById('recheck-badge');
+            if (window.recheckEnabled) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
         function updateLossStreakDisplay() {
             const streakElem = document.getElementById('currentLossStreak');
             const changesElem = document.getElementById('digitChangesCount');
@@ -2937,21 +2864,217 @@
             }
         }
         
-        // Update recheck settings
-        function updateRecheckSettings() {
-            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
-            window.recheckEnabled = document.getElementById('enableRecheck').checked;
-            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
+        function collectQuickAnalysis(count) {
+            const recentDigits = [];
             
-            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
-            
-            // Update badge visibility
-            const badge = document.getElementById('recheck-badge');
-            if (window.recheckEnabled) {
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
+            if (window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - count);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
             }
+            
+            if (recentDigits.length < count && analysisDigits && analysisDigits.length > 0) {
+                const startIdx = Math.max(0, analysisDigits.length - count);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            if (recentDigits.length === 0 && window.lastTick && window.lastTick.digit !== undefined) {
+                const digit = parseInt(window.lastTick.digit);
+                if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                    recentDigits.push(digit);
+                }
+            }
+            
+            return [...new Set(recentDigits)].slice(-count);
+        }
+        
+        function analyzeDigitsQuick(digitsArray) {
+            if (!digitsArray || digitsArray.length === 0) return null;
+            
+            if (digitsArray.length < 3) {
+                log(`📊 Quick analysis: Only ${digitsArray.length} digits available`, 'ANALYSIS');
+            }
+            
+            const freq = Array(10).fill(0);
+            digitsArray.forEach(d => {
+                if (d >= 0 && d <= 9) freq[d]++;
+            });
+            
+            if (digitsArray.length < 3) {
+                const usedDigits = [...new Set(digitsArray)];
+                const possibleDigits = [];
+                
+                for (let i = 0; i < 10; i++) {
+                    if (!usedDigits.includes(i)) {
+                        possibleDigits.push(i);
+                    }
+                }
+                
+                if (possibleDigits.length > 0) {
+                    const randomDigit = possibleDigits[Math.floor(Math.random() * possibleDigits.length)];
+                    log(`🎲 Small data set: Choosing random digit ${randomDigit} from ${possibleDigits.length} options`, 'ANALYSIS');
+                    return randomDigit;
+                } else {
+                    const randomDigit = Math.floor(Math.random() * 10);
+                    log(`🎲 All digits in small set: Choosing random digit ${randomDigit}`, 'ANALYSIS');
+                    return randomDigit;
+                }
+            }
+            
+            const missing = [];
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] === 0) missing.push(i);
+            }
+            
+            if (missing.length > 0) {
+                const randomMissing = missing[Math.floor(Math.random() * missing.length)];
+                log(`📊 Found ${missing.length} missing digits, choosing ${randomMissing}`, 'ANALYSIS');
+                return randomMissing;
+            }
+            
+            let leastFrequent = 0;
+            let minFreq = Infinity;
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] < minFreq) {
+                    minFreq = freq[i];
+                    leastFrequent = i;
+                }
+            }
+            
+            log(`📊 All digits present, choosing least frequent: ${leastFrequent} (appeared ${minFreq} times)`, 'ANALYSIS');
+            return leastFrequent;
+        }
+        
+        function fallbackReanalysis() {
+            const recentDigits = [];
+            
+            if (analysisDigits && analysisDigits.length > 0) {
+                const startIdx = Math.max(0, analysisDigits.length - 50);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            if (recentDigits.length < 10 && window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - 20);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
+            }
+            
+            return [...new Set(recentDigits)];
+        }
+        
+        function checkAndReanalyze(currentDigit) {
+            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
+                return false;
+            }
+            
+            const now = Date.now();
+            if (now - window.lastRecheckTime < window.recheckCooldown) {
+                return false;
+            }
+            
+            if (window.digitChangesThisSession >= window.maxDigitChanges) {
+                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
+                return false;
+            }
+            
+            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
+            const timeSinceAnalysis = now - window.lastAnalysisTime;
+            const marketChanged = timeSinceAnalysis > 30000;
+            
+            if (needRecheck || marketChanged) {
+                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
+                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
+                
+                const currentSessionDigit = sessionState.sessionDigit;
+                const currentStake = window.currentStake;
+                const currentMartingaleStep = window.martingaleStep;
+                
+                let freshAnalysis = collectQuickAnalysis(10);
+                
+                log(`📊 Reanalysis data: ${freshAnalysis.length} recent digits available`, 'ANALYSIS');
+                
+                if (freshAnalysis.length < 2) {
+                    log(`🔄 Normal data collection insufficient, trying fallback...`, 'ANALYSIS');
+                    const fallbackData = fallbackReanalysis();
+                    if (fallbackData.length > 0) {
+                        freshAnalysis = fallbackData.slice(-10);
+                        log(`📊 Fallback data: ${freshAnalysis.length} digits from history`, 'ANALYSIS');
+                    }
+                }
+                
+                if (freshAnalysis.length >= 1) {
+                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
+                    
+                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
+                        window.digitChangesThisSession++;
+                        window.lastRecheckTime = now;
+                        
+                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`📊 Based on ${freshAnalysis.length} recent digits: [${freshAnalysis.join(', ')}]`, 'STRATEGY');
+                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
+                        
+                        sessionState.sessionDigit = newSuggestedDigit;
+                        sessionState.manualOverride = false;
+                        document.getElementById('predictedDigit').value = newSuggestedDigit;
+                        
+                        window.lastAnalysisTime = now;
+                        
+                        updatePredictionBox();
+                        updateSessionDisplay();
+                        
+                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
+                        
+                        updateTradeStatus('STRATEGY CHANGE', 
+                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
+                            `Continuing with $${currentStake.toFixed(2)} stake`,
+                            'normal');
+                        
+                        return true;
+                    } else if (newSuggestedDigit === currentSessionDigit) {
+                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit})`, 'ANALYSIS');
+                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
+                        
+                        window.lastRecheckTime = now;
+                        window.lastAnalysisTime = now;
+                        
+                        updateTradeStatus('ANALYSIS', 
+                            `Reanalysis confirms digit ${currentSessionDigit}`,
+                            `Continuing with current strategy`,
+                            'normal');
+                    }
+                } else {
+                    log(`⚠️ No data available for reanalysis`, 'ANALYSIS');
+                    log(`💡 Waiting for more market data...`, 'ANALYSIS');
+                    
+                    window.lastRecheckTime = now;
+                    window.lastAnalysisTime = now;
+                }
+                
+                return false;
+            }
+            
+            return false;
         }
     </script>
 </body>
