@@ -277,8 +277,7 @@
                     🔴 DISCONNECTED
                 </span>
                 <span id="contract-type-badge" class="contract-type-badge bg-purple-600 text-white">DIGITMATCH</span>
-                <span id="recheck-badge" class="recheck-badge hidden">ADAPTIVE</span>
-                <!-- Account toggle -->
+<!-- Account toggle -->
                 <div class="account-toggle-container ml-3">
                     <span class="account-label account-label-demo">DEMO</span>
                     <label class="account-toggle">
@@ -394,8 +393,8 @@
                             <div class="text-xs font-semibold text-gray-300 mb-2">Queue Settings</div>
                             <div class="space-y-1">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-400">Cycle on win:</span>
-                                    <input type="checkbox" id="queueCycleOnWin" checked 
+                                    <span class="text-xs text-gray-400">Cycle on loss:</span>
+                                    <input type="checkbox" id="queueCycleOnLoss" checked 
                                         class="rounded bg-gray-700 border-gray-600 text-green-600 focus:ring-green-500">
                                 </div>
                                 <div class="flex items-center justify-between">
@@ -527,49 +526,7 @@
                         </div>
                     </div>
                     
-                    <!-- Adaptive Recheck Settings -->
-                    <div class="mt-4 p-3 bg-gray-800 rounded-lg border border-purple-500/30">
-                        <h3 class="text-sm font-bold text-purple-300 mb-3">Adaptive Strategy</h3>
-                        
-                        <div class="mb-3">
-                            <label class="block text-xs font-semibold text-gray-300 mb-1">
-                                Recheck after consecutive losses:
-                            </label>
-                            <div class="flex items-center gap-2">
-                                <input type="number" id="recheckThreshold" value="5" min="2" max="20" 
-                                    class="flex-1 rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
-                                <button onclick="updateRecheckSettings()" 
-                                    class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
-                                    Update
-                                </button>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1">Reanalyze and adjust digit after X consecutive losses</p>
-                        </div>
-                        
-                        <div class="flex items-center mb-2">
-                            <input type="checkbox" id="enableRecheck" checked 
-                                class="rounded bg-gray-700 border-gray-600 text-purple-600 focus:ring-purple-500">
-                            <label for="enableRecheck" class="ml-2 text-xs text-gray-300">Enable adaptive reanalysis</label>
-                        </div>
-                        
-                        <div class="text-xs text-gray-400 mb-2">
-                            Max digit changes per session: 
-                            <input type="number" id="maxDigitChanges" value="3" min="1" max="10" 
-                                class="ml-2 w-12 rounded-md bg-gray-700 border border-gray-600 text-white text-center py-0.5 px-1">
-                        </div>
-                        
-                        <div class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
-                            <div class="flex justify-between">
-                                <span>Current loss streak:</span>
-                                <span id="currentLossStreak" class="font-bold text-gray-300">0</span>
-                            </div>
-                            <div class="flex justify-between mt-1">
-                                <span>Digit changes this session:</span>
-                                <span id="digitChangesCount" class="font-bold text-gray-300">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    
             </div>
             
             <!-- MIDDLE COLUMN: MAIN CONTROLS -->
@@ -669,9 +626,7 @@
                     
                     <!-- Predicted Digit (now shows current from queue) -->
                     <div>
-                        <label for="predictedDigit" class="block text-xs font-semibold text-gray-300 mb-1">
-                            Current Digit <span class="text-blue-400">(from queue)</span>
-                        </label>
+                        <label for="predictedDigit" class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit <span id="digit_source" class="text-xs font-bold text-blue-400">(manual)</span></label>
                         <input type="number" id="predictedDigit" value="5" min="0" max="9" 
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm text-center">
                     </div>
@@ -708,7 +663,7 @@
                     <!-- Mode Toggle -->
                     <div class="col-span-2 lg:col-span-3">
                         <label class="block text-xs font-semibold text-gray-300 mb-1">Execution Mode</label>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <button id="mode_instant" onclick="switchMode('instant')" 
                                 class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition">
                                 ⚡ INSTANT
@@ -717,10 +672,15 @@
                                 class="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
                                 🧠 SMART
                             </button>
+                            <button id="mode_queue" onclick="switchMode('queue')" 
+                                class="px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700 transition">
+                                🔢 DIGIT QUEUE
+                            </button>
                         </div>
                         <p id="mode_description" class="text-xs text-gray-400 mt-1">
-                            ⚡ INSTANT: Trade on each tick
+                            ⚡ INSTANT: Trade on each tick (manual digit)
                         </p>
+                    </div>
                     </div>
                 </div>
                 
@@ -814,7 +774,6 @@
 [00:00:00] 📊 Ready to connect to live market
 [00:00:00] 🔢 Digit Queue System Ready
 [00:00:00] 🧠 Smart analysis engine ready
-[00:00:00] 🔄 Adaptive strategy enabled
             </div>
         </div>
     </div>
@@ -833,7 +792,7 @@
             currentDigit: null,    // Current digit being used
             cyclesCompleted: 0,    // Number of cycles completed
             maxCycles: 1,          // Maximum cycles before stopping
-            cycleOnWin: true,      // Move to next digit on win
+            cycleOnLoss: true,      // Move to next digit on loss
             restartAtEnd: true,    // Restart from beginning when queue ends
             queueExpanded: true,   // UI state
             shuffledDigits: [],    // For random mode
@@ -1207,7 +1166,7 @@
         
         // Initialize queue settings from UI
         function initializeQueueSettings() {
-            window.digitQueue.cycleOnWin = document.getElementById('queueCycleOnWin').checked;
+            window.digitQueue.cycleOnLoss = document.getElementById('queueCycleOnLoss').checked;
             window.digitQueue.restartAtEnd = document.getElementById('queueRestartAtEnd').checked;
             window.digitQueue.maxCycles = parseInt(document.getElementById('queueMaxCycles').value) || 1;
         }
@@ -1424,17 +1383,6 @@
             sessionStarted: false,
             manualOverride: false
         };
-        
-        // ADAPTIVE RECHECK SYSTEM
-        window.recheckThreshold = 5;
-        window.consecutiveLosses = 0;
-        window.lastAnalysisTime = 0;
-        window.recheckEnabled = true;
-        window.digitChangesThisSession = 0;
-        window.maxDigitChanges = 3;
-        window.lastRecheckTime = 0;
-        window.recheckCooldown = 10000;
-        
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
         const soundToggleButton = document.getElementById('soundToggle');
@@ -1450,37 +1398,58 @@
         // ============================================================================
         
         // Get predicted digit from queue or single input
+        
+        // Get predicted digit depending on active execution mode
         function getPredictedDigit() {
-            // If queue is active and has digits, use queue
-            if (window.digitQueue.active && window.digitQueue.digits.length > 0 && window.digitQueue.currentDigit !== null) {
+            // Only use queue digits when DIGIT QUEUE mode is selected
+            if (sessionState.mode === 'queue' &&
+                window.digitQueue.active &&
+                window.digitQueue.digits.length > 0 &&
+                window.digitQueue.currentDigit !== null) {
                 return window.digitQueue.currentDigit;
             }
+
+            // Otherwise use the manual / session digit shown in the input
+            return parseInt(document.getElementById('predictedDigit').value);
+        }
+
             
             // Otherwise use single digit input
             return parseInt(document.getElementById('predictedDigit').value);
         }
         
         // Handle win - move to next digit in queue if enabled, but STOP bot
+        
+        // Handle win in queue - KEEP SAME DIGIT (do not advance)
         function handleWinInQueue() {
-            if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnWin) {
-                const oldDigit = window.digitQueue.currentDigit;
-                const newDigit = getNextDigitFromQueue();
-                
-                log(`🎯 WIN! Would move to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Win! Bot stopped. Next would be: ${oldDigit} → ${newDigit}`, 'Bot stopped after win', 'win');
-                
-                return newDigit;
+            if (sessionState.mode === 'queue' && window.digitQueue.active && window.digitQueue.digits.length > 0) {
+                const d = window.digitQueue.currentDigit;
+                log(`✅ WIN! Keeping queue digit: ${d}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Win! Keeping digit: ${d}`, 'Digit stays the same after win', 'win');
+                return d;
             }
+            return window.digitQueue.currentDigit;
+        }
             return window.digitQueue.currentDigit;
         }
         
         // Handle loss - DON'T move to next digit, just continue with same digit and increase stake
+        
+        // Handle loss in queue - ADVANCE TO NEXT DIGIT (martingale continues)
         function handleLossInQueue() {
-            // On loss, we DON'T change the digit - we keep the same digit for martingale
-            log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
-            updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
-            
-            return window.digitQueue.currentDigit;
+            if (sessionState.mode === 'queue' && window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnLoss) {
+                const oldDigit = window.digitQueue.currentDigit;
+                const newDigit = getNextDigitFromQueue();
+                log(`❌ LOSS! Advancing queue digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Loss! Digit changed: ${oldDigit} → ${newDigit}`, 'Increasing stake & continuing', 'loss');
+                return newDigit;
+            }
+
+            // If queue not active / single digit / cycling disabled, keep same digit
+            const d = window.digitQueue.currentDigit;
+            log(`❌ LOSS! Keeping digit: ${d}`, 'QUEUE');
+            updateTradeStatus('QUEUE', `Loss! Keeping digit: ${d}`, 'Increasing stake & continuing', 'loss');
+            return d;
         }
         
         // ============================================================================
@@ -1944,17 +1913,25 @@
         // MODE MANAGEMENT
         function switchMode(mode) {
             sessionState.mode = mode;
-            
-            document.getElementById('mode_instant').classList.remove('bg-green-600', 'bg-blue-600');
-            document.getElementById('mode_smart').classList.remove('bg-green-600', 'bg-blue-600');
-            
+            setDigitSourceLabel(mode);
+
+            // Reset button styles
+            ['mode_instant','mode_smart','mode_queue'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.classList.remove('bg-green-600','bg-blue-600','bg-gray-600');
+                btn.classList.add('bg-gray-600');
+            });
+
             if (mode === 'instant') {
+                document.getElementById('mode_instant').classList.remove('bg-gray-600');
                 document.getElementById('mode_instant').classList.add('bg-green-600');
-                document.getElementById('mode_smart').classList.add('bg-blue-600');
-                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick';
+
+                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick (manual digit)';
                 log('🔄 Switched to INSTANT mode', 'SYSTEM');
                 window.nextTradeAllowed = true;
-                
+
+                // If bot is already running, lock to current manual digit once
                 if (window.isBotRunning && !sessionState.manualOverride) {
                     const manualDigit = parseInt(document.getElementById('predictedDigit').value);
                     if (!isNaN(manualDigit) && manualDigit >= 0 && manualDigit <= 9) {
@@ -1966,35 +1943,96 @@
                         log(`🔒 Digit ${manualDigit} set manually for instant mode`, 'SESSION');
                     }
                 }
-            } else {
-                document.getElementById('mode_smart').classList.add('bg-green-600');
-                document.getElementById('mode_instant').classList.add('bg-blue-600');
-                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade';
-                log('🔄 Switched to SMART mode', 'SYSTEM');
-                
-                if (sessionState.sessionDigit !== null) {
-                    log(`🔒 Using locked digit ${sessionState.sessionDigit}`, 'SESSION');
-                    updateExecutionLogic();
-                } else {
-                    updateExecutionLogic();
-                }
+
+                updateExecutionLogic();
+                return;
             }
-        }
-        
-        function updateExecutionLogic() {
-            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
-                log('🧠 Waiting for analysis...', 'ANALYSIS');
+
+            if (mode === 'smart') {
+                document.getElementById('mode_smart').classList.remove('bg-gray-600');
+                document.getElementById('mode_smart').classList.add('bg-green-600');
+
+                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade (locked session digit)';
+                log('🔄 Switched to SMART mode', 'SYSTEM');
+
+                updateExecutionLogic();
+                return;
+            }
+
+            // DIGIT QUEUE mode
+            document.getElementById('mode_queue').classList.remove('bg-gray-600');
+            document.getElementById('mode_queue').classList.add('bg-green-600');
+
+            document.getElementById('mode_description').textContent = '🔢 DIGIT QUEUE: Rotate digits only after a LOSS (keep digit on win)';
+            log('🔄 Switched to DIGIT QUEUE mode', 'SYSTEM');
+
+            // Ensure queue has a current digit
+            if (!window.digitQueue.active || window.digitQueue.digits.length === 0) {
                 window.nextTradeAllowed = false;
-                updateTradeStatus('ANALYZING', 'Analyzing market data...', 'Waiting for analysis completion', 'normal');
-            } else if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
+                updateTradeStatus('QUEUE', 'No digits in queue', 'Add digits in the Digit Queue panel', 'normal');
+                return;
+            }
+
+            if (window.digitQueue.currentDigit === null) {
+                getNextDigitFromQueue();
+            }
+
+            document.getElementById('predictedDigit').value = window.digitQueue.currentDigit;
+            updateDigitQueueDisplay();
+            updateQueueStatus();
+            updateExecutionLogic();
+        }
+
+        
+        function setDigitSourceLabel(mode) {
+            const el = document.getElementById('digit_source');
+            if (!el) return;
+            if (mode === 'instant') el.textContent = '(manual)';
+            else if (mode === 'smart') el.textContent = '(locked)';
+            else if (mode === 'queue') el.textContent = '(queue)';
+            else el.textContent = '(manual)';
+        }
+
+function updateExecutionLogic() {
+            // SMART: wait for analysis then lock digit
+            if (sessionState.mode === 'smart' && !analysisComplete && sessionState.sessionDigit === null) {
+                log('🧠 Waiting for analysis.', 'ANALYSIS');
+                window.nextTradeAllowed = false;
+                updateTradeStatus('ANALYZING', 'Analyzing market data.', 'Waiting for analysis completion', 'normal');
+                return;
+            }
+
+            if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
                 log(`🧠 Ready! Using locked digit: ${sessionState.sessionDigit}`, 'SESSION');
                 window.nextTradeAllowed = true;
                 document.getElementById('predictedDigit').value = sessionState.sessionDigit;
-                updateTradeStatus('READY', `Digit ${sessionState.sessionDigit} locked`, 'Ready to trade', 'normal');
-            } else if (sessionState.mode === 'instant') {
-                window.nextTradeAllowed = true;
-                updateTradeStatus('READY', 'Instant mode active', 'Trading on each tick', 'normal');
+                updateTradeStatus('READY', `SMART mode: Digit ${sessionState.sessionDigit} locked`, 'Ready to trade', 'normal');
+                return;
             }
+
+            // DIGIT QUEUE
+            if (sessionState.mode === 'queue') {
+                if (window.digitQueue.active && window.digitQueue.digits.length > 0) {
+                    if (window.digitQueue.currentDigit === null) {
+                        getNextDigitFromQueue();
+                    }
+                    window.nextTradeAllowed = true;
+                    document.getElementById('predictedDigit').value = window.digitQueue.currentDigit;
+                    updateTradeStatus('READY', `DIGIT QUEUE: Digit ${window.digitQueue.currentDigit}`, 'Advance digit only after LOSS', 'normal');
+                } else {
+                    window.nextTradeAllowed = false;
+                    updateTradeStatus('QUEUE', 'No digits in queue', 'Add digits in the Digit Queue panel', 'normal');
+                }
+                return;
+            }
+
+            // INSTANT
+            if (sessionState.mode === 'instant') {
+                window.nextTradeAllowed = true;
+                updateTradeStatus('READY', 'INSTANT mode active', 'Trading on each tick (manual digit)', 'normal');
+                return;
+            }
+        }
         }
         
         // DOM Ready
@@ -2009,8 +2047,8 @@
             updateQueueStatus();
             
             // Add event listeners for queue settings
-            document.getElementById('queueCycleOnWin').addEventListener('change', function() {
-                window.digitQueue.cycleOnWin = this.checked;
+            document.getElementById('queueCycleOnLoss').addEventListener('change', function() {
+                window.digitQueue.cycleOnLoss = this.checked;
             });
             
             document.getElementById('queueRestartAtEnd').addEventListener('change', function() {
@@ -2028,11 +2066,7 @@
             updateAnalysisUI('?');
             setInterval(calculateRates, 1000);
             startQueueProcessor();
-            setInterval(updateLossStreakDisplay, 500);
-            
             calculateMartingale();
-            updateRecheckSettings();
-            
             document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('multiplier').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('maxTrades').addEventListener('change', syncCalculatorWithMain);
@@ -2045,10 +2079,6 @@
             document.getElementById('calc_max_trades').addEventListener('change', () => {
                 document.getElementById('maxTrades').value = document.getElementById('calc_max_trades').value;
             });
-            
-            document.getElementById('enableRecheck').addEventListener('change', updateRecheckSettings);
-            document.getElementById('recheckThreshold').addEventListener('change', updateRecheckSettings);
-            document.getElementById('maxDigitChanges').addEventListener('change', updateRecheckSettings);
             
             log('🤖 Bot ready with Digit Queue System', 'SYSTEM');
             switchMode('instant');
@@ -2359,17 +2389,6 @@
                 
                 // Handle loss - keep same digit, don't move queue
                 handleLossInQueue();
-                
-                // ADAPTIVE RECHECK (only if we have queue disabled or want additional logic)
-                if (sessionState.mode === 'smart' && window.recheckEnabled) {
-                    const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
-                    
-                    if (shouldRecheck) {
-                        const changed = checkAndReanalyze(sessionState.sessionDigit);
-                        if (changed) {
-                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
-                        }
-                    }
                 }
                 
                 if (window.martingaleStep >= window.maxTrades) {
@@ -2386,7 +2405,7 @@
                 updateTradeStatus(
                     'LOSS ❌',
                     `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
-                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
+                    'Increasing stake',
                     'loss'
                 );
                 
@@ -2396,7 +2415,6 @@
             } else {
                 window.martingaleStep = 0;
                 window.consecutiveLosses = 0;
-                window.digitChangesThisSession = 0;
                 window.currentStake = window.baseStake;
                 log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
                 updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
@@ -2445,7 +2463,6 @@
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
-            log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
@@ -2772,9 +2789,7 @@
         function resetAllState() {
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             window.consecutiveLosses = 0;
-            window.digitChangesThisSession = 0;
             window.lastAnalysisTime = 0;
-            window.lastRecheckTime = 0;
             
             // Reset queue position but keep digits
             window.digitQueue.position = 0;
@@ -2819,62 +2834,26 @@
             
             log('🔄 Bot reset', 'SYSTEM');
             log('🔄 Queue system reset', 'QUEUE');
-            log('🔄 Adaptive system reset', 'SYSTEM');
-            
+                        
             // Update queue display
             updateDigitQueueDisplay();
             updateQueueStatus();
         }
         
         // ============================================================================
-        // ADAPTIVE RECHECK FUNCTIONS
-        // ============================================================================
+
         
-        function updateRecheckSettings() {
-            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
-            window.recheckEnabled = document.getElementById('enableRecheck').checked;
-            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
-            
-            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
-            
-            // Update badge visibility
-            const badge = document.getElementById('recheck-badge');
-            if (window.recheckEnabled) {
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
+        
         }
         
-        function updateLossStreakDisplay() {
-            const streakElem = document.getElementById('currentLossStreak');
-            const changesElem = document.getElementById('digitChangesCount');
-            
-            if (streakElem) {
-                streakElem.textContent = window.consecutiveLosses;
-                if (window.consecutiveLosses >= window.recheckThreshold) {
-                    streakElem.classList.add('loss-streak-high');
-                } else {
-                    streakElem.classList.remove('loss-streak-high');
-                }
+        
             }
             
             if (changesElem) {
-                changesElem.textContent = window.digitChangesThisSession;
             }
         }
         
-        function collectQuickAnalysis(count) {
-            const recentDigits = [];
-            
-            if (window.tickQueue && window.tickQueue.length > 0) {
-                const startIdx = Math.max(0, window.tickQueue.length - count);
-                for (let i = startIdx; i < window.tickQueue.length; i++) {
-                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
-                        const digit = parseInt(window.tickQueue[i].digit);
-                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
-                            recentDigits.push(digit);
-                        }
+        
                     }
                 }
             }
@@ -2955,15 +2934,7 @@
             return leastFrequent;
         }
         
-        function fallbackReanalysis() {
-            const recentDigits = [];
-            
-            if (analysisDigits && analysisDigits.length > 0) {
-                const startIdx = Math.max(0, analysisDigits.length - 50);
-                for (let i = startIdx; i < analysisDigits.length; i++) {
-                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
-                        recentDigits.push(analysisDigits[i]);
-                    }
+        
                 }
             }
             
@@ -2982,27 +2953,19 @@
             return [...new Set(recentDigits)];
         }
         
-        function checkAndReanalyze(currentDigit) {
-            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
-                return false;
-            }
+        
             
             const now = Date.now();
             if (now - window.lastRecheckTime < window.recheckCooldown) {
                 return false;
             }
             
-            if (window.digitChangesThisSession >= window.maxDigitChanges) {
-                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
-                return false;
-            }
             
-            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
+            
             const timeSinceAnalysis = now - window.lastAnalysisTime;
             const marketChanged = timeSinceAnalysis > 30000;
             
             if (needRecheck || marketChanged) {
-                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
                 log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
                 
                 const currentSessionDigit = sessionState.sessionDigit;
@@ -3026,7 +2989,6 @@
                     const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
                     
                     if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
-                        window.digitChangesThisSession++;
                         window.lastRecheckTime = now;
                         
                         log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
