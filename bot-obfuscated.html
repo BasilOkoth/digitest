@@ -277,7 +277,8 @@
                     🔴 DISCONNECTED
                 </span>
                 <span id="contract-type-badge" class="contract-type-badge bg-purple-600 text-white">DIGITMATCH</span>
-<!-- Account toggle -->
+                <span id="recheck-badge" class="recheck-badge hidden">ADAPTIVE</span>
+                <!-- Account toggle -->
                 <div class="account-toggle-container ml-3">
                     <span class="account-label account-label-demo">DEMO</span>
                     <label class="account-toggle">
@@ -525,8 +526,7 @@
                             </button>
                         </div>
                     </div>
-                    
-                    
+                </div>
             </div>
             
             <!-- MIDDLE COLUMN: MAIN CONTROLS -->
@@ -626,7 +626,9 @@
                     
                     <!-- Predicted Digit (now shows current from queue) -->
                     <div>
-                        <label for="predictedDigit" class="block text-xs font-semibold text-gray-300 mb-1">Predicted Digit <span id="digit_source" class="text-xs font-bold text-blue-400">(manual)</span></label>
+                        <label for="predictedDigit" class="block text-xs font-semibold text-gray-300 mb-1">
+                            Current Digit <span class="text-blue-400">(from queue)</span>
+                        </label>
                         <input type="number" id="predictedDigit" value="5" min="0" max="9" 
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm text-center">
                     </div>
@@ -663,7 +665,7 @@
                     <!-- Mode Toggle -->
                     <div class="col-span-2 lg:col-span-3">
                         <label class="block text-xs font-semibold text-gray-300 mb-1">Execution Mode</label>
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 gap-2">
                             <button id="mode_instant" onclick="switchMode('instant')" 
                                 class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition">
                                 ⚡ INSTANT
@@ -672,15 +674,10 @@
                                 class="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
                                 🧠 SMART
                             </button>
-                            <button id="mode_queue" onclick="switchMode('queue')" 
-                                class="px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700 transition">
-                                🔢 DIGIT QUEUE
-                            </button>
                         </div>
                         <p id="mode_description" class="text-xs text-gray-400 mt-1">
-                            ⚡ INSTANT: Trade on each tick (manual digit)
+                            ⚡ INSTANT: Trade on each tick
                         </p>
-                    </div>
                     </div>
                 </div>
                 
@@ -792,7 +789,7 @@
             currentDigit: null,    // Current digit being used
             cyclesCompleted: 0,    // Number of cycles completed
             maxCycles: 1,          // Maximum cycles before stopping
-            cycleOnLoss: true,      // Move to next digit on loss
+            cycleOnLoss: true,     // Move to next digit on loss
             restartAtEnd: true,    // Restart from beginning when queue ends
             queueExpanded: true,   // UI state
             shuffledDigits: [],    // For random mode
@@ -1383,6 +1380,10 @@
             sessionStarted: false,
             manualOverride: false
         };
+        
+        // Queue State
+        window.consecutiveLosses = 0;
+        
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
         const soundToggleButton = document.getElementById('soundToggle');
@@ -1398,58 +1399,41 @@
         // ============================================================================
         
         // Get predicted digit from queue or single input
-        
-        // Get predicted digit depending on active execution mode
         function getPredictedDigit() {
-            // Only use queue digits when DIGIT QUEUE mode is selected
-            if (sessionState.mode === 'queue' &&
-                window.digitQueue.active &&
-                window.digitQueue.digits.length > 0 &&
-                window.digitQueue.currentDigit !== null) {
+            // If queue is active and has digits, use queue
+            if (window.digitQueue.active && window.digitQueue.digits.length > 0 && window.digitQueue.currentDigit !== null) {
                 return window.digitQueue.currentDigit;
             }
-
-            // Otherwise use the manual / session digit shown in the input
-            return parseInt(document.getElementById('predictedDigit').value);
-        }
-
             
             // Otherwise use single digit input
             return parseInt(document.getElementById('predictedDigit').value);
         }
         
-        // Handle win - move to next digit in queue if enabled, but STOP bot
-        
-        // Handle win in queue - KEEP SAME DIGIT (do not advance)
+        // Handle win - keep same digit, bot stops
         function handleWinInQueue() {
-            if (sessionState.mode === 'queue' && window.digitQueue.active && window.digitQueue.digits.length > 0) {
-                const d = window.digitQueue.currentDigit;
-                log(`✅ WIN! Keeping queue digit: ${d}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Win! Keeping digit: ${d}`, 'Digit stays the same after win', 'win');
-                return d;
-            }
-            return window.digitQueue.currentDigit;
-        }
+            // On win, we keep the same digit and stop the bot
+            log(`🎯 WIN! Bot will stop.`, 'QUEUE');
+            updateTradeStatus('QUEUE', `Win! Bot stopped.`, 'Bot stopped after win', 'win');
+            
             return window.digitQueue.currentDigit;
         }
         
-        // Handle loss - DON'T move to next digit, just continue with same digit and increase stake
-        
-        // Handle loss in queue - ADVANCE TO NEXT DIGIT (martingale continues)
+        // Handle loss - move to next digit if enabled
         function handleLossInQueue() {
-            if (sessionState.mode === 'queue' && window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnLoss) {
+            // On loss, move to next digit if cycleOnLoss is enabled
+            if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnLoss) {
                 const oldDigit = window.digitQueue.currentDigit;
                 const newDigit = getNextDigitFromQueue();
-                log(`❌ LOSS! Advancing queue digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Loss! Digit changed: ${oldDigit} → ${newDigit}`, 'Increasing stake & continuing', 'loss');
+                
+                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Loss! Moving to next digit: ${oldDigit} → ${newDigit}`, 'Continuing with next digit', 'loss');
+                
                 return newDigit;
+            } else {
+                log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
+                return window.digitQueue.currentDigit;
             }
-
-            // If queue not active / single digit / cycling disabled, keep same digit
-            const d = window.digitQueue.currentDigit;
-            log(`❌ LOSS! Keeping digit: ${d}`, 'QUEUE');
-            updateTradeStatus('QUEUE', `Loss! Keeping digit: ${d}`, 'Increasing stake & continuing', 'loss');
-            return d;
         }
         
         // ============================================================================
@@ -1859,7 +1843,6 @@
                 }
                 
                 analysisComplete = true;
-                window.lastAnalysisTime = Date.now();
                 updatePredictionBox();
                 
                 if (sessionState.mode === 'smart' && suggestedDigit !== null) {
@@ -1913,25 +1896,17 @@
         // MODE MANAGEMENT
         function switchMode(mode) {
             sessionState.mode = mode;
-            setDigitSourceLabel(mode);
-
-            // Reset button styles
-            ['mode_instant','mode_smart','mode_queue'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (!btn) return;
-                btn.classList.remove('bg-green-600','bg-blue-600','bg-gray-600');
-                btn.classList.add('bg-gray-600');
-            });
-
+            
+            document.getElementById('mode_instant').classList.remove('bg-green-600', 'bg-blue-600');
+            document.getElementById('mode_smart').classList.remove('bg-green-600', 'bg-blue-600');
+            
             if (mode === 'instant') {
-                document.getElementById('mode_instant').classList.remove('bg-gray-600');
                 document.getElementById('mode_instant').classList.add('bg-green-600');
-
-                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick (manual digit)';
+                document.getElementById('mode_smart').classList.add('bg-blue-600');
+                document.getElementById('mode_description').textContent = '⚡ INSTANT: Trade on each tick';
                 log('🔄 Switched to INSTANT mode', 'SYSTEM');
                 window.nextTradeAllowed = true;
-
-                // If bot is already running, lock to current manual digit once
+                
                 if (window.isBotRunning && !sessionState.manualOverride) {
                     const manualDigit = parseInt(document.getElementById('predictedDigit').value);
                     if (!isNaN(manualDigit) && manualDigit >= 0 && manualDigit <= 9) {
@@ -1943,96 +1918,35 @@
                         log(`🔒 Digit ${manualDigit} set manually for instant mode`, 'SESSION');
                     }
                 }
-
-                updateExecutionLogic();
-                return;
-            }
-
-            if (mode === 'smart') {
-                document.getElementById('mode_smart').classList.remove('bg-gray-600');
+            } else {
                 document.getElementById('mode_smart').classList.add('bg-green-600');
-
-                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade (locked session digit)';
+                document.getElementById('mode_instant').classList.add('bg-blue-600');
+                document.getElementById('mode_description').textContent = '🧠 SMART: Analyze first, then trade';
                 log('🔄 Switched to SMART mode', 'SYSTEM');
-
-                updateExecutionLogic();
-                return;
+                
+                if (sessionState.sessionDigit !== null) {
+                    log(`🔒 Using locked digit ${sessionState.sessionDigit}`, 'SESSION');
+                    updateExecutionLogic();
+                } else {
+                    updateExecutionLogic();
+                }
             }
-
-            // DIGIT QUEUE mode
-            document.getElementById('mode_queue').classList.remove('bg-gray-600');
-            document.getElementById('mode_queue').classList.add('bg-green-600');
-
-            document.getElementById('mode_description').textContent = '🔢 DIGIT QUEUE: Rotate digits only after a LOSS (keep digit on win)';
-            log('🔄 Switched to DIGIT QUEUE mode', 'SYSTEM');
-
-            // Ensure queue has a current digit
-            if (!window.digitQueue.active || window.digitQueue.digits.length === 0) {
-                window.nextTradeAllowed = false;
-                updateTradeStatus('QUEUE', 'No digits in queue', 'Add digits in the Digit Queue panel', 'normal');
-                return;
-            }
-
-            if (window.digitQueue.currentDigit === null) {
-                getNextDigitFromQueue();
-            }
-
-            document.getElementById('predictedDigit').value = window.digitQueue.currentDigit;
-            updateDigitQueueDisplay();
-            updateQueueStatus();
-            updateExecutionLogic();
         }
-
         
-        function setDigitSourceLabel(mode) {
-            const el = document.getElementById('digit_source');
-            if (!el) return;
-            if (mode === 'instant') el.textContent = '(manual)';
-            else if (mode === 'smart') el.textContent = '(locked)';
-            else if (mode === 'queue') el.textContent = '(queue)';
-            else el.textContent = '(manual)';
-        }
-
-function updateExecutionLogic() {
-            // SMART: wait for analysis then lock digit
-            if (sessionState.mode === 'smart' && !analysisComplete && sessionState.sessionDigit === null) {
-                log('🧠 Waiting for analysis.', 'ANALYSIS');
+        function updateExecutionLogic() {
+            if (sessionState.mode === 'smart' && !analysisComplete && !sessionState.sessionDigit) {
+                log('🧠 Waiting for analysis...', 'ANALYSIS');
                 window.nextTradeAllowed = false;
-                updateTradeStatus('ANALYZING', 'Analyzing market data.', 'Waiting for analysis completion', 'normal');
-                return;
-            }
-
-            if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
+                updateTradeStatus('ANALYZING', 'Analyzing market data...', 'Waiting for analysis completion', 'normal');
+            } else if (sessionState.mode === 'smart' && sessionState.sessionDigit !== null) {
                 log(`🧠 Ready! Using locked digit: ${sessionState.sessionDigit}`, 'SESSION');
                 window.nextTradeAllowed = true;
                 document.getElementById('predictedDigit').value = sessionState.sessionDigit;
-                updateTradeStatus('READY', `SMART mode: Digit ${sessionState.sessionDigit} locked`, 'Ready to trade', 'normal');
-                return;
-            }
-
-            // DIGIT QUEUE
-            if (sessionState.mode === 'queue') {
-                if (window.digitQueue.active && window.digitQueue.digits.length > 0) {
-                    if (window.digitQueue.currentDigit === null) {
-                        getNextDigitFromQueue();
-                    }
-                    window.nextTradeAllowed = true;
-                    document.getElementById('predictedDigit').value = window.digitQueue.currentDigit;
-                    updateTradeStatus('READY', `DIGIT QUEUE: Digit ${window.digitQueue.currentDigit}`, 'Advance digit only after LOSS', 'normal');
-                } else {
-                    window.nextTradeAllowed = false;
-                    updateTradeStatus('QUEUE', 'No digits in queue', 'Add digits in the Digit Queue panel', 'normal');
-                }
-                return;
-            }
-
-            // INSTANT
-            if (sessionState.mode === 'instant') {
+                updateTradeStatus('READY', `Digit ${sessionState.sessionDigit} locked`, 'Ready to trade', 'normal');
+            } else if (sessionState.mode === 'instant') {
                 window.nextTradeAllowed = true;
-                updateTradeStatus('READY', 'INSTANT mode active', 'Trading on each tick (manual digit)', 'normal');
-                return;
+                updateTradeStatus('READY', 'Instant mode active', 'Trading on each tick', 'normal');
             }
-        }
         }
         
         // DOM Ready
@@ -2066,7 +1980,9 @@ function updateExecutionLogic() {
             updateAnalysisUI('?');
             setInterval(calculateRates, 1000);
             startQueueProcessor();
+            
             calculateMartingale();
+            
             document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('multiplier').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('maxTrades').addEventListener('change', syncCalculatorWithMain);
@@ -2387,9 +2303,8 @@ function updateExecutionLogic() {
                 window.martingaleStep++;
                 window.consecutiveLosses++;
                 
-                // Handle loss - keep same digit, don't move queue
+                // Handle loss - move to next digit if enabled
                 handleLossInQueue();
-                }
                 
                 if (window.martingaleStep >= window.maxTrades) {
                     log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
@@ -2789,7 +2704,6 @@ function updateExecutionLogic() {
         function resetAllState() {
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             window.consecutiveLosses = 0;
-            window.lastAnalysisTime = 0;
             
             // Reset queue position but keep digits
             window.digitQueue.position = 0;
@@ -2834,209 +2748,10 @@ function updateExecutionLogic() {
             
             log('🔄 Bot reset', 'SYSTEM');
             log('🔄 Queue system reset', 'QUEUE');
-                        
+            
             // Update queue display
             updateDigitQueueDisplay();
             updateQueueStatus();
-        }
-        
-        // ============================================================================
-
-        
-        
-        }
-        
-        
-            }
-            
-            if (changesElem) {
-            }
-        }
-        
-        
-                    }
-                }
-            }
-            
-            if (recentDigits.length < count && analysisDigits && analysisDigits.length > 0) {
-                const startIdx = Math.max(0, analysisDigits.length - count);
-                for (let i = startIdx; i < analysisDigits.length; i++) {
-                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
-                        recentDigits.push(analysisDigits[i]);
-                    }
-                }
-            }
-            
-            if (recentDigits.length === 0 && window.lastTick && window.lastTick.digit !== undefined) {
-                const digit = parseInt(window.lastTick.digit);
-                if (!isNaN(digit) && digit >= 0 && digit <= 9) {
-                    recentDigits.push(digit);
-                }
-            }
-            
-            return [...new Set(recentDigits)].slice(-count);
-        }
-        
-        function analyzeDigitsQuick(digitsArray) {
-            if (!digitsArray || digitsArray.length === 0) return null;
-            
-            if (digitsArray.length < 3) {
-                log(`📊 Quick analysis: Only ${digitsArray.length} digits available`, 'ANALYSIS');
-            }
-            
-            const freq = Array(10).fill(0);
-            digitsArray.forEach(d => {
-                if (d >= 0 && d <= 9) freq[d]++;
-            });
-            
-            if (digitsArray.length < 3) {
-                const usedDigits = [...new Set(digitsArray)];
-                const possibleDigits = [];
-                
-                for (let i = 0; i < 10; i++) {
-                    if (!usedDigits.includes(i)) {
-                        possibleDigits.push(i);
-                    }
-                }
-                
-                if (possibleDigits.length > 0) {
-                    const randomDigit = possibleDigits[Math.floor(Math.random() * possibleDigits.length)];
-                    log(`🎲 Small data set: Choosing random digit ${randomDigit} from ${possibleDigits.length} options`, 'ANALYSIS');
-                    return randomDigit;
-                } else {
-                    const randomDigit = Math.floor(Math.random() * 10);
-                    log(`🎲 All digits in small set: Choosing random digit ${randomDigit}`, 'ANALYSIS');
-                    return randomDigit;
-                }
-            }
-            
-            const missing = [];
-            for (let i = 0; i < 10; i++) {
-                if (freq[i] === 0) missing.push(i);
-            }
-            
-            if (missing.length > 0) {
-                const randomMissing = missing[Math.floor(Math.random() * missing.length)];
-                log(`📊 Found ${missing.length} missing digits, choosing ${randomMissing}`, 'ANALYSIS');
-                return randomMissing;
-            }
-            
-            let leastFrequent = 0;
-            let minFreq = Infinity;
-            for (let i = 0; i < 10; i++) {
-                if (freq[i] < minFreq) {
-                    minFreq = freq[i];
-                    leastFrequent = i;
-                }
-            }
-            
-            log(`📊 All digits present, choosing least frequent: ${leastFrequent} (appeared ${minFreq} times)`, 'ANALYSIS');
-            return leastFrequent;
-        }
-        
-        
-                }
-            }
-            
-            if (recentDigits.length < 10 && window.tickQueue && window.tickQueue.length > 0) {
-                const startIdx = Math.max(0, window.tickQueue.length - 20);
-                for (let i = startIdx; i < window.tickQueue.length; i++) {
-                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
-                        const digit = parseInt(window.tickQueue[i].digit);
-                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
-                            recentDigits.push(digit);
-                        }
-                    }
-                }
-            }
-            
-            return [...new Set(recentDigits)];
-        }
-        
-        
-            
-            const now = Date.now();
-            if (now - window.lastRecheckTime < window.recheckCooldown) {
-                return false;
-            }
-            
-            
-            
-            const timeSinceAnalysis = now - window.lastAnalysisTime;
-            const marketChanged = timeSinceAnalysis > 30000;
-            
-            if (needRecheck || marketChanged) {
-                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
-                
-                const currentSessionDigit = sessionState.sessionDigit;
-                const currentStake = window.currentStake;
-                const currentMartingaleStep = window.martingaleStep;
-                
-                let freshAnalysis = collectQuickAnalysis(10);
-                
-                log(`📊 Reanalysis data: ${freshAnalysis.length} recent digits available`, 'ANALYSIS');
-                
-                if (freshAnalysis.length < 2) {
-                    log(`🔄 Normal data collection insufficient, trying fallback...`, 'ANALYSIS');
-                    const fallbackData = fallbackReanalysis();
-                    if (fallbackData.length > 0) {
-                        freshAnalysis = fallbackData.slice(-10);
-                        log(`📊 Fallback data: ${freshAnalysis.length} digits from history`, 'ANALYSIS');
-                    }
-                }
-                
-                if (freshAnalysis.length >= 1) {
-                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
-                    
-                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
-                        window.lastRecheckTime = now;
-                        
-                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
-                        log(`📊 Based on ${freshAnalysis.length} recent digits: [${freshAnalysis.join(', ')}]`, 'STRATEGY');
-                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
-                        
-                        sessionState.sessionDigit = newSuggestedDigit;
-                        sessionState.manualOverride = false;
-                        document.getElementById('predictedDigit').value = newSuggestedDigit;
-                        
-                        window.lastAnalysisTime = now;
-                        
-                        updatePredictionBox();
-                        updateSessionDisplay();
-                        
-                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
-                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
-                        
-                        updateTradeStatus('STRATEGY CHANGE', 
-                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
-                            `Continuing with $${currentStake.toFixed(2)} stake`,
-                            'normal');
-                        
-                        return true;
-                    } else if (newSuggestedDigit === currentSessionDigit) {
-                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit})`, 'ANALYSIS');
-                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
-                        
-                        window.lastRecheckTime = now;
-                        window.lastAnalysisTime = now;
-                        
-                        updateTradeStatus('ANALYSIS', 
-                            `Reanalysis confirms digit ${currentSessionDigit}`,
-                            `Continuing with current strategy`,
-                            'normal');
-                    }
-                } else {
-                    log(`⚠️ No data available for reanalysis`, 'ANALYSIS');
-                    log(`💡 Waiting for more market data...`, 'ANALYSIS');
-                    
-                    window.lastRecheckTime = now;
-                    window.lastAnalysisTime = now;
-                }
-                
-                return false;
-            }
-            
-            return false;
         }
     </script>
 </body>
