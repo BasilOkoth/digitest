@@ -394,8 +394,8 @@
                             <div class="text-xs font-semibold text-gray-300 mb-2">Queue Settings</div>
                             <div class="space-y-1">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-400">Cycle on loss:</span>
-                                    <input type="checkbox" id="queueCycleOnLoss" checked 
+                                    <span class="text-xs text-gray-400">Cycle on win:</span>
+                                    <input type="checkbox" id="queueCycleOnWin" checked 
                                         class="rounded bg-gray-700 border-gray-600 text-green-600 focus:ring-green-500">
                                 </div>
                                 <div class="flex items-center justify-between">
@@ -524,6 +524,49 @@
                                 class="mt-2 w-full px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
                                 🔄 Run New Analysis
                             </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Adaptive Recheck Settings -->
+                    <div class="mt-4 p-3 bg-gray-800 rounded-lg border border-purple-500/30">
+                        <h3 class="text-sm font-bold text-purple-300 mb-3">Adaptive Strategy</h3>
+                        
+                        <div class="mb-3">
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">
+                                Recheck after consecutive losses:
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="recheckThreshold" value="5" min="2" max="20" 
+                                    class="flex-1 rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1.5 px-2 text-sm">
+                                <button onclick="updateRecheckSettings()" 
+                                    class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition text-sm">
+                                    Update
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Reanalyze and adjust digit after X consecutive losses</p>
+                        </div>
+                        
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="enableRecheck" checked 
+                                class="rounded bg-gray-700 border-gray-600 text-purple-600 focus:ring-purple-500">
+                            <label for="enableRecheck" class="ml-2 text-xs text-gray-300">Enable adaptive reanalysis</label>
+                        </div>
+                        
+                        <div class="text-xs text-gray-400 mb-2">
+                            Max digit changes per session: 
+                            <input type="number" id="maxDigitChanges" value="3" min="1" max="10" 
+                                class="ml-2 w-12 rounded-md bg-gray-700 border border-gray-600 text-white text-center py-0.5 px-1">
+                        </div>
+                        
+                        <div class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
+                            <div class="flex justify-between">
+                                <span>Current loss streak:</span>
+                                <span id="currentLossStreak" class="font-bold text-gray-300">0</span>
+                            </div>
+                            <div class="flex justify-between mt-1">
+                                <span>Digit changes this session:</span>
+                                <span id="digitChangesCount" class="font-bold text-gray-300">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -771,6 +814,7 @@
 [00:00:00] 📊 Ready to connect to live market
 [00:00:00] 🔢 Digit Queue System Ready
 [00:00:00] 🧠 Smart analysis engine ready
+[00:00:00] 🔄 Adaptive strategy enabled
             </div>
         </div>
     </div>
@@ -789,7 +833,7 @@
             currentDigit: null,    // Current digit being used
             cyclesCompleted: 0,    // Number of cycles completed
             maxCycles: 1,          // Maximum cycles before stopping
-            cycleOnLoss: true,     // Move to next digit on loss
+            cycleOnWin: true,      // Move to next digit on win
             restartAtEnd: true,    // Restart from beginning when queue ends
             queueExpanded: true,   // UI state
             shuffledDigits: [],    // For random mode
@@ -1163,7 +1207,7 @@
         
         // Initialize queue settings from UI
         function initializeQueueSettings() {
-            window.digitQueue.cycleOnLoss = document.getElementById('queueCycleOnLoss').checked;
+            window.digitQueue.cycleOnWin = document.getElementById('queueCycleOnWin').checked;
             window.digitQueue.restartAtEnd = document.getElementById('queueRestartAtEnd').checked;
             window.digitQueue.maxCycles = parseInt(document.getElementById('queueMaxCycles').value) || 1;
         }
@@ -1381,8 +1425,15 @@
             manualOverride: false
         };
         
-        // Queue State
+        // ADAPTIVE RECHECK SYSTEM
+        window.recheckThreshold = 5;
         window.consecutiveLosses = 0;
+        window.lastAnalysisTime = 0;
+        window.recheckEnabled = true;
+        window.digitChangesThisSession = 0;
+        window.maxDigitChanges = 3;
+        window.lastRecheckTime = 0;
+        window.recheckCooldown = 10000;
         
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
@@ -1409,31 +1460,27 @@
             return parseInt(document.getElementById('predictedDigit').value);
         }
         
-        // Handle win - keep same digit, bot stops
+        // Handle win - move to next digit in queue if enabled, but STOP bot
         function handleWinInQueue() {
-            // On win, we keep the same digit and stop the bot
-            log(`🎯 WIN! Bot will stop.`, 'QUEUE');
-            updateTradeStatus('QUEUE', `Win! Bot stopped.`, 'Bot stopped after win', 'win');
-            
-            return window.digitQueue.currentDigit;
-        }
-        
-        // Handle loss - move to next digit if enabled
-        function handleLossInQueue() {
-            // On loss, move to next digit if cycleOnLoss is enabled
-            if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnLoss) {
+            if (window.digitQueue.active && window.digitQueue.digits.length > 1 && window.digitQueue.cycleOnWin) {
                 const oldDigit = window.digitQueue.currentDigit;
                 const newDigit = getNextDigitFromQueue();
                 
-                log(`❌ LOSS! Moving to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Loss! Moving to next digit: ${oldDigit} → ${newDigit}`, 'Continuing with next digit', 'loss');
+                log(`🎯 WIN! Would move to next digit: ${oldDigit} → ${newDigit}`, 'QUEUE');
+                updateTradeStatus('QUEUE', `Win! Bot stopped. Next would be: ${oldDigit} → ${newDigit}`, 'Bot stopped after win', 'win');
                 
                 return newDigit;
-            } else {
-                log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
-                updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
-                return window.digitQueue.currentDigit;
             }
+            return window.digitQueue.currentDigit;
+        }
+        
+        // Handle loss - DON'T move to next digit, just continue with same digit and increase stake
+        function handleLossInQueue() {
+            // On loss, we DON'T change the digit - we keep the same digit for martingale
+            log(`❌ LOSS! Keeping same digit: ${window.digitQueue.currentDigit}`, 'QUEUE');
+            updateTradeStatus('QUEUE', `Loss! Keeping digit: ${window.digitQueue.currentDigit}`, 'Increasing stake for next trade', 'loss');
+            
+            return window.digitQueue.currentDigit;
         }
         
         // ============================================================================
@@ -1843,6 +1890,7 @@
                 }
                 
                 analysisComplete = true;
+                window.lastAnalysisTime = Date.now();
                 updatePredictionBox();
                 
                 if (sessionState.mode === 'smart' && suggestedDigit !== null) {
@@ -1961,8 +2009,8 @@
             updateQueueStatus();
             
             // Add event listeners for queue settings
-            document.getElementById('queueCycleOnLoss').addEventListener('change', function() {
-                window.digitQueue.cycleOnLoss = this.checked;
+            document.getElementById('queueCycleOnWin').addEventListener('change', function() {
+                window.digitQueue.cycleOnWin = this.checked;
             });
             
             document.getElementById('queueRestartAtEnd').addEventListener('change', function() {
@@ -1980,8 +2028,10 @@
             updateAnalysisUI('?');
             setInterval(calculateRates, 1000);
             startQueueProcessor();
+            setInterval(updateLossStreakDisplay, 500);
             
             calculateMartingale();
+            updateRecheckSettings();
             
             document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('multiplier').addEventListener('change', syncCalculatorWithMain);
@@ -1995,6 +2045,10 @@
             document.getElementById('calc_max_trades').addEventListener('change', () => {
                 document.getElementById('maxTrades').value = document.getElementById('calc_max_trades').value;
             });
+            
+            document.getElementById('enableRecheck').addEventListener('change', updateRecheckSettings);
+            document.getElementById('recheckThreshold').addEventListener('change', updateRecheckSettings);
+            document.getElementById('maxDigitChanges').addEventListener('change', updateRecheckSettings);
             
             log('🤖 Bot ready with Digit Queue System', 'SYSTEM');
             switchMode('instant');
@@ -2303,8 +2357,20 @@
                 window.martingaleStep++;
                 window.consecutiveLosses++;
                 
-                // Handle loss - move to next digit if enabled
+                // Handle loss - keep same digit, don't move queue
                 handleLossInQueue();
+                
+                // ADAPTIVE RECHECK (only if we have queue disabled or want additional logic)
+                if (sessionState.mode === 'smart' && window.recheckEnabled) {
+                    const shouldRecheck = window.consecutiveLosses >= window.recheckThreshold;
+                    
+                    if (shouldRecheck) {
+                        const changed = checkAndReanalyze(sessionState.sessionDigit);
+                        if (changed) {
+                            log(`📊 Continuing martingale at step ${window.martingaleStep} with new digit`, 'STRATEGY');
+                        }
+                    }
+                }
                 
                 if (window.martingaleStep >= window.maxTrades) {
                     log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
@@ -2320,7 +2386,7 @@
                 updateTradeStatus(
                     'LOSS ❌',
                     `Lost - Streak: ${window.consecutiveLosses}, Next: $${window.currentStake.toFixed(2)}`,
-                    'Increasing stake',
+                    window.consecutiveLosses >= window.recheckThreshold ? 'Considering strategy change...' : 'Increasing stake',
                     'loss'
                 );
                 
@@ -2330,6 +2396,7 @@
             } else {
                 window.martingaleStep = 0;
                 window.consecutiveLosses = 0;
+                window.digitChangesThisSession = 0;
                 window.currentStake = window.baseStake;
                 log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
                 updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
@@ -2378,6 +2445,7 @@
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
+            log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
@@ -2704,6 +2772,9 @@
         function resetAllState() {
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             window.consecutiveLosses = 0;
+            window.digitChangesThisSession = 0;
+            window.lastAnalysisTime = 0;
+            window.lastRecheckTime = 0;
             
             // Reset queue position but keep digits
             window.digitQueue.position = 0;
@@ -2748,10 +2819,262 @@
             
             log('🔄 Bot reset', 'SYSTEM');
             log('🔄 Queue system reset', 'QUEUE');
+            log('🔄 Adaptive system reset', 'SYSTEM');
             
             // Update queue display
             updateDigitQueueDisplay();
             updateQueueStatus();
+        }
+        
+        // ============================================================================
+        // ADAPTIVE RECHECK FUNCTIONS
+        // ============================================================================
+        
+        function updateRecheckSettings() {
+            window.recheckThreshold = parseInt(document.getElementById('recheckThreshold').value) || 5;
+            window.recheckEnabled = document.getElementById('enableRecheck').checked;
+            window.maxDigitChanges = parseInt(document.getElementById('maxDigitChanges').value) || 3;
+            
+            log(`⚙️ Adaptive settings: ${window.recheckEnabled ? 'ON' : 'OFF'}, threshold: ${window.recheckThreshold} losses, max changes: ${window.maxDigitChanges}`, 'SETTINGS');
+            
+            // Update badge visibility
+            const badge = document.getElementById('recheck-badge');
+            if (window.recheckEnabled) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        function updateLossStreakDisplay() {
+            const streakElem = document.getElementById('currentLossStreak');
+            const changesElem = document.getElementById('digitChangesCount');
+            
+            if (streakElem) {
+                streakElem.textContent = window.consecutiveLosses;
+                if (window.consecutiveLosses >= window.recheckThreshold) {
+                    streakElem.classList.add('loss-streak-high');
+                } else {
+                    streakElem.classList.remove('loss-streak-high');
+                }
+            }
+            
+            if (changesElem) {
+                changesElem.textContent = window.digitChangesThisSession;
+            }
+        }
+        
+        function collectQuickAnalysis(count) {
+            const recentDigits = [];
+            
+            if (window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - count);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
+            }
+            
+            if (recentDigits.length < count && analysisDigits && analysisDigits.length > 0) {
+                const startIdx = Math.max(0, analysisDigits.length - count);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            if (recentDigits.length === 0 && window.lastTick && window.lastTick.digit !== undefined) {
+                const digit = parseInt(window.lastTick.digit);
+                if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                    recentDigits.push(digit);
+                }
+            }
+            
+            return [...new Set(recentDigits)].slice(-count);
+        }
+        
+        function analyzeDigitsQuick(digitsArray) {
+            if (!digitsArray || digitsArray.length === 0) return null;
+            
+            if (digitsArray.length < 3) {
+                log(`📊 Quick analysis: Only ${digitsArray.length} digits available`, 'ANALYSIS');
+            }
+            
+            const freq = Array(10).fill(0);
+            digitsArray.forEach(d => {
+                if (d >= 0 && d <= 9) freq[d]++;
+            });
+            
+            if (digitsArray.length < 3) {
+                const usedDigits = [...new Set(digitsArray)];
+                const possibleDigits = [];
+                
+                for (let i = 0; i < 10; i++) {
+                    if (!usedDigits.includes(i)) {
+                        possibleDigits.push(i);
+                    }
+                }
+                
+                if (possibleDigits.length > 0) {
+                    const randomDigit = possibleDigits[Math.floor(Math.random() * possibleDigits.length)];
+                    log(`🎲 Small data set: Choosing random digit ${randomDigit} from ${possibleDigits.length} options`, 'ANALYSIS');
+                    return randomDigit;
+                } else {
+                    const randomDigit = Math.floor(Math.random() * 10);
+                    log(`🎲 All digits in small set: Choosing random digit ${randomDigit}`, 'ANALYSIS');
+                    return randomDigit;
+                }
+            }
+            
+            const missing = [];
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] === 0) missing.push(i);
+            }
+            
+            if (missing.length > 0) {
+                const randomMissing = missing[Math.floor(Math.random() * missing.length)];
+                log(`📊 Found ${missing.length} missing digits, choosing ${randomMissing}`, 'ANALYSIS');
+                return randomMissing;
+            }
+            
+            let leastFrequent = 0;
+            let minFreq = Infinity;
+            for (let i = 0; i < 10; i++) {
+                if (freq[i] < minFreq) {
+                    minFreq = freq[i];
+                    leastFrequent = i;
+                }
+            }
+            
+            log(`📊 All digits present, choosing least frequent: ${leastFrequent} (appeared ${minFreq} times)`, 'ANALYSIS');
+            return leastFrequent;
+        }
+        
+        function fallbackReanalysis() {
+            const recentDigits = [];
+            
+            if (analysisDigits && analysisDigits.length > 0) {
+                const startIdx = Math.max(0, analysisDigits.length - 50);
+                for (let i = startIdx; i < analysisDigits.length; i++) {
+                    if (analysisDigits[i] !== undefined && analysisDigits[i] >= 0 && analysisDigits[i] <= 9) {
+                        recentDigits.push(analysisDigits[i]);
+                    }
+                }
+            }
+            
+            if (recentDigits.length < 10 && window.tickQueue && window.tickQueue.length > 0) {
+                const startIdx = Math.max(0, window.tickQueue.length - 20);
+                for (let i = startIdx; i < window.tickQueue.length; i++) {
+                    if (window.tickQueue[i] && window.tickQueue[i].digit !== undefined) {
+                        const digit = parseInt(window.tickQueue[i].digit);
+                        if (!isNaN(digit) && digit >= 0 && digit <= 9) {
+                            recentDigits.push(digit);
+                        }
+                    }
+                }
+            }
+            
+            return [...new Set(recentDigits)];
+        }
+        
+        function checkAndReanalyze(currentDigit) {
+            if (!window.recheckEnabled || sessionState.mode !== 'smart') {
+                return false;
+            }
+            
+            const now = Date.now();
+            if (now - window.lastRecheckTime < window.recheckCooldown) {
+                return false;
+            }
+            
+            if (window.digitChangesThisSession >= window.maxDigitChanges) {
+                log(`⚠️ Maximum digit changes reached (${window.maxDigitChanges})`, 'ANALYSIS');
+                return false;
+            }
+            
+            const needRecheck = window.consecutiveLosses >= window.recheckThreshold;
+            const timeSinceAnalysis = now - window.lastAnalysisTime;
+            const marketChanged = timeSinceAnalysis > 30000;
+            
+            if (needRecheck || marketChanged) {
+                log(`🔍 Adaptive recheck triggered after ${window.consecutiveLosses} consecutive losses`, 'ANALYSIS');
+                log(`💰 Current stake: $${window.currentStake.toFixed(2)}, Martingale step: ${window.martingaleStep}`, 'ANALYSIS');
+                
+                const currentSessionDigit = sessionState.sessionDigit;
+                const currentStake = window.currentStake;
+                const currentMartingaleStep = window.martingaleStep;
+                
+                let freshAnalysis = collectQuickAnalysis(10);
+                
+                log(`📊 Reanalysis data: ${freshAnalysis.length} recent digits available`, 'ANALYSIS');
+                
+                if (freshAnalysis.length < 2) {
+                    log(`🔄 Normal data collection insufficient, trying fallback...`, 'ANALYSIS');
+                    const fallbackData = fallbackReanalysis();
+                    if (fallbackData.length > 0) {
+                        freshAnalysis = fallbackData.slice(-10);
+                        log(`📊 Fallback data: ${freshAnalysis.length} digits from history`, 'ANALYSIS');
+                    }
+                }
+                
+                if (freshAnalysis.length >= 1) {
+                    const newSuggestedDigit = analyzeDigitsQuick(freshAnalysis);
+                    
+                    if (newSuggestedDigit !== null && newSuggestedDigit !== currentSessionDigit) {
+                        window.digitChangesThisSession++;
+                        window.lastRecheckTime = now;
+                        
+                        log(`🔄 Strategy change: ${currentSessionDigit} → ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`📊 Based on ${freshAnalysis.length} recent digits: [${freshAnalysis.join(', ')}]`, 'STRATEGY');
+                        log(`📊 Martingale CONTINUES: Step ${currentMartingaleStep}, Stake $${currentStake.toFixed(2)}`, 'STRATEGY');
+                        
+                        sessionState.sessionDigit = newSuggestedDigit;
+                        sessionState.manualOverride = false;
+                        document.getElementById('predictedDigit').value = newSuggestedDigit;
+                        
+                        window.lastAnalysisTime = now;
+                        
+                        updatePredictionBox();
+                        updateSessionDisplay();
+                        
+                        log(`🎯 New target digit: ${newSuggestedDigit}`, 'STRATEGY');
+                        log(`💰 Continuing martingale with stake: $${currentStake.toFixed(2)} (Step ${currentMartingaleStep})`, 'STRATEGY');
+                        
+                        updateTradeStatus('STRATEGY CHANGE', 
+                            `Changed to digit ${newSuggestedDigit} (Loss streak: ${window.consecutiveLosses})`,
+                            `Continuing with $${currentStake.toFixed(2)} stake`,
+                            'normal');
+                        
+                        return true;
+                    } else if (newSuggestedDigit === currentSessionDigit) {
+                        log(`📊 Reanalysis suggests same digit (${currentSessionDigit})`, 'ANALYSIS');
+                        log(`💰 Continuing with current strategy`, 'ANALYSIS');
+                        
+                        window.lastRecheckTime = now;
+                        window.lastAnalysisTime = now;
+                        
+                        updateTradeStatus('ANALYSIS', 
+                            `Reanalysis confirms digit ${currentSessionDigit}`,
+                            `Continuing with current strategy`,
+                            'normal');
+                    }
+                } else {
+                    log(`⚠️ No data available for reanalysis`, 'ANALYSIS');
+                    log(`💡 Waiting for more market data...`, 'ANALYSIS');
+                    
+                    window.lastRecheckTime = now;
+                    window.lastAnalysisTime = now;
+                }
+                
+                return false;
+            }
+            
+            return false;
         }
     </script>
 </body>
