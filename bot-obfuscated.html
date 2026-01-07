@@ -264,6 +264,10 @@
             color: #10b981 !important;
             font-weight: bold !important;
         }
+        .network-recovery-badge {
+            background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+            animation: pulse-once 0.8s infinite;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -278,6 +282,10 @@
                 </span>
                 <span id="contract-type-badge" class="contract-type-badge bg-purple-600 text-white">DIGITMATCH</span>
                 <span id="recheck-badge" class="recheck-badge hidden">ADAPTIVE</span>
+                <!-- Network Recovery Badge -->
+                <span id="network-recovery-badge" class="ml-2 inline-flex items-center px-3 py-1 text-sm font-medium rounded-full hidden network-recovery-badge text-white shadow-md">
+                    🔄 AUTO-RECOVER
+                </span>
                 <!-- Account toggle -->
                 <div class="account-toggle-container ml-3">
                     <span class="account-label account-label-demo">DEMO</span>
@@ -292,6 +300,11 @@
                 <button id="soundToggle" onclick="toggleSound()" 
                     class="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition">
                     🔊 Sound ON
+                </button>
+                <!-- Network Recovery Toggle -->
+                <button id="networkRecoveryToggle" onclick="toggleNetworkRecovery()" 
+                    class="px-4 py-2 bg-yellow-600 text-white font-bold rounded-lg shadow hover:bg-yellow-700 transition">
+                    🔄 Auto-Recovery: ON
                 </button>
             </div>
         </div>
@@ -1348,7 +1361,7 @@
         }
         
         // ============================================================================
-        // CORE BOT FUNCTIONS
+        // CORE BOT FUNCTIONS - UPDATED FOR 10 SECOND PNL DISPLAY & NETWORK RECOVERY
         // ============================================================================
         
         // Global State
@@ -1359,6 +1372,14 @@
         window.soundEnabled = true;
         window.ToneInitialized = false;
         window.synth = null;
+        
+        // NETWORK RECOVERY SYSTEM
+        window.networkRecoveryEnabled = true;
+        window.reconnectionAttempts = 0;
+        window.maxReconnectionAttempts = 5;
+        window.reconnectionDelay = 2000;
+        window.lastDisconnectTime = 0;
+        window.autoReconnectTimer = null;
         
         // Trading State
         window.baseStake = 1.0;
@@ -1372,7 +1393,7 @@
         window.currentBalance = 0.0;
         window.netProfit = 0.0;
         
-        // PnL Tracking
+        // PnL Tracking - UPDATED TO 10 SECONDS
         window.pnlTracker = {
             totalInvestment: 0.0,
             totalPayout: 0.0,
@@ -1380,10 +1401,10 @@
             trades: []
         };
         
-        // PnL Update Timer
+        // PnL Update Timer - INCREASED FROM 3 TO 10 SECONDS
         window.pnlUpdateInterval = null;
         window.pnlUpdateStartTime = 0;
-        window.pnlUpdateDuration = 3000; // 3 seconds
+        window.pnlUpdateDuration = 10000; // 10 seconds instead of 3
         
         // Execution State
         window.lastTick = null;
@@ -1438,12 +1459,84 @@
         // DOM Elements
         const toggleButton = document.getElementById('toggleButton');
         const soundToggleButton = document.getElementById('soundToggle');
+        const networkRecoveryToggle = document.getElementById('networkRecoveryToggle');
+        const networkRecoveryBadge = document.getElementById('network-recovery-badge');
         const sessionDisplay = document.getElementById('session_display');
         const tradeResultContainer = document.getElementById('trade-result-container');
         const metricPreviousResult = document.getElementById('metricPreviousResult');
         const metricNextAction = document.getElementById('metricNextAction');
         const metricTradeResult = document.getElementById('metricTradeResult');
         const metricTotalProfit = document.getElementById('metricTotalProfit');
+        
+        // ============================================================================
+        // NETWORK RECOVERY SYSTEM
+        // ============================================================================
+        
+        function toggleNetworkRecovery() {
+            window.networkRecoveryEnabled = !window.networkRecoveryEnabled;
+            updateNetworkRecoveryButton();
+            
+            log(`🔄 Network auto-recovery ${window.networkRecoveryEnabled ? 'ENABLED' : 'DISABLED'}`, 'SYSTEM');
+            
+            if (window.networkRecoveryEnabled) {
+                networkRecoveryBadge.classList.remove('hidden');
+            } else {
+                networkRecoveryBadge.classList.add('hidden');
+                // Clear any pending reconnection attempts
+                if (window.autoReconnectTimer) {
+                    clearTimeout(window.autoReconnectTimer);
+                    window.autoReconnectTimer = null;
+                }
+            }
+        }
+        
+        function updateNetworkRecoveryButton() {
+            if (networkRecoveryToggle) {
+                networkRecoveryToggle.textContent = window.networkRecoveryEnabled ? 
+                    '🔄 Auto-Recovery: ON' : '🔌 Auto-Recovery: OFF';
+                networkRecoveryToggle.className = window.networkRecoveryEnabled ? 
+                    'px-4 py-2 bg-yellow-600 text-white font-bold rounded-lg shadow hover:bg-yellow-700 transition' :
+                    'px-4 py-2 bg-gray-600 text-white font-bold rounded-lg shadow hover:bg-gray-700 transition';
+            }
+        }
+        
+        function attemptNetworkRecovery() {
+            if (!window.networkRecoveryEnabled || !window.isBotRunning) {
+                return;
+            }
+            
+            window.reconnectionAttempts++;
+            
+            if (window.reconnectionAttempts > window.maxReconnectionAttempts) {
+                log(`❌ Max reconnection attempts (${window.maxReconnectionAttempts}) reached. Stopping bot.`, 'NETWORK');
+                stopBot();
+                return;
+            }
+            
+            const delay = window.reconnectionDelay * Math.pow(1.5, window.reconnectionAttempts - 1);
+            
+            log(`🔄 Network recovery attempt ${window.reconnectionAttempts}/${window.maxReconnectionAttempts} in ${delay/1000}s...`, 'NETWORK');
+            
+            updateTradeStatus('RECONNECTING', 
+                `Network recovery attempt ${window.reconnectionAttempts}/${window.maxReconnectionAttempts}`,
+                `Reconnecting in ${delay/1000}s...`,
+                'normal');
+            
+            window.autoReconnectTimer = setTimeout(() => {
+                if (window.isBotRunning) {
+                    log('🔗 Attempting to reconnect WebSocket...', 'NETWORK');
+                    connectWebSocket();
+                }
+            }, delay);
+        }
+        
+        function resetReconnectionAttempts() {
+            window.reconnectionAttempts = 0;
+            if (window.autoReconnectTimer) {
+                clearTimeout(window.autoReconnectTimer);
+                window.autoReconnectTimer = null;
+            }
+        }
         
         // ============================================================================
         // DIGIT QUEUE TRADE FUNCTIONS - SIMPLIFIED
@@ -1484,7 +1577,7 @@
         }
         
         // ============================================================================
-        // PnL UPDATE FUNCTIONS - ENHANCED FOR 3+ SECOND UPDATES
+        // PnL UPDATE FUNCTIONS - UPDATED FOR 10 SECOND DISPLAY
         // ============================================================================
         
         function startExtendedPnlUpdate(payout) {
@@ -1498,15 +1591,15 @@
             // Start with immediate update
             updatePnL();
             
-            // Start continuous updates for 3+ seconds
+            // Start continuous updates for 10 seconds
             window.pnlUpdateInterval = setInterval(() => {
                 const elapsed = Date.now() - window.pnlUpdateStartTime;
                 
                 if (elapsed >= window.pnlUpdateDuration) {
-                    // Stop after 3 seconds
+                    // Stop after 10 seconds
                     clearInterval(window.pnlUpdateInterval);
                     window.pnlUpdateInterval = null;
-                    log('💰 PnL update sequence completed (3 seconds)', 'PNL');
+                    log('💰 PnL update sequence completed (10 seconds)', 'PNL');
                     
                     // Final update
                     updatePnL();
@@ -2008,6 +2101,9 @@
             updateDigitQueueDisplay();
             updateQueueStatus();
             
+            // Initialize network recovery
+            updateNetworkRecoveryButton();
+            
             // Add event listeners for queue settings
             document.getElementById('queueCycleOnWin').addEventListener('change', function() {
                 window.digitQueue.cycleOnWin = this.checked;
@@ -2084,7 +2180,7 @@
             });
         });
         
-        // WEBSOCKET CONNECTION
+        // WEBSOCKET CONNECTION - UPDATED WITH NETWORK RECOVERY
         function connectWebSocket() {
             if (window.ws) {
                 try {
@@ -2102,6 +2198,7 @@
             
             window.ws.onopen = () => {
                 window.isConnecting = false;
+                resetReconnectionAttempts();
                 log('✅ WebSocket connected', 'SYSTEM');
                 updateConnectionStatus();
                 
@@ -2133,12 +2230,15 @@
                 log('🔌 WebSocket disconnected', 'SYSTEM');
                 
                 if (window.isBotRunning) {
-                    log('🔄 Attempting to reconnect...', 'SYSTEM');
-                    setTimeout(() => {
-                        if (window.isBotRunning) {
-                            connectWebSocket();
-                        }
-                    }, 2000);
+                    window.lastDisconnectTime = Date.now();
+                    
+                    // Attempt automatic reconnection if enabled
+                    if (window.networkRecoveryEnabled) {
+                        attemptNetworkRecovery();
+                    } else {
+                        log('⚠️ Network recovery disabled. Manual restart required.', 'NETWORK');
+                        updateTradeStatus('DISCONNECTED', 'WebSocket disconnected', 'Click START to reconnect', 'normal');
+                    }
                 }
             };
             
@@ -2305,13 +2405,13 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Start extended PnL updates for 3+ seconds
+                // Start extended PnL updates for 10 seconds
                 startExtendedPnlUpdate(payout);
                 
                 updateTradeStatus(
                     'IMMEDIATE WIN 🎯',
                     `Digit ${tickDigit} matched! Payout: $${payout.toFixed(2)}`,
-                    'PnL updating for 3 seconds...',
+                    'PnL updating for 10 seconds...',
                     'win'
                 );
                 
@@ -2322,7 +2422,7 @@
             return false;
         }
         
-        // Update stake function - FIXED: Update PnL for 3+ seconds before stopping
+        // Update stake function - FIXED: Update PnL for 10 seconds before stopping
         function updateStake(winOrLoss) {
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
@@ -2341,13 +2441,13 @@
                 trackTradePayout(payout);
                 log(`💰 Payout: $${payout.toFixed(2)}`, 'PNL');
                 
-                // Start extended PnL updates for 3+ seconds
+                // Start extended PnL updates for 10 seconds
                 startExtendedPnlUpdate(payout);
                 
                 updateTradeStatus(
                     'WIN 🎯',
                     `WON! Digit matched - Payout: $${payout.toFixed(2)}`,
-                    'PnL updating for 3 seconds...',
+                    'PnL updating for 10 seconds...',
                     'win'
                 );
                 
@@ -2447,6 +2547,7 @@
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
             log(`🔄 Adaptive recheck: ${window.recheckEnabled ? 'ON' : 'OFF'} (threshold: ${window.recheckThreshold} losses)`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
+            log(`🌐 Network auto-recovery: ${window.networkRecoveryEnabled ? 'ENABLED' : 'DISABLED'}`, 'SYSTEM');
             
             updateTradeStatus('STARTING', 'Initializing bot...', 'Connecting to market', 'normal');
             updateStake('initial');
@@ -2476,6 +2577,9 @@
                 clearInterval(window.pnlUpdateInterval);
                 window.pnlUpdateInterval = null;
             }
+            
+            // Stop any network recovery attempts
+            resetReconnectionAttempts();
             
             if (window.ws) {
                 window.ws.close();
@@ -2600,6 +2704,7 @@
             if (type === 'STRATEGY') color = 'text-purple-300 font-bold';
             if (type === 'SETTINGS') color = 'text-blue-300 font-bold';
             if (type === 'QUEUE') color = 'text-blue-300 font-bold';
+            if (type === 'NETWORK') color = 'text-yellow-300 font-bold';
             
             logArea.innerHTML += `\n[${timestamp}] <span class="${color}">${message}</span>`;
             logArea.scrollTop = logArea.scrollHeight;
