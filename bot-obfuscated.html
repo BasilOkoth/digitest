@@ -685,15 +685,18 @@
         
         // Global AI thresholds (single source of truth)
         window.AI_THRESHOLDS = {
-            // COMMERCIAL BALANCED MODE (BEST FOR REAL BOT)
-            minSupport: 25,                 // enough data
-            minH5: 0.48,                    // allow moderate early pressure
-            minP10: 0.70,                   // strong within 10
-            maxPersistenceStable: 85,       // allow more persistence when STABLE
-            maxPersistenceStableRelax: 95,  // only used with extra safety gates
-            maxPersistenceUnstable: 60,     // stricter when UNSTABLE
-            maxExtend: 2,                   // allow natural cold growth
-            require_g_lt_p90: true          // ALWAYS KEEP (NEVER REMOVE)
+            minSupport: 25,
+
+            // EARLY PRESSURE (REALISTIC MODE)
+            minH5: 0.45,        // 🔥 KEY CHANGE (from 0.50 → 0.45)
+            minP10: 0.70,       // slightly relaxed
+
+            maxPersistenceStable: 95,      // allow more clean cold
+            maxPersistenceStableRelax: 95,
+            maxPersistenceUnstable: 90,    // still strict when unstable
+
+            maxExtend: 2,
+            require_g_lt_p90: true
         };
 
         // Engine State
@@ -1036,10 +1039,16 @@
                     // Filter conditions
                     if (s.gaps.length < thresholds.minSupport) continue;
 
-                    // Gap zone: always block tail (NEVER REMOVE)
+                    // STRONG EARLY FIRST (H5 primary gate)
+                    if (P5 < thresholds.minH5) continue;
+
+                    // MEDIUM EARLY SECOND
+                    if (P10 < thresholds.minP10) continue;
+
+                    // SAFETY
                     if (thresholds.require_g_lt_p90 && g >= s.p90Gap) continue;
 
-                    // Cold-stickiness / instability filters
+                    // Cold-stickiness / persistence filters
                     const extendRatio = (s.avgGap && s.avgGap > 0) ? (g / s.avgGap) : Infinity;
                     const effectiveMaxPersistence = (
                         regimeStatus.label === "STABLE" &&
@@ -1051,10 +1060,6 @@
                     if (s.consecutiveExtendingGaps > thresholds.maxExtend) continue;
                     if (s.isUnstable) continue;
 
-                    // Probability gates
-                    if (P5 < thresholds.minH5) continue;
-                    if (P10 < thresholds.minP10) continue;
-
                     // Calculate score
                     const score =
                         0.45 * P10 +
@@ -1062,9 +1067,7 @@
                         0.15 * (1 - g / Math.max(s.p90Gap,1)) +
                         0.15 * (1 - s.persistenceScore / 100);
                     
-                    if (score < 0.75) continue;
-                    
-                    if (!best || score > best.score) {
+                                        if (!best || score > best.score) {
                         best = { 
                             digit: d, 
                             score: score, 
@@ -1366,7 +1369,7 @@
         function updateDigitAnalysisDisplay() {
             const engine = window.digitIntelligenceEngine;
             const thresholds = window.AI_THRESHOLDS;
-            const scoreCutoff = 0.75;
+            const scoreCutoff = 0.50; // ranking hint only
 
             if (!engine.warmupDone) {
                 document.getElementById('digit-analysis-content').innerHTML = `
@@ -1393,7 +1396,7 @@
                     </div>
                     <div class="text-[11px] text-gray-500 mt-1">
                         Gates — Support≥${thresholds.minSupport}, H5≥${thresholds.minH5}, P10≥${thresholds.minP10}, Extend≤${thresholds.maxExtend},
-                        Persistence≤${baseMaxPersistence} (relax→${thresholds.maxPersistenceStableRelax}), Score≥${(scoreCutoff * 100).toFixed(0)}%
+                        Persistence≤${baseMaxPersistence} (relax→${thresholds.maxPersistenceStableRelax}), Score(rank)≥${(scoreCutoff * 100).toFixed(0)}%
                     </div>
                 </div>
                 <div class="grid grid-cols-1 gap-1">
@@ -1431,7 +1434,7 @@
                 const passScore = score >= scoreCutoff;
 
                 const passAll =
-                    passSupport && passP90 && passPersistence && passExtend && passUnstable && passP5 && passP10 && passScore;
+                    passSupport && passP90 && passPersistence && passExtend && passUnstable && passP5 && passP10;
 
                 const isRecommended = engine.currentRecommendation && engine.currentRecommendation.digit === d;
 
@@ -2233,7 +2236,7 @@
             window.isConnecting = true;
             updateConnectionStatus();
             
-            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
+            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=120389';
             log('🔗 Connecting to Deriv API...', 'SYSTEM');
             
             window.ws = new WebSocket(wsUrl);
