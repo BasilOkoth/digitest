@@ -701,20 +701,8 @@
             regimeDominanceMax: 0.22,
 
 // EARLY PRESSURE (REALISTIC MODE)
-            minH5: 0.42,        // 🔥 KEY CHANGE (from 0.50 → 0.45)
-            minP10: 0.66,       // slightly relaxed
-
-            // HAZARD RISE ENTRY (prefer trades when H5 + H10 start rising inside pressure zone)
-            hazardRiseEnabled: true,
-            // Only treat as “strong entry” if already in pressure context
-            hazardRiseMinP90Ratio: 0.78,
-            // Require hazard levels healthy (empirical “rise” zone)
-            hazardRiseMinH5: 0.55,
-            hazardRiseMinH10: 0.60,
-            // “Begin to rise” slope (per analysis cycle; analyzeIntervalTicks controls cadence)
-            hazardRiseMinSlope: 0.015,
-            // Small penalty/bonus to the final digit score
-            hazardRiseBonus: 0.07,
+            minH5: 0.60,        // 🔥 KEY CHANGE (from 0.50 → 0.45)
+            minP10: 0.60,       // slightly relaxed
 
             maxPersistenceStable: 97,      // allow more clean cold
             maxPersistenceStableRelax: 97,
@@ -1446,45 +1434,13 @@ function detectLongTailRisk(params) {
                             ? Math.max(0, Math.min(1, (p90Ratio - activeMinP90Ratio) / denom))
                             : Math.max(0, Math.min(1, g / p90));
 
-                        // “H5 + H10 begin to rise” entry boost (only inside pressure zones)
-                        const H5Hist = Array.isArray(s.H5Hist) ? s.H5Hist : [];
-                        const H10Hist = Array.isArray(s.H10Hist) ? s.H10Hist : [];
-
-                        const H5_prev = (H5Hist.length >= 2) ? H5Hist[H5Hist.length - 2] : P5;
-                        const H5_prev2 = (H5Hist.length >= 3) ? H5Hist[H5Hist.length - 3] : H5_prev;
-
-                        const H10_prev = (H10Hist.length >= 2) ? H10Hist[H10Hist.length - 2] : P10;
-                        const H10_prev2 = (H10Hist.length >= 3) ? H10Hist[H10Hist.length - 3] : H10_prev;
-
-                        const slope1_5 = P5 - H5_prev;
-                        const slope2_5 = H5_prev - H5_prev2;
-
-                        const slope1_10 = P10 - H10_prev;
-                        const slope2_10 = H10_prev - H10_prev2;
-
-                        const riseMinSlope = (thresholds.hazardRiseMinSlope ?? 0.015);
-
-                        const hazardRise =
-                            !!thresholds.hazardRiseEnabled &&
-                            !!thresholds.pressureZoneEnabled &&
-                            p90Ratio >= Math.max(activeMinP90Ratio, (thresholds.hazardRiseMinP90Ratio ?? activeMinP90Ratio)) &&
-                            p90Ratio < thresholds.pressureZoneMaxP90Ratio &&
-                            P5 >= (thresholds.hazardRiseMinH5 ?? 0.55) &&
-                            P10 >= (thresholds.hazardRiseMinH10 ?? 0.60) &&
-                            slope1_5 >= riseMinSlope &&
-                            slope1_10 >= riseMinSlope &&
-                            slope2_5 <= riseMinSlope &&
-                            slope2_10 <= riseMinSlope;
-
-                        const hazardRiseBonus = hazardRise ? (thresholds.hazardRiseBonus ?? 0.07) : 0;
-
                         const score =
                             0.45 * P10 +
                             0.25 * P5 +
                             0.20 * pressureScore +
-                            0.10 * (1 - s.persistenceScore / 100) +
-                            hazardRiseBonus;
-if (!passBest || score > passBest.score) {
+                            0.10 * (1 - s.persistenceScore / 100);
+
+                        if (!passBest || score > passBest.score) {
                             passBest = {
                                 digit: d,
                                 score: score,
@@ -1492,10 +1448,7 @@ if (!passBest || score > passBest.score) {
                                 P5: P5,
                                 gap: g,
                                 persistenceScore: s.persistenceScore,
-                                isUnstable: s.isUnstable,
-                                hazardRise: hazardRise,
-                                H5Slope: slope1_5,
-                                H10Slope: slope1_10
+                                isUnstable: s.isUnstable
                             };
                         }
                     }
@@ -1581,7 +1534,7 @@ if (!passBest || score > passBest.score) {
                         else if (best.score >= 0.75) scoreElem.classList.add('engine-digit-score-medium');
                         else scoreElem.classList.add('engine-digit-score-low');
                         
-                        log(`🧠 AI recommends digit ${best.digit} (Score: ${(best.score * 100).toFixed(1)}%, Gap: ${best.gap})${best.hazardRise ? ' | 🔥 H5/H10 rising' : ''}`, 'ENGINE');
+                        log(`🧠 AI recommends digit ${best.digit} (Score: ${(best.score * 100).toFixed(1)}%, Gap: ${best.gap})`, 'ENGINE');
                         
                         // Update regime status display
                         document.getElementById('engine-regime-status').textContent = 
