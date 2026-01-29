@@ -588,6 +588,13 @@
                         <input type="number" id="maxTrades" value="10" min="1" max="100" 
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
                     </div>
+
+                    <!-- Max Cycle Trades (Progression Cap) -->
+                    <div>
+                        <label for="maxCycleTrades" class="block text-xs font-semibold text-gray-300 mb-1">Max Cycle Trades</label>
+                        <input type="number" id="maxCycleTrades" value="10" min="1" max="50"
+                            class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
+                    </div>
                     
                     <!-- Mode Toggle - ONLY INSTANT AND AI AUTO -->
                     <div class="col-span-2 lg:col-span-3">
@@ -722,7 +729,7 @@
         // Ranking defaults (tweakable)
         window.SURVIVAL_CFG = {
             minPm5: 0.60,
-            maxS20: 0.25,
+            maxS20: 0.05,
             maxETM: 12,
             requirePressure: true
         };
@@ -1241,6 +1248,18 @@
                 }
 
                 const hasSurvival = !!(survivalByDigit && survivalByDigit.size);
+
+                // Expose latest survival stats for trading gates
+                try {
+                    window.latestSurvivalStats = Array.isArray(survivalStats) ? survivalStats : null;
+                    window.latestSurvivalByDigit = Array.isArray(survivalStats)
+                        ? Object.fromEntries(survivalStats.map(s => [s.digit, s]))
+                        : null;
+                    window.latestSurvivalUpdatedAt = Date.now();
+                } catch (_) {
+                    window.latestSurvivalStats = null;
+                    window.latestSurvivalByDigit = null;
+                }
 
                 const attachHybrid = (candidate) => {
                     if (!candidate || !hasSurvival) return candidate;
@@ -1951,8 +1970,11 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
         window.currentStake = 1.0;
         window.multiplier = 1.15;
         window.maxTrades = 20;
+        window.maxCycleTrades = 10;
+        window.cycleRotations = 0;
         window.tradeCount = 0;
         window.martingaleStep = 0;
+        window.cycleLosses = 0;
         window.accountBalance = 0.0;
         window.startingBalance = 0.0;
         window.currentBalance = 0.0;
@@ -2417,6 +2439,67 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             updateSessionDisplay();
             if (reason) log(`🔓 Session digit lock cleared (${reason})`, 'SESSION');
         }
+
+        // HYBRID UTILITIES (tail-risk gate + cycle rotation)
+        function getSurvivalForDigit(digit) {
+            const d = Number(digit);
+            if (!Number.isFinite(d) || d < 0 || d > 9) return null;
+
+            if (window.latestSurvivalByDigit && window.latestSurvivalByDigit[d]) {
+                return window.latestSurvivalByDigit[d];
+            }
+
+            const rec = window.digitIntelligenceEngine?.currentRecommendation;
+            if (rec && rec.digit === d && rec.survival) return rec.survival;
+
+            return null;
+        }
+
+        function pickBestLowTailRiskDigit(maxS20 = 0.05) {
+            if (!window.latestSurvivalByDigit) return null;
+
+            let best = null;
+            for (let d = 0; d <= 9; d++) {
+                const s = window.latestSurvivalByDigit[d];
+                if (!s) continue;
+
+                const s20 = Number(s.s20);
+                if (!Number.isFinite(s20) || s20 > maxS20) continue;
+
+                const raw =
+                    (2.0 * (s.pm5 || 0)) +
+                    (1.0 * (s.pm10 || 0)) -
+                    (2.5 * (s.s20 || 0)) -
+                    (0.05 * Math.min(Number.isFinite(s.etm) ? s.etm : 100, 100));
+
+                const norm = 1 / (1 + Math.exp(-raw));
+                if (!best || norm > best.norm) best = { digit: d, norm, s };
+            }
+            return best;
+        }
+
+        function rotateHybridDigit(reason = '') {
+            clearSessionDigitLock(reason || 'Rotate');
+            window.cycleRotations = (window.cycleRotations || 0) + 1;
+
+            // Reset progression (cycle reset)
+            window.martingaleStep = 0;
+            window.currentStake = window.baseStake;
+
+            if (sessionState.mode !== 'ai') return;
+
+            // Prefer a low tail-risk digit (s20 <= 5%), otherwise use current AI rec.
+            const pick = pickBestLowTailRiskDigit(0.05);
+            const nextDigit =
+                (pick && Number.isFinite(pick.digit)) ? pick.digit :
+                (window.digitIntelligenceEngine?.currentRecommendation?.digit ?? null);
+
+            if (nextDigit === null) return;
+
+            lockSessionDigit(nextDigit, true, reason || 'Rotate');
+            log(`🔁 Re-picked HYBRID digit ${nextDigit}${reason ? ' (' + reason + ')' : ''}`, 'SESSION');
+        }
+
 
 
 // CONNECTION STATUS
@@ -2896,6 +2979,27 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                 stopBot();
                 return;
             }
+
+
+            // 🧱 HARD TAIL-RISK GATE (s20 <= 5%)
+            if (sessionState.mode === 'ai' && window.isBotRunning) {
+                const lockedDigit = (sessionState.sessionDigit !== null) ? sessionState.sessionDigit : parseInt(document.getElementById('predictedDigit').value);
+                const s = getSurvivalForDigit(lockedDigit);
+
+                if (!s || !Number.isFinite(Number(s.s20))) {
+                    log('🧱 Tail-risk gate: Survival data not ready — no trade', 'ENGINE');
+                    updateTradeStatus('NO TRADE', 'Survival warming up', 'Waiting for more ticks', 'loss');
+                    return;
+                }
+
+                const s20 = Number(s.s20);
+                if (s20 > 0.05) {
+                    log(`🧱 Tail-risk gate: s20 ${(s20 * 100).toFixed(1)}% > 5% — re-picking`, 'ENGINE');
+                    updateTradeStatus('NO TRADE', `Tail risk too high (s20 ${(s20 * 100).toFixed(1)}%)`, 'Re-picking safer digit', 'loss');
+                    rotateHybridDigit('Tail-risk gate');
+                    return;
+                }
+            }
             
             window.executionLock = true;
             window.nextTradeAllowed = false;
@@ -3004,9 +3108,11 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
             
             if (winOrLoss === 'win') {
                 window.martingaleStep = 0;
+                window.cycleLosses = 0;
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
@@ -3025,17 +3131,27 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                 );
                 
             } else if (winOrLoss === 'loss') {
-                window.martingaleStep++;
-                
-                if (window.martingaleStep >= window.maxTrades) {
-                    log(`🛑 MAX TRADES REACHED (${window.maxTrades})`, 'CRITICAL');
-                    updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
-                    stopBot();
-                    return;
-                }
-                
+                window.martingaleStep = (window.martingaleStep || 0) + 1;
+                window.cycleLosses = (window.cycleLosses || 0) + 1;
+
                 const newStake = window.currentStake * window.multiplier;
                 window.currentStake = parseFloat(newStake.toFixed(2));
+
+                if (window.cycleLosses >= window.maxCycleTrades) {
+                    log(`🧯 LOSS CAP REACHED (${window.maxCycleTrades}) — switching HYBRID digit (keeping martingale)`, 'CRITICAL');
+                    updateTradeStatus(
+                        'SWITCH DIGIT 🔁',
+                        `Loss cap reached (${window.maxCycleTrades})`,
+                        'Switching HYBRID digit; keeping martingale progression...',
+                        'loss'
+                    );
+
+                    window.cycleLosses = 0;
+
+                    if (window.isBotRunning && sessionState.mode === 'ai') {
+                        rotateHybridDigit(`Loss cap ${window.maxCycleTrades} (keep martingale)`);
+                    }
+                }
                 log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)} (Step: ${window.martingaleStep})`, 'LOSS');
                 
                 updateTradeStatus(
@@ -3050,6 +3166,7 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                 
             } else {
                 window.martingaleStep = 0;
+                window.cycleLosses = 0;
                 window.currentStake = window.baseStake;
                 log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
                 updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
@@ -3068,6 +3185,7 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             }
             
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
             
             const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
             if (!token) {
@@ -3103,6 +3221,7 @@ window.isBotRunning = true;
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
+            log(`🧯 Max Cycle Trades: ${window.maxCycleTrades}`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             log(`🌐 Network auto-recovery: ${window.networkRecoveryEnabled ? 'ENABLED' : 'DISABLED'}`, 'SYSTEM');
             log(`🧠 Digit Intelligence Engine: ${window.digitIntelligenceEngine.enabled ? 'ENABLED' : 'DISABLED'}`, 'SYSTEM');
@@ -3434,6 +3553,8 @@ window.isBotRunning = true;
         // Reset all state
         function resetAllState() {
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
+            window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
+            window.cycleRotations = 0;
             
             updateStake('initial');
             resetPnL();
