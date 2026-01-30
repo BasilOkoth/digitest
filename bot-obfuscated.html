@@ -2021,7 +2021,8 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             mode: 'instant', // Only instant and ai modes now
             sessionDigit: null,
             sessionStarted: false,
-            manualOverride: false
+            manualOverride: false,
+            requireGreenRepick: false
         };
         
         // Tick tracking for connection status
@@ -2455,6 +2456,22 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             return null;
         }
 
+
+        function getAiRecommendationColor(score) {
+            const s = Number(score);
+            if (!Number.isFinite(s)) return 'RED';
+            if (s >= 0.85) return 'GREEN';
+            if (s >= 0.75) return 'YELLOW';
+            return 'RED';
+        }
+
+        function getS20LimitForColor(color) {
+            if (color === 'YELLOW') return 0.02; // < 2%
+            if (color === 'RED') return 0.01;    // < 1%
+            return Infinity; // GREEN
+        }
+
+
         function pickBestLowTailRiskDigit(maxS20 = 0.05) {
             if (!window.latestSurvivalByDigit) return null;
 
@@ -2479,26 +2496,30 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
         }
 
         function rotateHybridDigit(reason = '') {
+            // Re-picks must be GREEN (user rule). Martingale/progression must NOT reset here.
+            sessionState.requireGreenRepick = true;
             clearSessionDigitLock(reason || 'Rotate');
             window.cycleRotations = (window.cycleRotations || 0) + 1;
 
-            // Reset progression (cycle reset)
-            window.martingaleStep = 0;
-            window.currentStake = window.baseStake;
-
             if (sessionState.mode !== 'ai') return;
 
-            // Prefer a low tail-risk digit (s20 <= 5%), otherwise use current AI rec.
-            const pick = pickBestLowTailRiskDigit(0.05);
-            const nextDigit =
-                (pick && Number.isFinite(pick.digit)) ? pick.digit :
-                (window.digitIntelligenceEngine?.currentRecommendation?.digit ?? null);
+            const rec = window.digitIntelligenceEngine?.currentRecommendation;
+            const recColor = getAiRecommendationColor(rec?.score);
 
-            if (nextDigit === null) return;
+            if (!rec || !Number.isFinite(rec.digit)) return;
 
-            lockSessionDigit(nextDigit, true, reason || 'Rotate');
-            log(`🔁 Re-picked HYBRID digit ${nextDigit}${reason ? ' (' + reason + ')' : ''}`, 'SESSION');
+            if (recColor !== 'GREEN') {
+                log(`🟩 Waiting for GREEN recommendation to re-pick digit (current: ${recColor})`, 'ENGINE');
+                updateTradeStatus('NO TRADE', 'Waiting for GREEN recommendation', `Current: ${recColor}`, 'loss');
+                return;
+            }
+
+            sessionState.requireGreenRepick = false;
+            lockSessionDigit(rec.digit, true, reason || 'Rotate');
+            log(`🔁 Re-picked HYBRID digit ${rec.digit} (GREEN)${reason ? ' (' + reason + ')' : ''}`, 'SESSION');
         }
+
+
 
 
 
@@ -2746,7 +2767,7 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             window.isConnecting = true;
             updateConnectionStatus();
             
-            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
+            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=120389';
             log('🔗 Connecting to Deriv API...', 'SYSTEM');
             
             window.ws = new WebSocket(wsUrl);
@@ -2956,23 +2977,86 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
         // PROCESS TICK IMMEDIATELY - CRITICAL TRADE EXECUTION FUNCTION
         function processTickImmediately(tick) {
             if (window.stopAfterWin) return;
-            
+
+            const isAiMode = sessionState.mode === 'ai';
+
             // In AI mode, wait for engine recommendation
-            if (sessionState.mode === 'ai' && (!window.digitIntelligenceEngine.warmupDone || !window.digitIntelligenceEngine.currentRecommendation)) {
+            if (isAiMode && (!window.digitIntelligenceEngine.warmupDone || !window.digitIntelligenceEngine.currentRecommendation)) {
                 log('🤖 Waiting for AI recommendation...', 'ENGINE');
                 return;
             }
-            
+
             // AI AUTO: lock the CURRENT prediction for trading when the bot is running (once per START)
-            if (sessionState.mode === 'ai' && window.isBotRunning && (!sessionState.sessionStarted || sessionState.sessionDigit === null)) {
-                const d = window.digitIntelligenceEngine.currentRecommendation.digit;
-                lockSessionDigit(d, true, 'AUTO start lock');
+            if (isAiMode && window.isBotRunning && (!sessionState.sessionStarted || sessionState.sessionDigit === null)) {
+                const rec = window.digitIntelligenceEngine.currentRecommendation;
+                const recColor = getAiRecommendationColor(rec?.score);
+
+                // If we're re-picking, ONLY allow GREEN locks.
+                if (sessionState.requireGreenRepick && recColor !== 'GREEN') {
+                    log(`🟩 Waiting for GREEN recommendation to lock (current: ${recColor})`, 'ENGINE');
+                    updateTradeStatus('NO TRADE', 'Waiting for GREEN recommendation', `Current: ${recColor}`, 'loss');
+                    return;
+                }
+
+                lockSessionDigit(rec.digit, true, sessionState.requireGreenRepick ? 'GREEN re-pick lock' : 'AUTO start lock');
+                sessionState.requireGreenRepick = false;
+            }
+
+            // 🧠 AI recommendation gate:
+            // - GREEN: trade
+            // - YELLOW: trade only if S20 < 2%
+            // - RED: trade only if S20 < 1%
+            // - Any digit re-pick must be GREEN (handled via rotateHybridDigit + requireGreenRepick).
+            if (isAiMode && window.isBotRunning) {
+                const rec = window.digitIntelligenceEngine.currentRecommendation;
+                const recColor = getAiRecommendationColor(rec?.score);
+
+                const lockedDigit = (sessionState.sessionDigit !== null)
+                    ? sessionState.sessionDigit
+                    : parseInt(document.getElementById('predictedDigit').value);
+
+                // If engine recommends a different digit, we only switch when the new rec is GREEN.
+                if (rec && Number.isFinite(rec.digit) && rec.digit !== lockedDigit) {
+                    if (recColor === 'GREEN') {
+                        lockSessionDigit(rec.digit, true, 'AI rec GREEN switch');
+                    } else {
+                        log(`⏸️ AI rec moved to ${rec.digit} (${recColor}); holding ${lockedDigit} and pausing`, 'ENGINE');
+                        updateTradeStatus('NO TRADE', `AI rec changed (${recColor})`, 'Waiting for GREEN to switch', 'loss');
+                        return;
+                    }
+                }
+
+                const activeDigit = (sessionState.sessionDigit !== null)
+                    ? sessionState.sessionDigit
+                    : lockedDigit;
+
+                const s = getSurvivalForDigit(activeDigit);
+                const s20 = (s && Number.isFinite(Number(s.s20))) ? Number(s.s20) : NaN;
+                const limit = getS20LimitForColor(recColor);
+
+                if (recColor !== 'GREEN') {
+                    if (!Number.isFinite(s20)) {
+                        log('🟨🟥 AI gate: Survival data not ready — no trade', 'ENGINE');
+                        updateTradeStatus('NO TRADE', 'Survival warming up', 'Waiting for more ticks', 'loss');
+                        return;
+                    }
+
+                    if (s20 >= limit) {
+                        const limitPct = (limit * 100);
+                        log(`🚫 AI gate: ${recColor} requires s20 < ${limitPct.toFixed(1)}% (got ${(s20 * 100).toFixed(1)}%) — no trade`, 'ENGINE');
+                        updateTradeStatus('NO TRADE', `${recColor}: s20 ${(s20 * 100).toFixed(1)}%`, `Need < ${limitPct.toFixed(1)}%`, 'loss');
+
+                        // Force a GREEN-only re-pick before continuing
+                        rotateHybridDigit('AI gate');
+                        return;
+                    }
+                }
             }
 
             if (checkForImmediateWin(tick)) {
                 return;
             }
-            
+
             if (window.tradeCount >= window.maxTrades) {
                 log(`🛑 Max trades reached (${window.maxTrades})`, 'CRITICAL');
                 updateTradeStatus('MAX TRADES', `Maximum trades reached (${window.maxTrades})`, 'Bot stopped', 'loss');
@@ -2980,56 +3064,36 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                 return;
             }
 
-
-            // 🧱 HARD TAIL-RISK GATE (s20 <= 5%)
-            if (sessionState.mode === 'ai' && window.isBotRunning) {
-                const lockedDigit = (sessionState.sessionDigit !== null) ? sessionState.sessionDigit : parseInt(document.getElementById('predictedDigit').value);
-                const s = getSurvivalForDigit(lockedDigit);
-
-                if (!s || !Number.isFinite(Number(s.s20))) {
-                    log('🧱 Tail-risk gate: Survival data not ready — no trade', 'ENGINE');
-                    updateTradeStatus('NO TRADE', 'Survival warming up', 'Waiting for more ticks', 'loss');
-                    return;
-                }
-
-                const s20 = Number(s.s20);
-                if (s20 > 0.05) {
-                    log(`🧱 Tail-risk gate: s20 ${(s20 * 100).toFixed(1)}% > 5% — re-picking`, 'ENGINE');
-                    updateTradeStatus('NO TRADE', `Tail risk too high (s20 ${(s20 * 100).toFixed(1)}%)`, 'Re-picking safer digit', 'loss');
-                    rotateHybridDigit('Tail-risk gate');
-                    return;
-                }
-            }
-            
             window.executionLock = true;
             window.nextTradeAllowed = false;
-            
+
             try {
                 window.stats.tradesExecuted++;
                 window.tradeCount++;
                 document.getElementById('metricTradeCount').textContent = window.tradeCount;
-                
+
                 updateSessionDisplay();
                 log(`⚡ Trade #${window.tradeCount}: ${tick.price.toFixed(3)} (Digit ${tick.digit})`, 'TRADE');
-                
+
                 updateTradeStatus(
                     'TRADING',
                     `Trade #${window.tradeCount}: $${window.currentStake.toFixed(2)} on digit ${parseInt(document.getElementById('predictedDigit').value)}`,
-                    'Executing trade...',
+                    'Executing trade.',
                     'trade'
                 );
-                
+
                 playAudioFeedback('EXECUTION');
                 executeTrade(tick);
-                
+
             } catch (error) {
                 log(`❌ Error: ${error}`, 'ERROR');
                 window.executionLock = false;
                 window.nextTradeAllowed = true;
-                updateTradeStatus('ERROR', `Trade failed: ${error}`, 'Retrying...', 'loss');
+                updateTradeStatus('ERROR', `Trade failed: ${error}`, 'Retrying.', 'loss');
             }
         }
-        
+
+
         // EXECUTE TRADE - CRITICAL FUNCTION
         function executeTrade(tick) {
             const contractType = document.getElementById('contractType').value;
