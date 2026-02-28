@@ -589,14 +589,13 @@
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
                     </div>
 
-                    <!-- Max Cycle Trades (Progression Cap) -->
+                    <!-- S20 Threshold (AI filter) -->
                     <div>
-                        <label for="maxCycleTrades" class="block text-xs font-semibold text-gray-300 mb-1">Max Cycle Trades</label>
-                        <input type="number" id="maxCycleTrades" value="10" min="1" max="50"
+                        <label for="maxS20" class="block text-xs font-semibold text-gray-300 mb-1">Max S20</label>
+                        <input type="number" id="maxS20" value="0.05" min="0" max="1" step="0.01"
                             class="block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-green-500 focus:ring-green-500 py-1.5 px-2 text-sm">
                     </div>
-                    
-                    <!-- Mode Toggle - ONLY INSTANT AND AI AUTO -->
+<!-- Mode Toggle - ONLY INSTANT AND AI AUTO -->
                     <div class="col-span-2 lg:col-span-3">
                         <label class="block text-xs font-semibold text-gray-300 mb-1">Execution Mode</label>
                         <div class="grid grid-cols-2 gap-2">
@@ -1991,12 +1990,10 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
         window.currentStake = 1.0;
         window.multiplier = 1.15;
         window.maxTrades = 20;
-        window.maxCycleTrades = 10;
-        window.cycleRotations = 0;
+window.cycleRotations = 0;
         window.tradeCount = 0;
         window.martingaleStep = 0;
-        window.cycleLosses = 0;
-        window.accountBalance = 0.0;
+window.accountBalance = 0.0;
         window.startingBalance = 0.0;
         window.currentBalance = 0.0;
         window.netProfit = 0.0;
@@ -2695,6 +2692,14 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             document.getElementById('baseStake').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('multiplier').addEventListener('change', syncCalculatorWithMain);
             document.getElementById('maxTrades').addEventListener('change', syncCalculatorWithMain);
+
+            document.getElementById('maxS20').addEventListener('change', () => {
+                const v = parseFloat(document.getElementById('maxS20').value);
+                window.SURVIVAL_CFG = window.SURVIVAL_CFG || {};
+                window.SURVIVAL_CFG.maxS20 = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.05;
+                log(`🧠 Updated Max S20: ${window.SURVIVAL_CFG.maxS20}`, 'ENGINE');
+            });
+
             document.getElementById('calc_base_stake').addEventListener('change', () => {
                 document.getElementById('baseStake').value = document.getElementById('calc_base_stake').value;
             });
@@ -3129,11 +3134,15 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             window.baseStake = parseFloat(document.getElementById('baseStake').value) || 1.0;
             window.multiplier = parseFloat(document.getElementById('multiplier').value) || 1.15;
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
-            window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
-            
-            if (winOrLoss === 'win') {
+            // AI filter (S20)
+            {
+                const v = parseFloat(document.getElementById('maxS20')?.value);
+                window.SURVIVAL_CFG = window.SURVIVAL_CFG || {};
+                window.SURVIVAL_CFG.maxS20 = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : (window.SURVIVAL_CFG.maxS20 ?? 0.05);
+            }
+
+if (winOrLoss === 'win') {
                 window.martingaleStep = 0;
-                window.cycleLosses = 0;
                 window.currentStake = window.baseStake;
                 log(`✅ WIN! Reset stake: $${window.currentStake.toFixed(2)}`, 'WIN');
                 
@@ -3153,26 +3162,8 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                 
             } else if (winOrLoss === 'loss') {
                 window.martingaleStep = (window.martingaleStep || 0) + 1;
-                window.cycleLosses = (window.cycleLosses || 0) + 1;
-
                 const newStake = window.currentStake * window.multiplier;
                 window.currentStake = parseFloat(newStake.toFixed(2));
-
-                if (window.cycleLosses >= window.maxCycleTrades) {
-                    log(`🧯 LOSS CAP REACHED (${window.maxCycleTrades}) — switching HYBRID digit (keeping martingale)`, 'CRITICAL');
-                    updateTradeStatus(
-                        'SWITCH DIGIT 🔁',
-                        `Loss cap reached (${window.maxCycleTrades})`,
-                        'Switching HYBRID digit; keeping martingale progression...',
-                        'loss'
-                    );
-
-                    window.cycleLosses = 0;
-
-                    if (window.isBotRunning && sessionState.mode === 'ai') {
-                        rotateHybridDigit(`Loss cap ${window.maxCycleTrades} (keep martingale)`);
-                    }
-                }
                 log(`❌ LOSS. Next stake: $${window.currentStake.toFixed(2)} (Step: ${window.martingaleStep})`, 'LOSS');
                 
                 updateTradeStatus(
@@ -3187,7 +3178,6 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                 
             } else {
                 window.martingaleStep = 0;
-                window.cycleLosses = 0;
                 window.currentStake = window.baseStake;
                 log(`Starting. Base stake: $${window.currentStake.toFixed(2)}`, 'SYSTEM');
                 updateTradeStatus('STARTING', `Base stake: $${window.currentStake.toFixed(2)}`, 'Waiting for trades', 'normal');
@@ -3206,9 +3196,7 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             }
             
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
-            window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
-            
-            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
             if (!token) {
                 log('❌ No API token found. Please authenticate first.', 'CRITICAL');
                 updateTradeStatus('ERROR', 'No API token found', 'Please authenticate first', 'loss');
@@ -3242,7 +3230,6 @@ window.isBotRunning = true;
             log('🚀 Starting bot...', 'SYSTEM');
             log(`📊 Mode: ${sessionState.mode}`, 'SYSTEM');
             log(`📊 Max Trades: ${window.maxTrades}`, 'SYSTEM');
-            log(`🧯 Max Cycle Trades: ${window.maxCycleTrades}`, 'SYSTEM');
             log(`🔑 Using token: ${token.substring(0, 10)}...`, 'SYSTEM');
             log(`🌐 Network auto-recovery: ${window.networkRecoveryEnabled ? 'ENABLED' : 'DISABLED'}`, 'SYSTEM');
             log(`🧠 Digit Intelligence Engine: ${window.digitIntelligenceEngine.enabled ? 'ENABLED' : 'DISABLED'}`, 'SYSTEM');
@@ -3574,8 +3561,7 @@ window.isBotRunning = true;
         // Reset all state
         function resetAllState() {
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
-            window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
-            window.cycleRotations = 0;
+window.cycleRotations = 0;
             
             updateStake('initial');
             resetPnL();
