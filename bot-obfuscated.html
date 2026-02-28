@@ -2484,6 +2484,13 @@ window.accountBalance = 0.0;
                 const s20 = Number(s.s20);
                 if (!Number.isFinite(s20) || s20 > maxS20) continue;
 
+                // 🔒 HARD LOCK: NEVER ALLOW gap >= p90 (repicks too)
+                const ds = window.digitIntelligenceEngine?.digitStats?.[d];
+                if (ds && Number.isFinite(ds.currentGap) && Number.isFinite(ds.p90Gap)) {
+                    const p90 = Math.max(ds.p90Gap, 1);
+                    if (ds.currentGap >= p90) continue;
+                }
+
                 const raw =
                     (2.0 * (s.pm5 || 0)) +
                     (1.0 * (s.pm10 || 0)) -
@@ -2513,6 +2520,16 @@ window.accountBalance = 0.0;
                 (window.digitIntelligenceEngine?.currentRecommendation?.digit ?? null);
 
             if (nextDigit === null) return;
+
+            // 🔒 HARD LOCK: NEVER ALLOW gap >= p90 (fallback digit too)
+            const ds = window.digitIntelligenceEngine?.digitStats?.[nextDigit];
+            if (ds && Number.isFinite(ds.currentGap) && Number.isFinite(ds.p90Gap)) {
+                const p90 = Math.max(ds.p90Gap, 1);
+                if (ds.currentGap >= p90) {
+                    log(`🚫 Re-pick rejected (gap >= p90): Digit ${nextDigit} | Gap ${ds.currentGap} | P90 ${p90}`, 'SESSION');
+                    return;
+                }
+            }
 
             lockSessionDigit(nextDigit, true, reason || 'Rotate');
             log(`🔁 Re-picked HYBRID digit ${nextDigit}${reason ? ' (' + reason + ')' : ''}`, 'SESSION');
