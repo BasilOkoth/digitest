@@ -1325,6 +1325,17 @@
                         best.source = 'HYBRID';
                     }
                 }
+                const thresholds = window.AI_THRESHOLDS;
+
+                if (best && thresholds.pressureZoneEnabled) {
+                    const s = this.digitStats[best.digit];
+                    const p90Ratio = s.currentGap / Math.max(s.p90Gap, 1);
+                    if (p90Ratio < thresholds.pressureZoneMinFloorP90Ratio ||
+                        p90Ratio >= thresholds.pressureZoneMaxP90Ratio) {
+                        best = null;
+                    }
+                }
+
 
                 if (best) {
                     this.currentRecommendation = best;
