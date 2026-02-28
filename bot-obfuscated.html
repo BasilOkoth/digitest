@@ -1327,7 +1327,28 @@
                 }
 
                 if (best) {
-                    this.currentRecommendation = best;
+                                        // ======================================================
+                    // 🔒 HARD LOCK: NEVER ALLOW gap >= p90
+                    // ======================================================
+
+                    if (best) {
+
+                        const s = this.digitStats[best.digit];
+                        const gap = s.currentGap;
+                        const p90 = Math.max(s.p90Gap, 1);
+
+                        if (gap >= p90) {
+                            console.log(
+                                "🚫 Rejected (gap >= p90):",
+                                "Digit:", best.digit,
+                                "Gap:", gap,
+                                "P90:", p90
+                            );
+                            best = null;
+                        }
+                    }
+
+this.currentRecommendation = best;
 
                     // Update UI
                     document.getElementById('ai-recommended-digit').textContent = best.digit;
