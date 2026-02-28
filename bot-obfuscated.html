@@ -3027,9 +3027,15 @@ window.accountBalance = 0.0;
                 }
 
                 const s20 = Number(s.s20);
-                if (s20 > 0.05) {
-                    log(`🧱 Tail-risk gate: s20 ${(s20 * 100).toFixed(1)}% > 5% — re-picking`, 'ENGINE');
-                    updateTradeStatus('NO TRADE', `Tail risk too high (s20 ${(s20 * 100).toFixed(1)}%)`, 'Re-picking safer digit', 'loss');
+                const maxS20 = (window.SURVIVAL_CFG && Number.isFinite(window.SURVIVAL_CFG.maxS20))
+                    ? window.SURVIVAL_CFG.maxS20
+                    : 0.05;
+
+                if (s20 > maxS20) {
+                    const s20Pct = (s20 * 100).toFixed(1);
+                    const maxPct = Math.round(maxS20 * 100);
+                    log(`🧱 Tail-risk gate: s20 ${s20Pct}% > ${maxPct}% — re-picking`, 'ENGINE');
+                    updateTradeStatus('NO TRADE', `Tail risk too high (s20 ${s20Pct}%)`, 'Re-picking safer digit', 'loss');
                     rotateHybridDigit('Tail-risk gate');
                     return;
                 }
