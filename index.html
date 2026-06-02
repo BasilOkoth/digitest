@@ -3,26 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DigitMatch Pro - Automated Trading Bot for Deriv</title>
+    <title>DigitMatch Pro - Automated Trading Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { font-family: 'Inter', sans-serif; }
-        :root {
-            --primary: #10b981;
-            --primary-dark: #059669;
-            --secondary: #3b82f6;
-        }
         body {
             background: linear-gradient(135deg, #0a0f1f 0%, #0f172a 100%);
-            color: white;
             min-height: 100vh;
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-family: 'Inter', sans-serif;
         }
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
@@ -31,314 +18,112 @@
             border-radius: 1rem;
         }
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             padding: 12px 32px;
             border-radius: 10px;
             font-weight: 600;
-            transition: all 0.3s ease;
             cursor: pointer;
             border: none;
-            display: inline-block;
+            transition: all 0.3s ease;
         }
         .btn-primary:hover {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
         }
-        .btn-secondary {
-            background: linear-gradient(135deg, var(--secondary), #1d4ed8);
-            color: white;
-            padding: 12px 32px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-        }
-        .feature-card {
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 2rem;
-            border-radius: 1rem;
-        }
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(16, 185, 129, 0.3);
-        }
-        .stat-number {
-            font-size: 3rem;
-            font-weight: 800;
+        .gradient-text {
             background: linear-gradient(135deg, #10b981, #3b82f6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .social-btn {
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .status-dot {
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            transition: all 0.3s ease;
-            font-size: 1.2rem;
-            text-decoration: none;
+            display: inline-block;
+            margin-right: 8px;
         }
-        .whatsapp { background: #25D366; color: white; }
-        .telegram { background: #0088cc; color: white; }
-        .social-btn:hover { transform: translateY(-3px); filter: brightness(1.1); }
-        .container { max-width: 1280px; margin: 0 auto; }
-        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-        .py-20 { padding-top: 5rem; padding-bottom: 5rem; }
-        .text-center { text-align: center; }
-        .flex { display: flex; }
-        .justify-between { justify-content: space-between; }
-        .items-center { align-items: center; }
-        .gap-4 { gap: 1rem; }
-        .gap-8 { gap: 2rem; }
-        .grid { display: grid; }
-        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-        .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-        .md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-        .md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
-        .w-full { width: 100%; }
-        .hidden { display: none; }
-        @media (max-width: 768px) { .md\:grid-cols-3 { grid-template-columns: 1fr; } }
-        .affiliate-badge {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.2));
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            padding: 12px;
-            border-radius: 10px;
-            margin-top: 16px;
-            text-align: center;
-            font-size: 14px;
-        }
-        .fixed { position: fixed; top: 0; left: 0; right: 0; z-index: 50; }
-        .pt-32 { padding-top: 8rem; }
+        .status-connected { background: #10b981; box-shadow: 0 0 5px #10b981; }
+        .status-disconnected { background: #ef4444; }
     </style>
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="glass-card fixed">
-        <div class="container px-6 py-4">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500"></div>
-                    <span class="text-xl font-bold gradient-text">DigitMatch Pro</span>
-                </div>
-                <div class="hidden md:flex gap-8">
-                    <a href="#features" class="hover:text-green-400 transition">Features</a>
-                    <a href="#how-it-works" class="hover:text-green-400 transition">How It Works</a>
-                    <a href="#testimonials" class="hover:text-green-400 transition">Testimonials</a>
-                </div>
-                <button id="navLoginBtn" onclick="loginWithDeriv()" class="btn-primary">
-                    🔐 Login with Deriv
-                </button>
+<body class="flex items-center justify-center p-4">
+    <div class="glass-card max-w-md w-full p-8 text-center">
+        <div class="mb-6">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-r from-green-400 to-blue-500 mx-auto mb-4 flex items-center justify-center text-3xl">
+                🤖
             </div>
+            <h1 class="text-3xl font-bold gradient-text mb-2">DigitMatch Pro</h1>
+            <p class="text-gray-400">Automated Trading Bot for Deriv</p>
         </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <section class="pt-32 pb-20 px-6">
-        <div class="container">
-            <div class="grid md:grid-cols-2 gap-12 items-center">
-                <div>
-                    <h1 class="text-5xl md:text-6xl font-bold mb-6">
-                        Automated <span class="gradient-text">DigitMatch</span><br>
-                        Trading Bot for Deriv
-                    </h1>
-                    <p class="text-xl text-gray-300 mb-8">
-                        Maximize your profits with our intelligent bot that executes trades on every tick.
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4 mb-8">
-                        <button onclick="loginWithDeriv()" class="btn-primary">
-                            Login with Deriv (OAuth)
-                            <i class="fas fa-sign-in-alt ml-2"></i>
-                        </button>
-                        <button onclick="signUpNewUser()" class="btn-secondary">
-                            Create Deriv Account
-                            <i class="fas fa-user-plus ml-2"></i>
-                        </button>
-                    </div>
-                    <div class="affiliate-badge">
-                        <i class="fas fa-link text-green-400 mr-2"></i>
-                        <span class="text-gray-300">Official Deriv Partner</span>
-                    </div>
-                </div>
-                <div class="glass-card p-8">
-                    <div class="text-center mb-6">
-                        <h3 class="text-2xl font-bold mb-2">⚡ Instant Tick Execution</h3>
-                        <p class="text-gray-400">Trade on EVERY tick with 9x payout</p>
-                    </div>
-                    <div class="text-center">
-                        <button onclick="loginWithDeriv()" class="btn-primary w-full">
-                            <i class="fab fa-deriv mr-2"></i>
-                            Connect Deriv Account
-                        </button>
-                        <p class="text-xs text-gray-500 mt-4">
-                            🔒 Secure OAuth2.0 authentication. Your credentials are never stored.
-                        </p>
-                    </div>
-                    <div class="text-center mt-6">
-                        <p class="text-gray-400 mb-2">Join our community</p>
-                        <div class="flex justify-center gap-4">
-                            <a href="https://chat.whatsapp.com/Bp4lSI2n5YY5Zitp0i22Fe" target="_blank" class="social-btn whatsapp">
-                                <i class="fab fa-whatsapp"></i>
-                            </a>
-                            <a href="https://t.me/digitmatchstar" target="_blank" class="social-btn telegram">
-                                <i class="fab fa-telegram-plane"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        <!-- Status Message -->
+        <div id="statusMsg" class="mb-4 p-3 rounded-lg hidden"></div>
 
-    <!-- Stats Section -->
-    <section class="py-16 bg-gradient-to-r from-gray-900/50 to-gray-800/50">
-        <div class="container px-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                <div><div class="stat-number">$2.5M+</div><p class="text-gray-400">Total Profits</p></div>
-                <div><div class="stat-number">98.7%</div><p class="text-gray-400">Win Rate</p></div>
-                <div><div class="stat-number">2,500+</div><p class="text-gray-400">Active Traders</p></div>
-                <div><div class="stat-number">24/7</div><p class="text-gray-400">Support</p></div>
-            </div>
+        <div id="loginSection">
+            <button id="loginBtn" class="btn-primary w-full mb-4">
+                🔐 Login with Deriv
+            </button>
+            <button id="affiliateBtn" class="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition">
+                📝 Create Deriv Account
+            </button>
         </div>
-    </section>
 
-    <!-- Features -->
-    <section id="features" class="py-20 px-6">
-        <div class="container">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-4">Powerful Features</h2>
-                <p class="text-xl text-gray-400">Everything you need for successful automated trading</p>
-            </div>
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="feature-card glass-card">
-                    <div class="w-16 h-16 rounded-xl bg-gradient-to-r from-green-500 to-green-700 flex items-center justify-center mb-6">
-                        <i class="fas fa-bolt text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-3">Instant Tick Execution</h3>
-                    <p class="text-gray-400">Trade on every single tick with ultra-fast execution.</p>
-                </div>
-                <div class="feature-card glass-card">
-                    <div class="w-16 h-16 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 flex items-center justify-center mb-6">
-                        <i class="fas fa-chart-line text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-3">Smart Martingale</h3>
-                    <p class="text-gray-400">Intelligent position sizing with automatic stop-loss.</p>
-                </div>
-                <div class="feature-card glass-card">
-                    <div class="w-16 h-16 rounded-xl bg-gradient-to-r from-purple-500 to-purple-700 flex items-center justify-center mb-6">
-                        <i class="fas fa-shield-alt text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-3">Risk Management</h3>
-                    <p class="text-gray-400">Advanced risk controls including bankroll limits.</p>
-                </div>
-            </div>
+        <div id="accessSection" class="hidden">
+            <button id="accessBtn" class="btn-primary w-full mb-4">
+                🚀 Access Bot
+            </button>
+            <button id="logoutBtn" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-white transition">
+                🔓 Logout
+            </button>
         </div>
-    </section>
 
-    <!-- How It Works -->
-    <section id="how-it-works" class="py-20 px-6 bg-gradient-to-r from-gray-900/50 to-gray-800/50">
-        <div class="container">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-4">How It Works</h2>
-                <p class="text-xl text-gray-400">Get started in just 3 simple steps</p>
-            </div>
-            <div class="grid md:grid-cols-3 gap-8 text-center">
-                <div>
-                    <div class="w-20 h-20 rounded-full bg-gradient-to-r from-green-500 to-green-700 flex items-center justify-center mx-auto mb-6 text-2xl font-bold">1</div>
-                    <h3 class="text-xl font-bold mb-3">Click Login</h3>
-                    <p class="text-gray-400">Click "Login with Deriv" and authorize our app.</p>
-                </div>
-                <div>
-                    <div class="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-blue-700 flex items-center justify-center mx-auto mb-6 text-2xl font-bold">2</div>
-                    <h3 class="text-xl font-bold mb-3">Auto-Redirect</h3>
-                    <p class="text-gray-400">After authorization, you're redirected to our bot.</p>
-                </div>
-                <div>
-                    <div class="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-purple-700 flex items-center justify-center mx-auto mb-6 text-2xl font-bold">3</div>
-                    <h3 class="text-xl font-bold mb-3">Start Trading</h3>
-                    <p class="text-gray-400">Configure settings and start automated trading.</p>
-                </div>
-            </div>
-            <div class="text-center mt-12">
-                <button onclick="loginWithDeriv()" class="btn-primary">Start Now with OAuth Login</button>
-            </div>
+        <div class="mt-6 text-xs text-gray-500">
+            <p>🔒 Secure OAuth2.0 Authentication</p>
+            <p class="mt-2 text-red-400">⚠️ Trading involves risk. Only trade what you can afford to lose.</p>
         </div>
-    </section>
-
-    <!-- Testimonials -->
-    <section id="testimonials" class="py-20 px-6">
-        <div class="container">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-4">What Our Traders Say</h2>
-            </div>
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="glass-card p-8 border-l-4 border-green-500">
-                    <p class="text-gray-300 italic">"Made $3,200 in my first month! Incredibly reliable."</p>
-                    <div class="flex text-yellow-400 mt-4">★★★★★</div>
-                    <p class="mt-2 font-bold">- Sarah M.</p>
-                </div>
-                <div class="glass-card p-8 border-l-4 border-green-500">
-                    <p class="text-gray-300 italic">"The instant tick execution is a game changer. Making $150-200 daily."</p>
-                    <div class="flex text-yellow-400 mt-4">★★★★½</div>
-                    <p class="mt-2 font-bold">- James K.</p>
-                </div>
-                <div class="glass-card p-8 border-l-4 border-green-500">
-                    <p class="text-gray-300 italic">"Best trading bot I've ever used. Risk management features saved me."</p>
-                    <div class="flex text-yellow-400 mt-4">★★★★★</div>
-                    <p class="mt-2 font-bold">- Lisa T.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="py-20 px-6">
-        <div class="container">
-            <div class="glass-card p-12 text-center">
-                <h2 class="text-4xl font-bold mb-6">Ready to Start Automated Trading?</h2>
-                <p class="text-xl text-gray-300 mb-8">Join thousands of successful traders making consistent profits.</p>
-                <button onclick="loginWithDeriv()" class="btn-primary">Login with Deriv OAuth <i class="fas fa-arrow-right ml-2"></i></button>
-                <div class="mt-6 text-sm text-red-400">⚠️ Risk Warning: Trading involves significant risk. Only trade with money you can afford to lose.</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="py-12 px-6 border-t border-gray-800">
-        <div class="container">
-            <div class="text-center text-gray-500">© 2024 DigitMatch Pro. All rights reserved. Trading involves risk.</div>
-        </div>
-    </footer>
+    </div>
 
     <script>
         // ============================================
-        // DERIV OAUTH CONFIGURATION FOR LIVE SITE
+        // CORRECT OAUTH CONFIGURATION
         // ============================================
         
-        // ✅ YOUR APP ID
         const APP_ID = '33rp9Oy3CuZ2io6XAuLZ6';
         const BOT_PAGE = 'bot-obfuscated.html';
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
         
-        // ✅ CRITICAL: This MUST match what you set in Deriv App settings
+        // IMPORTANT: This MUST be the EXACT URL of this page
+        // Since your site is https://www.digitmatchstar.com/
         const REDIRECT_URI = 'https://www.digitmatchstar.com/index.html';
+        
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('statusMsg');
+            statusDiv.textContent = message;
+            statusDiv.className = `mb-4 p-3 rounded-lg ${isError ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300'}`;
+            statusDiv.classList.remove('hidden');
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, 5000);
+        }
 
         function loginWithDeriv() {
+            // Encode the redirect URI
             const encodedRedirectUri = encodeURIComponent(REDIRECT_URI);
             
-            const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv&scope=read%20trade%20payments&redirect_uri=${encodedRedirectUri}`;
+            // Build the OAuth URL with ALL required parameters
+            const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv&scope=read%20trade%20payments&redirect_uri=${encodedRedirectUri}&response_type=code`;
             
             console.log('🔐 Redirecting to Deriv OAuth...');
             console.log('📱 App ID:', APP_ID);
             console.log('🔗 Redirect URI:', REDIRECT_URI);
+            console.log('🌐 Full URL:', oauthUrl);
             
-            // Save where to return after OAuth
+            // Store the redirect URI for debugging
             localStorage.setItem('oauth_redirect_uri', REDIRECT_URI);
+            localStorage.setItem('oauth_start_time', Date.now().toString());
             
+            // Redirect to Deriv
             window.location.href = oauthUrl;
         }
 
@@ -346,15 +131,30 @@
             window.open(AFFILIATE_LINK, '_blank');
         }
 
-        // Handle OAuth callback when returning from Deriv
+        // Handle OAuth callback
         function handleOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
             const token1 = urlParams.get('token1');
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+            
+            console.log('🔍 Processing OAuth callback...');
+            console.log('URL Parameters:', window.location.search);
+            
+            if (error) {
+                console.error('OAuth Error:', error, errorDescription);
+                showStatus(`Login failed: ${errorDescription || error}`, true);
+                // Clear URL parameters
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return false;
+            }
             
             if (token1) {
-                console.log('✅ OAuth callback received!');
+                console.log('✅ Token received!');
+                showStatus('✅ Login successful! Redirecting to bot...', false);
                 
-                // Save all authorized accounts
+                // Save all accounts
                 const accounts = [];
                 for (let i = 1; urlParams.get('acct' + i); i++) {
                     accounts.push({
@@ -362,57 +162,94 @@
                         token: urlParams.get('token' + i),
                         currency: urlParams.get('cur' + i)
                     });
+                    console.log(`📊 Account ${i}:`, urlParams.get('acct' + i));
                 }
                 
                 // Save to localStorage
                 localStorage.setItem('deriv_accounts', JSON.stringify(accounts));
                 localStorage.setItem('active_token', token1);
                 localStorage.setItem('oauth_authorized', 'true');
+                localStorage.setItem('token_timestamp', Date.now().toString());
                 
-                console.log('💾 Token saved, redirecting to bot...');
+                console.log('💾 Token saved, redirecting to bot:', BOT_PAGE);
                 
                 // Redirect to bot page
-                window.location.href = BOT_PAGE;
+                setTimeout(() => {
+                    window.location.href = BOT_PAGE;
+                }, 1000);
                 return true;
             }
+            
+            // Check if we have a code parameter (authorization code flow)
+            if (code) {
+                console.log('📝 Authorization code received:', code);
+                // You would need to exchange code for token via your backend
+                // For now, show message
+                showStatus('Please complete login from the bot page.', false);
+            }
+            
             return false;
         }
 
-        // Check if user is already logged in
-        function checkExistingLogin() {
+        function checkExistingAuthorization() {
             const token = localStorage.getItem('active_token');
             const isAuthorized = localStorage.getItem('oauth_authorized');
+            const timestamp = localStorage.getItem('token_timestamp');
             
-            if (token && isAuthorized === 'true') {
-                // Update all login buttons to "Access Bot"
-                const buttons = document.querySelectorAll('.btn-primary');
-                buttons.forEach(btn => {
-                    if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
-                        btn.textContent = '🚀 Access Bot';
-                        btn.onclick = () => { window.location.href = BOT_PAGE; };
-                    }
-                });
+            // Check if token exists and is not expired (24 hours)
+            const isExpired = timestamp && (Date.now() - parseInt(timestamp) > 24 * 60 * 60 * 1000);
+            
+            if (token && isAuthorized === 'true' && !isExpired) {
+                console.log('✅ Found valid existing token');
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('accessSection').classList.remove('hidden');
                 return true;
+            } else if (isExpired) {
+                // Clear expired token
+                localStorage.removeItem('active_token');
+                localStorage.removeItem('oauth_authorized');
+                localStorage.removeItem('token_timestamp');
+                console.log('⚠️ Token expired, please login again');
+                showStatus('Session expired. Please login again.', true);
             }
             return false;
         }
 
-        // Initialize
+        function logout() {
+            localStorage.removeItem('active_token');
+            localStorage.removeItem('oauth_authorized');
+            localStorage.removeItem('token_timestamp');
+            localStorage.removeItem('deriv_accounts');
+            localStorage.removeItem('oauth_redirect_uri');
+            showStatus('Logged out successfully', false);
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+
+        // Process OAuth callback FIRST
         const isCallback = handleOAuthCallback();
+        
         if (!isCallback) {
-            checkExistingLogin();
+            // Setup UI event listeners
+            const loginBtn = document.getElementById('loginBtn');
+            const affiliateBtn = document.getElementById('affiliateBtn');
+            const accessBtn = document.getElementById('accessBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            
+            if (loginBtn) loginBtn.onclick = loginWithDeriv;
+            if (affiliateBtn) affiliateBtn.onclick = signUpNewUser;
+            if (accessBtn) accessBtn.onclick = () => window.location.href = BOT_PAGE;
+            if (logoutBtn) logoutBtn.onclick = logout;
+            
+            checkExistingAuthorization();
         }
         
-        // Smooth scrolling for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
-        });
+        // Log the current configuration for debugging
+        console.log('🚀 Page loaded');
+        console.log('📍 Current URL:', window.location.href);
+        console.log('🔗 Redirect URI configured:', REDIRECT_URI);
+        console.log('📱 App ID:', APP_ID);
     </script>
 </body>
 </html>
