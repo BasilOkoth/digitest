@@ -1189,7 +1189,8 @@
         // ============================================================================
         
         function checkAuthToken() {
-            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
+            // Get token from OAuth PKCE flow (saved by index.html)
+        const token = localStorage.getItem('access_token') || localStorage.getItem('active_token') || localStorage.getItem('derivToken');
             if (!token) {
                 log('⚠️ No API token found. Please authenticate first.', 'WARNING');
                 return false;
