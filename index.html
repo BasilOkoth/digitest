@@ -3,21 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DigitMatch Pro - Smart Trading Automation</title>
+    <title>DigitMatch Pro - Automated Trading Bot for Deriv</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
             --secondary: #3b82f6;
-            --dark: #0f172a;
-            --darker: #0a0f1f;
         }
         body {
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            background: linear-gradient(135deg, #0a0f1f 0%, #0f172a 100%);
             color: white;
             min-height: 100vh;
         }
@@ -54,7 +51,6 @@
             padding: 12px 32px;
             border-radius: 10px;
             font-weight: 600;
-            transition: all 0.3s ease;
             cursor: pointer;
             border: none;
         }
@@ -101,6 +97,7 @@
         .gap-8 { gap: 2rem; }
         .grid { display: grid; }
         .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
         .md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
         .md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
         .w-full { width: 100%; }
@@ -115,11 +112,13 @@
             text-align: center;
             font-size: 14px;
         }
+        .fixed { position: fixed; top: 0; left: 0; right: 0; z-index: 50; }
+        .pt-32 { padding-top: 8rem; }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="glass-card fixed w-full z-50" style="top:0">
+    <nav class="glass-card fixed">
         <div class="container px-6 py-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
@@ -160,8 +159,6 @@
                             <i class="fas fa-user-plus ml-2"></i>
                         </button>
                     </div>
-                    
-                    <!-- Affiliate Badge -->
                     <div class="affiliate-badge">
                         <i class="fas fa-link text-green-400 mr-2"></i>
                         <span class="text-gray-300">Official Deriv Partner</span>
@@ -319,48 +316,45 @@
 
     <script>
         // ============================================
-        // DERIV OAUTH CONFIGURATION
+        // DERIV OAUTH CONFIGURATION FOR LIVE SITE
         // ============================================
         
-        // ✅ YOUR APP ID (string-based from new Deriv API)
+        // ✅ YOUR APP ID
         const APP_ID = '33rp9Oy3CuZ2io6XAuLZ6';
         const BOT_PAGE = 'bot-obfuscated.html';
-        
-        // ✅ YOUR AFFILIATE LINK
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
+        
+        // ✅ CRITICAL: This MUST match what you set in Deriv App settings
+        const REDIRECT_URI = 'https://www.digitmatchstar.com/index.html';
 
-        // Function to start OAuth login
         function loginWithDeriv() {
-            // Get the current page URL (this page's URL without any query parameters)
-            const currentUrl = window.location.href.split('?')[0];
-            const encodedRedirectUri = encodeURIComponent(currentUrl);
+            const encodedRedirectUri = encodeURIComponent(REDIRECT_URI);
             
-            // Build OAuth URL with proper parameters
             const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv&scope=read%20trade%20payments&redirect_uri=${encodedRedirectUri}`;
             
             console.log('🔐 Redirecting to Deriv OAuth...');
             console.log('📱 App ID:', APP_ID);
-            console.log('🔗 Will return to:', currentUrl);
+            console.log('🔗 Redirect URI:', REDIRECT_URI);
             
-            // Redirect to Deriv for authorization
+            // Save where to return after OAuth
+            localStorage.setItem('oauth_redirect_uri', REDIRECT_URI);
+            
             window.location.href = oauthUrl;
         }
 
         function signUpNewUser() {
-            // Open affiliate link in new tab
             window.open(AFFILIATE_LINK, '_blank');
         }
 
-        // Handle OAuth callback and redirect to bot
+        // Handle OAuth callback when returning from Deriv
         function handleOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
             const token1 = urlParams.get('token1');
             
             if (token1) {
                 console.log('✅ OAuth callback received!');
-                console.log('🔑 Token received:', token1.substring(0, 20) + '...');
                 
-                // Save all accounts
+                // Save all authorized accounts
                 const accounts = [];
                 for (let i = 1; urlParams.get('acct' + i); i++) {
                     accounts.push({
@@ -368,82 +362,57 @@
                         token: urlParams.get('token' + i),
                         currency: urlParams.get('cur' + i)
                     });
-                    console.log(`📊 Account ${i}:`, urlParams.get('acct' + i));
                 }
                 
                 // Save to localStorage
                 localStorage.setItem('deriv_accounts', JSON.stringify(accounts));
                 localStorage.setItem('active_token', token1);
                 localStorage.setItem('oauth_authorized', 'true');
-                localStorage.setItem('token_timestamp', Date.now().toString());
                 
-                console.log('💾 Token saved to localStorage');
-                console.log('🔄 Redirecting to bot:', BOT_PAGE);
+                console.log('💾 Token saved, redirecting to bot...');
                 
-                // Clear the URL parameters before redirect
+                // Redirect to bot page
                 window.location.href = BOT_PAGE;
                 return true;
             }
             return false;
         }
 
-        // Check if already authorized and update UI
-        function checkExistingAuthorization() {
+        // Check if user is already logged in
+        function checkExistingLogin() {
             const token = localStorage.getItem('active_token');
             const isAuthorized = localStorage.getItem('oauth_authorized');
             
-            if (token && isAuthorized === 'true' && token !== 'null') {
-                console.log('✅ Found existing token! User is authorized.');
-                
+            if (token && isAuthorized === 'true') {
                 // Update all login buttons to "Access Bot"
                 const buttons = document.querySelectorAll('.btn-primary');
                 buttons.forEach(btn => {
-                    const btnText = btn.textContent || btn.innerText;
-                    if (btnText.includes('Login') || btnText.includes('Connect')) {
+                    if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
                         btn.textContent = '🚀 Access Bot';
                         btn.onclick = () => { window.location.href = BOT_PAGE; };
                     }
                 });
-                
-                // Update nav button
-                const navBtn = document.getElementById('navLoginBtn');
-                if (navBtn && navBtn.textContent.includes('Login')) {
-                    navBtn.textContent = '🚀 Access Bot';
-                    navBtn.onclick = () => { window.location.href = BOT_PAGE; };
-                }
                 return true;
             }
             return false;
         }
 
-        // Smooth scrolling
+        // Initialize
+        const isCallback = handleOAuthCallback();
+        if (!isCallback) {
+            checkExistingLogin();
+        }
+        
+        // Smooth scrolling for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
-                const targetId = this.getAttribute('href');
-                if (targetId === '#') return;
-                const target = document.querySelector(targetId);
+                const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
                     target.scrollIntoView({ behavior: 'smooth' });
                 }
             });
         });
-
-        // Initialize on page load
-        window.onload = function() {
-            console.log('🚀 DigitMatch Pro Landing Page Loaded');
-            console.log('📱 App ID:', APP_ID);
-            console.log('🤖 Bot page:', BOT_PAGE);
-            console.log('🔗 Affiliate link:', AFFILIATE_LINK);
-            
-            // First, check for OAuth callback
-            const handled = handleOAuthCallback();
-            
-            // If not a callback, check for existing authorization
-            if (!handled) {
-                checkExistingAuthorization();
-            }
-        };
     </script>
 </body>
 </html>
