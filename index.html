@@ -294,10 +294,6 @@
             align-items: center;
         }
         
-        .hidden {
-            display: none;
-        }
-        
         .grid {
             display: grid;
         }
@@ -801,7 +797,7 @@
     <script>
         // YOUR APP ID
         const APP_ID = '33rp9Oy3CuZ2io6XAuLZ6';
-        const BOT_PAGE = 'bot.html'; // Your bot HTML filename
+        const BOT_PAGE = 'bot-obfuscated.html';  // ✅ CORRECTED - opens bot-obfuscated.html
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
 
         function loginWithDeriv() {
@@ -839,6 +835,7 @@
         window.onload = function() {
             console.log('🚀 DigitMatch Pro Landing Page Loaded');
             console.log('📱 App ID:', APP_ID);
+            console.log('🤖 Bot page:', BOT_PAGE);
             
             const urlParams = new URLSearchParams(window.location.search);
             const token1 = urlParams.get('token1');
@@ -859,7 +856,7 @@
                 localStorage.setItem('active_token', token1);
                 localStorage.setItem('oauth_authorized', 'true');
                 
-                console.log('🔐 Redirecting to bot page...');
+                console.log('🔐 Redirecting to', BOT_PAGE);
                 window.location.href = BOT_PAGE;
             }
             
@@ -873,6 +870,17 @@
                         window.location.href = BOT_PAGE;
                     };
                 }
+                
+                // Also update any other buttons
+                const allButtons = document.querySelectorAll('.btn-primary');
+                allButtons.forEach(btn => {
+                    if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
+                        btn.textContent = '🚀 Access Bot';
+                        btn.onclick = function() {
+                            window.location.href = BOT_PAGE;
+                        };
+                    }
+                });
             }
         };
 
