@@ -106,6 +106,15 @@
         .w-full { width: 100%; }
         .hidden { display: none; }
         @media (max-width: 768px) { .md\:grid-cols-3 { grid-template-columns: 1fr; } }
+        .affiliate-badge {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.2));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 16px;
+            text-align: center;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -150,6 +159,12 @@
                             Create Deriv Account
                             <i class="fas fa-user-plus ml-2"></i>
                         </button>
+                    </div>
+                    
+                    <!-- Affiliate Badge -->
+                    <div class="affiliate-badge">
+                        <i class="fas fa-link text-green-400 mr-2"></i>
+                        <span class="text-gray-300">Official Deriv Partner</span>
                     </div>
                 </div>
                 <div class="glass-card p-8">
@@ -310,6 +325,8 @@
         // ✅ YOUR APP ID (string-based from new Deriv API)
         const APP_ID = '33rp9Oy3CuZ2io6XAuLZ6';
         const BOT_PAGE = 'bot-obfuscated.html';
+        
+        // ✅ YOUR AFFILIATE LINK
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
 
         // Function to start OAuth login
@@ -324,13 +341,13 @@
             console.log('🔐 Redirecting to Deriv OAuth...');
             console.log('📱 App ID:', APP_ID);
             console.log('🔗 Will return to:', currentUrl);
-            console.log('🌐 Full OAuth URL:', oauthUrl);
             
             // Redirect to Deriv for authorization
             window.location.href = oauthUrl;
         }
 
         function signUpNewUser() {
+            // Open affiliate link in new tab
             window.open(AFFILIATE_LINK, '_blank');
         }
 
@@ -417,7 +434,7 @@
             console.log('🚀 DigitMatch Pro Landing Page Loaded');
             console.log('📱 App ID:', APP_ID);
             console.log('🤖 Bot page:', BOT_PAGE);
-            console.log('📍 Current URL:', window.location.href);
+            console.log('🔗 Affiliate link:', AFFILIATE_LINK);
             
             // First, check for OAuth callback
             const handled = handleOAuthCallback();
