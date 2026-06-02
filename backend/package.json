@@ -1,12 +1,13 @@
 {
   "name": "digitmatch-backend",
-  "version": "2.0.0",
-  "description": "Backend API for DigitMatch Trading Bot",
+  "version": "2.1.0",
+  "description": "Backend API for DigitMatch Trading Bot with Deriv OAuth PKCE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "obfuscate": "node ../obfuscate.js"
+    "obfuscate": "node ../obfuscate.js",
+    "test": "node test-oauth.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -19,5 +20,15 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "keywords": [
+    "deriv",
+    "trading",
+    "oauth",
+    "pkce",
+    "digitmatch",
+    "binary-options"
+  ],
+  "author": "DigitMatch Pro",
+  "license": "MIT"
 }
