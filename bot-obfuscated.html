@@ -314,7 +314,7 @@
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="min-h-screen p-4 sm:p-8 flex items-start justify-center">
 
@@ -1965,7 +1965,7 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
         }
         
         // ============================================================================
-        // CORE BOT FUNCTIONS - UPDATED FOR 10 SECOND PNL DISPLAY & NETWORK RECOVERY
+        // CORE BOT FUNCTIONS - UPDATED FOR NEW DERIV API v4
         // ============================================================================
         
         // Global State
@@ -2786,7 +2786,10 @@ window.accountBalance = 0.0;
             });
         }
         
-        // WEBSOCKET CONNECTION - UPDATED WITH NETWORK RECOVERY
+        // ============================================================================
+        // WEBSOCKET CONNECTION - UPDATED FOR DERIV API v4 (MIGRATED)
+        // ============================================================================
+        
         function connectWebSocket() {
             if (window.ws) {
                 try {
@@ -2797,15 +2800,16 @@ window.accountBalance = 0.0;
             window.isConnecting = true;
             updateConnectionStatus();
             
-            const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=118332';
-            log('🔗 Connecting to Deriv API...', 'SYSTEM');
+            // ✅ UPDATED: New Deriv API v4 endpoint
+            const wsUrl = 'wss://ws.derivws.com/websockets/v4?app_id=120389';
+            log('🔗 Connecting to Deriv API v4...', 'SYSTEM');
             
             window.ws = new WebSocket(wsUrl);
             
             window.ws.onopen = () => {
                 window.isConnecting = false;
                 resetReconnectionAttempts();
-                log('✅ WebSocket connected', 'SYSTEM');
+                log('✅ WebSocket connected to Deriv v4', 'SYSTEM');
                 updateConnectionStatus();
                 
                 const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken');
@@ -2824,19 +2828,27 @@ window.accountBalance = 0.0;
             window.ws.onmessage = (msg) => {
                 try {
                     const data = JSON.parse(msg.data);
-                    console.log('API Response:', data.msg_type, data); // Debug logging
+                    console.log('API Response:', data.msg_type, data);
                     
-                    // 🔥 CRITICAL FIX: Handle tick messages
+                    // Handle error responses
+                    if (data.error) {
+                        log(`API Error: ${data.error.message}`, 'ERROR');
+                        if (data.error.code === 'InvalidToken' || data.error.message?.includes('Invalid token')) {
+                            log('❌ Invalid API Token. You need to migrate to the new Deriv API.', 'CRITICAL');
+                            log('📝 Please visit developers.deriv.com to create a new app and get a new token.', 'CRITICAL');
+                            stopBot();
+                        }
+                        return;
+                    }
+                    
+                    // Handle tick messages
                     if (data.msg_type === 'tick') {
-                        console.log('Tick received:', data.tick); // Debug
-                        
-                        // Log specifically for digit 0
+                        console.log('Tick received:', data.tick);
                         updateTickFormatFromQuote(data.tick.quote);
                         const digit = getLastDigitFromQuote(data.tick.quote);
                         if (digit === 0) {
                             console.log('🎯 DIGIT 0 DETECTED in formatted tick:', formatQuoteForDigit(data.tick.quote));
                         }
-                        
                         handleTick(data.tick);
                         return;
                     }
@@ -2856,7 +2868,6 @@ window.accountBalance = 0.0;
                 if (window.isBotRunning) {
                     window.lastDisconnectTime = Date.now();
                     
-                    // Attempt automatic reconnection if enabled
                     if (window.networkRecoveryEnabled) {
                         attemptNetworkRecovery();
                     } else {
@@ -2967,7 +2978,7 @@ window.accountBalance = 0.0;
         
             if (data.msg_type === 'authorize') {
                 if (data.authorize) {
-                    log(`🔐 Authorized as ${data.authorize.loginid}`, 'SYSTEM');
+                    log(`🔐 Authorized as ${data.authorize.loginid} (${data.authorize.currency || 'USD'})`, 'SYSTEM');
                     subscribeToTicks(document.getElementById('symbol').value);
                     subscribeToBalance();
                     
@@ -2978,7 +2989,7 @@ window.accountBalance = 0.0;
                         }, 1000);
                     }
                 }
-            } else if (data.msg_type === 'history') {
+            } else if (data.msg_type === 'ticks_history') {
                 // Process warm-up ticks for engine
                 if (window.digitIntelligenceEngine.enabled && data.history && data.history.prices) {
                     window.digitIntelligenceEngine.processWarmupTicks(data.history.prices);
