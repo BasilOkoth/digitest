@@ -577,7 +577,7 @@
                     </div>
                     <h3 class="text-xl font-bold mb-3">Auto-Redirect</h3>
                     <p class="text-gray-400">
-                        After authorization, you'll be automatically redirected to the trading bot.
+                        After authorization, you'll be automatically redirected back to our bot.
                     </p>
                 </div>
                 
@@ -797,13 +797,21 @@
     <script>
         // YOUR APP ID
         const APP_ID = '33rp9Oy3CuZ2io6XAuLZ6';
-        const BOT_PAGE = 'bot-obfuscated.html';  // ✅ CORRECTED - opens bot-obfuscated.html
+        const BOT_PAGE = 'bot-obfuscated.html';
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
 
         function loginWithDeriv() {
-            // OAuth login with your App ID
-            const currentUrl = encodeURIComponent(window.location.href);
-            const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv&scope=read%20trade%20payments&redirect_uri=${currentUrl}`;
+            // Get the current page URL (this page's URL)
+            const currentUrl = window.location.href.split('?')[0]; // Remove any existing query params
+            const encodedRedirectUri = encodeURIComponent(currentUrl);
+            
+            // OAuth login with redirect back to THIS SAME PAGE
+            const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&l=en&brand=deriv&scope=read%20trade%20payments&redirect_uri=${encodedRedirectUri}`;
+            
+            console.log('🔐 Redirecting to Deriv OAuth...');
+            console.log('📱 App ID:', APP_ID);
+            console.log('🔗 Will return to:', currentUrl);
+            
             window.location.href = oauthUrl;
         }
 
@@ -831,60 +839,75 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
-        // Handle OAuth callback
+        // Handle OAuth callback and redirect to bot
         window.onload = function() {
             console.log('🚀 DigitMatch Pro Landing Page Loaded');
             console.log('📱 App ID:', APP_ID);
             console.log('🤖 Bot page:', BOT_PAGE);
+            console.log('📍 Current URL:', window.location.href);
             
             const urlParams = new URLSearchParams(window.location.search);
             const token1 = urlParams.get('token1');
             
             if (token1) {
-                console.log('✅ OAuth callback received, saving token...');
-                const accounts = [];
+                console.log('✅ OAuth callback received! Saving token...');
+                console.log('🔑 Token:', token1.substring(0, 20) + '...');
                 
+                const accounts = [];
                 for (let i = 1; urlParams.get('acct' + i); i++) {
                     accounts.push({
                         account: urlParams.get('acct' + i),
                         token: urlParams.get('token' + i),
                         currency: urlParams.get('cur' + i)
                     });
+                    console.log(`📊 Account ${i}:`, urlParams.get('acct' + i));
                 }
                 
                 localStorage.setItem('deriv_accounts', JSON.stringify(accounts));
                 localStorage.setItem('active_token', token1);
                 localStorage.setItem('oauth_authorized', 'true');
                 
-                console.log('🔐 Redirecting to', BOT_PAGE);
+                console.log('💾 Token saved to localStorage');
+                console.log('🔄 Redirecting to bot page:', BOT_PAGE);
+                
+                // Redirect to the bot page
                 window.location.href = BOT_PAGE;
+                return;
             }
             
-            // Check if user is already authorized
+            // Check if user is already authorized and has a token
+            const savedToken = localStorage.getItem('active_token');
             const isAuthorized = localStorage.getItem('oauth_authorized');
-            if (isAuthorized === 'true') {
-                const navBtn = document.querySelector('nav .btn-primary');
-                if (navBtn) {
-                    navBtn.textContent = '🚀 Access Bot';
-                    navBtn.onclick = function() {
-                        window.location.href = BOT_PAGE;
-                    };
-                }
+            
+            if (savedToken && isAuthorized === 'true' && savedToken !== 'null') {
+                console.log('✅ Found existing token! User is authorized.');
                 
-                // Also update any other buttons
+                // Update all login buttons to "Access Bot"
                 const allButtons = document.querySelectorAll('.btn-primary');
                 allButtons.forEach(btn => {
-                    if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
+                    const btnText = btn.textContent || btn.innerText;
+                    if (btnText.includes('Login') || btnText.includes('Connect')) {
                         btn.textContent = '🚀 Access Bot';
                         btn.onclick = function() {
                             window.location.href = BOT_PAGE;
                         };
                     }
                 });
+                
+                // Also update the nav button if needed
+                const navBtn = document.getElementById('navLoginBtn');
+                if (navBtn && navBtn.textContent.includes('Login')) {
+                    navBtn.textContent = '🚀 Access Bot';
+                    navBtn.onclick = function() {
+                        window.location.href = BOT_PAGE;
+                    };
+                }
+            } else {
+                console.log('ℹ️ No saved token found. User needs to login.');
             }
         };
 
-        // Smooth scrolling
+        // Smooth scrolling for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
