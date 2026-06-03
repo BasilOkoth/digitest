@@ -464,18 +464,13 @@
 
     <script>
         // ============================================
-        // CONFIGURATION FOR PRODUCTION
+        // CONFIGURATION - UPDATED WITH YOUR BACKEND URL
         // ============================================
         
-        // ✅ Frontend URL (your Vercel deployment)
-        const FRONTEND_URL = 'https://www.digitmatchstar.com';
+        // ✅ YOUR BACKEND URL ON VERCEL
+        const BACKEND_URL = 'https://digitest-wheat.vercel.app';
         
-        // ✅ Backend URL - YOU NEED TO UPDATE THIS WITH YOUR BACKEND URL
-        // If your backend is on Vercel, it will be something like:
-        // https://digitmatch-backend.vercel.app
-        const BACKEND_URL = 'https://YOUR_BACKEND_URL_HERE.vercel.app';  // ← IMPORTANT: UPDATE THIS!
-        
-        const BOT_PAGE = `${FRONTEND_URL}/bot-obfuscated.html`;
+        const BOT_PAGE = 'bot-obfuscated.html';
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
         
         let currentState = null;
@@ -489,11 +484,15 @@
         }
 
         async function loginWithDeriv() {
-            showToast('🔐 Redirecting to Deriv for authorization...', 'info');
+            showToast('🔐 Connecting to server...', 'info');
             
             try {
+                console.log('Fetching from:', `${BACKEND_URL}/api/oauth/authorize`);
+                
                 const response = await fetch(`${BACKEND_URL}/api/oauth/authorize`);
                 const data = await response.json();
+                
+                console.log('Response:', data);
                 
                 if (!data.success) {
                     throw new Error(data.message || 'Failed to get authorization URL');
@@ -502,12 +501,12 @@
                 currentState = data.state;
                 sessionStorage.setItem('oauth_state', currentState);
                 
-                console.log('🔐 Redirecting to:', data.authUrl);
+                showToast('🔐 Redirecting to Deriv...', 'info');
                 window.location.href = data.authUrl;
                 
             } catch (error) {
                 console.error('Login error:', error);
-                showToast(`❌ Failed to initialize login: ${error.message}`, 'error');
+                showToast(`❌ Failed to connect to server. Make sure backend is running at: ${BACKEND_URL}`, 'error');
             }
         }
 
@@ -580,11 +579,8 @@
         function checkExistingLogin() {
             const token = localStorage.getItem('access_token') || localStorage.getItem('active_token');
             const isAuthorized = localStorage.getItem('oauth_authorized');
-            const timestamp = localStorage.getItem('token_timestamp');
             
-            const isExpired = timestamp && (Date.now() - parseInt(timestamp) > 24 * 60 * 60 * 1000);
-            
-            if (token && isAuthorized === 'true' && !isExpired) {
+            if (token && isAuthorized === 'true') {
                 const buttons = document.querySelectorAll('.btn-primary');
                 buttons.forEach(btn => {
                     if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
@@ -648,7 +644,6 @@
         });
         
         console.log('🚀 DigitMatch Pro Landing Page Loaded');
-        console.log('Frontend URL:', FRONTEND_URL);
         console.log('Backend URL:', BACKEND_URL);
         console.log('Bot Page:', BOT_PAGE);
     </script>
