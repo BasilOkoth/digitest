@@ -4,15 +4,9 @@ const crypto = require('crypto');
 
 const app = express();
 
-// CORS configuration
-app.use(cors({
-    origin: '*',
-    credentials: true
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Deriv OAuth configuration
 const DERIV_OAUTH = {
     clientId: '33rp9Oy3CuZ2io6XAuLZ6',
     redirectUri: 'https://www.digitmatchstar.com/index.html',
@@ -21,16 +15,6 @@ const DERIV_OAUTH = {
 };
 
 const pkceStore = new Map();
-
-// Clean up expired PKCE entries every 10 minutes
-setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of pkceStore.entries()) {
-        if (now - value.createdAt > 10 * 60 * 1000) {
-            pkceStore.delete(key);
-        }
-    }
-}, 10 * 60 * 1000);
 
 function generatePKCE() {
     const codeVerifier = crypto.randomBytes(64)
@@ -48,15 +32,11 @@ function generatePKCE() {
     return { codeVerifier, codeChallenge };
 }
 
-// Health check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+    res.json({ status: 'OK' });
 });
 
-// Get OAuth URL
 app.get('/api/oauth/authorize', (req, res) => {
-    console.log('🔐 OAuth authorize request');
-    
     try {
         const { codeVerifier, codeChallenge } = generatePKCE();
         const state = crypto.randomBytes(16).toString('hex');
@@ -74,14 +54,11 @@ app.get('/api/oauth/authorize', (req, res) => {
         });
         
         res.json({ success: true, authUrl, state });
-        
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Exchange code for token
 app.post('/api/oauth/token', async (req, res) => {
     const { code, state } = req.body;
     
@@ -91,62 +68,37 @@ app.post('/api/oauth/token', async (req, res) => {
     
     const pkceData = pkceStore.get(state);
     if (!pkceData) {
-        return res.status(400).json({ success: false, message: 'Invalid or expired state' });
+        return res.status(400).json({ success: false, message: 'Invalid state' });
     }
     
     pkceStore.delete(state);
     
     try {
-        const params = new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: DERIV_OAUTH.clientId,
-            code: code,
-            code_verifier: pkceData.codeVerifier,
-            redirect_uri: DERIV_OAUTH.redirectUri
-        });
-        
-        const tokenResponse = await fetch(DERIV_OAUTH.tokenUrl, {
+        const response = await fetch(DERIV_OAUTH.tokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: DERIV_OAUTH.clientId,
+                code: code,
+                code_verifier: pkceData.codeVerifier,
+                redirect_uri: DERIV_OAUTH.redirectUri
+            })
         });
         
-        const tokenData = await tokenResponse.json();
-        
-        if (!tokenResponse.ok) {
-            return res.status(tokenResponse.status).json({ 
-                success: false, 
-                message: tokenData.error_description || 'Token exchange failed'
-            });
-        }
-        
-        res.json({
-            success: true,
-            access_token: tokenData.access_token,
-            expires_in: tokenData.expires_in,
-            token_type: tokenData.token_type
-        });
-        
+        const data = await response.json();
+        res.json({ success: true, access_token: data.access_token, expires_in: data.expires_in });
     } catch (error) {
-        console.error('Token exchange error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// OAuth config
 app.get('/api/oauth/config', (req, res) => {
     res.json({
         success: true,
         clientId: DERIV_OAUTH.clientId,
-        redirectUri: DERIV_OAUTH.redirectUri,
-        authUrl: DERIV_OAUTH.authUrl
+        redirectUri: DERIV_OAUTH.redirectUri
     });
 });
 
-// Root path
-app.get('/', (req, res) => {
-    res.json({ message: 'DigitMatch Backend API', status: 'running' });
-});
-
-// Export for Vercel
 module.exports = app;
