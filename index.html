@@ -127,9 +127,45 @@
             z-index: 1000;
             animation: slideIn 0.3s ease;
         }
+        .toast.error { background: #ef4444; }
+        .toast.info { background: #3b82f6; }
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #0f172a;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .disclaimer {
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -383,9 +419,9 @@
     </footer>
 
     <!-- Legal Modals -->
-    <div id="termsModal" class="modal hidden" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
-        <div class="modal-content" style="background:#0f172a; padding:40px; border-radius:20px; max-width:500px; width:90%;">
-            <button class="close-modal" onclick="closeLegalModal('termsModal')" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+    <div id="termsModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeLegalModal('termsModal')">&times;</button>
             <h2 class="text-2xl font-bold mb-6">Terms of Service</h2>
             <div class="text-gray-300 max-h-96 overflow-y-auto">
                 <p class="mb-2">1. By using this bot, you agree to Deriv's Terms and Conditions.</p>
@@ -397,9 +433,9 @@
         </div>
     </div>
 
-    <div id="privacyModal" class="modal hidden" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
-        <div class="modal-content" style="background:#0f172a; padding:40px; border-radius:20px; max-width:500px; width:90%;">
-            <button class="close-modal" onclick="closeLegalModal('privacyModal')" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+    <div id="privacyModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeLegalModal('privacyModal')">&times;</button>
             <h2 class="text-2xl font-bold mb-6">Privacy Policy</h2>
             <div class="text-gray-300 max-h-96 overflow-y-auto">
                 <p class="mb-2">1. We use Deriv's official OAuth for secure authentication.</p>
@@ -411,9 +447,9 @@
         </div>
     </div>
 
-    <div id="disclaimerModal" class="modal hidden" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
-        <div class="modal-content" style="background:#0f172a; padding:40px; border-radius:20px; max-width:500px; width:90%;">
-            <button class="close-modal" onclick="closeLegalModal('disclaimerModal')" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+    <div id="disclaimerModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeLegalModal('disclaimerModal')">&times;</button>
             <h2 class="text-2xl font-bold mb-6">Risk Disclaimer</h2>
             <div class="text-gray-300 max-h-96 overflow-y-auto">
                 <p class="mb-2">⚠️ <strong>HIGH RISK WARNING:</strong> Trading foreign exchange, CFDs, and binary options carries a high level of risk.</p>
@@ -428,21 +464,34 @@
 
     <script>
         // ============================================
-        // DERIV OAUTH WITH PKCE - COMPLETE FLOW
+        // CONFIGURATION FOR PRODUCTION
         // ============================================
         
-        // Configuration
-        const BACKEND_URL = 'https://digitmatch-backend.onrender.com'; // Replace with your actual backend URL
-        const BOT_PAGE = 'bot-obfuscated.html';
+        // ✅ Frontend URL (your Vercel deployment)
+        const FRONTEND_URL = 'https://www.digitmatchstar.com';
+        
+        // ✅ Backend URL - YOU NEED TO UPDATE THIS WITH YOUR BACKEND URL
+        // If your backend is on Vercel, it will be something like:
+        // https://digitmatch-backend.vercel.app
+        const BACKEND_URL = 'https://YOUR_BACKEND_URL_HERE.vercel.app';  // ← IMPORTANT: UPDATE THIS!
+        
+        const BOT_PAGE = `${FRONTEND_URL}/bot-obfuscated.html`;
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
         
         let currentState = null;
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
 
         async function loginWithDeriv() {
             showToast('🔐 Redirecting to Deriv for authorization...', 'info');
             
             try {
-                // Get OAuth URL from backend
                 const response = await fetch(`${BACKEND_URL}/api/oauth/authorize`);
                 const data = await response.json();
                 
@@ -453,15 +502,12 @@
                 currentState = data.state;
                 sessionStorage.setItem('oauth_state', currentState);
                 
-                console.log('🔐 Redirecting to Deriv OAuth...');
-                console.log('Auth URL:', data.authUrl);
-                
-                // Redirect to Deriv
+                console.log('🔐 Redirecting to:', data.authUrl);
                 window.location.href = data.authUrl;
                 
             } catch (error) {
                 console.error('Login error:', error);
-                showToast('❌ Failed to initialize login. Please try again.', 'error');
+                showToast(`❌ Failed to initialize login: ${error.message}`, 'error');
             }
         }
 
@@ -482,22 +528,18 @@
                 console.log('📝 Authorization code received');
                 showToast('✅ Authorized! Exchanging code for token...', 'info');
                 
-                // Verify state
                 const savedState = sessionStorage.getItem('oauth_state');
                 if (state !== savedState) {
-                    console.error('State mismatch - possible CSRF attack');
+                    console.error('State mismatch');
                     showToast('Security validation failed. Please try again.', 'error');
                     window.history.replaceState({}, document.title, window.location.pathname);
                     return false;
                 }
                 
                 try {
-                    // Exchange code for token via backend
                     const response = await fetch(`${BACKEND_URL}/api/oauth/token`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ code, state })
                     });
                     
@@ -509,19 +551,15 @@
                     
                     console.log('✅ Access token obtained');
                     
-                    // Save token to localStorage
                     localStorage.setItem('access_token', data.access_token);
                     localStorage.setItem('active_token', data.access_token);
                     localStorage.setItem('oauth_authorized', 'true');
                     localStorage.setItem('token_timestamp', Date.now().toString());
-                    localStorage.setItem('token_expires_in', data.expires_in);
                     
                     showToast('✅ Login successful! Redirecting to bot...', 'success');
                     
-                    // Clear URL parameters
                     window.history.replaceState({}, document.title, window.location.pathname);
                     
-                    // Redirect to bot
                     setTimeout(() => {
                         window.location.href = BOT_PAGE;
                     }, 1500);
@@ -547,28 +585,20 @@
             const isExpired = timestamp && (Date.now() - parseInt(timestamp) > 24 * 60 * 60 * 1000);
             
             if (token && isAuthorized === 'true' && !isExpired) {
-                // Update all login buttons to "Access Bot"
                 const buttons = document.querySelectorAll('.btn-primary');
                 buttons.forEach(btn => {
-                    const btnText = btn.textContent || btn.innerText;
-                    if (btnText.includes('Login') || btnText.includes('Connect')) {
+                    if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
                         btn.textContent = '🚀 Access Bot';
                         btn.onclick = () => { window.location.href = BOT_PAGE; };
                     }
                 });
                 
-                // Update nav button
                 const navBtn = document.getElementById('navLoginBtn');
                 if (navBtn && navBtn.textContent.includes('Login')) {
                     navBtn.textContent = '🚀 Access Bot';
                     navBtn.onclick = () => { window.location.href = BOT_PAGE; };
                 }
                 return true;
-            } else if (isExpired) {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('active_token');
-                localStorage.removeItem('oauth_authorized');
-                localStorage.removeItem('token_timestamp');
             }
             return false;
         }
@@ -577,30 +607,16 @@
             window.open(AFFILIATE_LINK, '_blank');
         }
 
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.style.background = type === 'error' ? '#ef4444' : (type === 'success' ? '#10b981' : '#3b82f6');
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-
         function showTerms() {
-            const modal = document.getElementById('termsModal');
-            modal.style.display = 'flex';
+            document.getElementById('termsModal').style.display = 'flex';
         }
         
         function showPrivacy() {
-            const modal = document.getElementById('privacyModal');
-            modal.style.display = 'flex';
+            document.getElementById('privacyModal').style.display = 'flex';
         }
         
         function showDisclaimer() {
-            const modal = document.getElementById('disclaimerModal');
-            modal.style.display = 'flex';
+            document.getElementById('disclaimerModal').style.display = 'flex';
         }
         
         function closeLegalModal(modalId) {
@@ -613,7 +629,6 @@
             checkExistingLogin();
         }
         
-        // Close modal on outside click
         window.onclick = function(event) {
             const modals = ['termsModal', 'privacyModal', 'disclaimerModal'];
             modals.forEach(modalId => {
@@ -624,21 +639,18 @@
             });
         };
         
-        // Smooth scrolling
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
-                const targetId = this.getAttribute('href');
-                if (targetId === '#') return;
-                const target = document.querySelector(targetId);
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
             });
         });
         
         console.log('🚀 DigitMatch Pro Landing Page Loaded');
+        console.log('Frontend URL:', FRONTEND_URL);
         console.log('Backend URL:', BACKEND_URL);
+        console.log('Bot Page:', BOT_PAGE);
     </script>
 </body>
 </html>
