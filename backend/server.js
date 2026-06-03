@@ -51,7 +51,7 @@ app.get('/api/oauth/authorize', (req, res) => {
             response_type: 'code',
             client_id: DERIV_OAUTH.clientId,
             redirect_uri: DERIV_OAUTH.redirectUri,
-            scope: 'read trade payments',
+            scope: 'trade account_manage',
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
