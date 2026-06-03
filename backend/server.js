@@ -4,12 +4,12 @@
 
 const crypto = require('crypto');
 
-// Deriv OAuth configuration
+// Deriv OAuth configuration - USING CORRECT ENDPOINTS
 const DERIV_OAUTH = {
-    clientId: '33rp9Oy3CuZ2io6XAuLZ6',
+    clientId: process.env.DERIV_CLIENT_ID || '33rp9Oy3CuZ2io6XAuLZ6',
     redirectUri: process.env.OAUTH_REDIRECT_URI || 'https://www.digitmatchstar.com/index.html',
-    authUrl: 'https://auth.deriv.com/oauth2/auth',
-    tokenUrl: 'https://auth.deriv.com/oauth2/token'
+    authUrl: 'https://auth.deriv.com/oauth2/auth',    // ✅ CORRECT
+    tokenUrl: 'https://auth.deriv.com/oauth2/token'   // ✅ CORRECT
 };
 
 // Store PKCE verifiers temporarily (in production, use Redis or database)
@@ -48,6 +48,7 @@ function generatePKCE() {
 app.get('/api/oauth/authorize', (req, res) => {
     console.log('🔐 OAuth authorize request received');
     console.log('📱 Origin:', req.get('origin'));
+    console.log('🔗 Redirect URI:', DERIV_OAUTH.redirectUri);
     
     try {
         const { codeVerifier, codeChallenge } = generatePKCE();
@@ -60,7 +61,7 @@ app.get('/api/oauth/authorize', (req, res) => {
             origin: req.get('origin')
         });
         
-        // Build authorization URL
+        // Build authorization URL with correct parameters
         const authUrl = `${DERIV_OAUTH.authUrl}?` + new URLSearchParams({
             response_type: 'code',
             client_id: DERIV_OAUTH.clientId,
@@ -72,7 +73,7 @@ app.get('/api/oauth/authorize', (req, res) => {
         });
         
         console.log('✅ OAuth URL generated');
-        console.log('🔗 Redirect URI:', DERIV_OAUTH.redirectUri);
+        console.log('🔗 Full Auth URL:', authUrl);
         
         res.json({ 
             success: true, 
@@ -120,7 +121,7 @@ app.post('/api/oauth/token', async (req, res) => {
     pkceStore.delete(state);
     
     try {
-        console.log('🔄 Exchanging code for token...');
+        console.log('🔄 Exchanging code for token at:', DERIV_OAUTH.tokenUrl);
         
         const tokenResponse = await fetch(DERIV_OAUTH.tokenUrl, {
             method: 'POST',
@@ -177,8 +178,7 @@ app.post('/api/oauth/verify', async (req, res) => {
     }
     
     try {
-        // You can optionally verify the token by making a test API call
-        // For now, just return success
+        // Optional: Verify token by making a test API call
         res.json({
             success: true,
             message: 'Token format is valid',
@@ -196,6 +196,7 @@ app.get('/api/oauth/config', (req, res) => {
         clientId: DERIV_OAUTH.clientId,
         redirectUri: DERIV_OAUTH.redirectUri,
         authUrl: DERIV_OAUTH.authUrl,
+        tokenUrl: DERIV_OAUTH.tokenUrl,
         environment: process.env.NODE_ENV || 'development'
     });
 });
