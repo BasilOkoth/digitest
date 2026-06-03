@@ -464,13 +464,11 @@
 
     <script>
         // ============================================
-        // CONFIGURATION - UPDATED WITH YOUR BACKEND URL
+        // CONFIGURATION
         // ============================================
         
-        // ✅ YOUR BACKEND URL ON VERCEL
         const BACKEND_URL = 'https://digitest-p6v6.vercel.app';
-        
-        const BOT_PAGE = 'bot-obfuscated.html';
+        const BOT_PAGE = '/bot-obfuscated.html';  // ✅ Make sure this path is correct
         const AFFILIATE_LINK = 'https://track.deriv.com/_0rfpRaHuZeFMjdsyM5hasGNd7ZgqdRLk/1/';
         
         let currentState = null;
@@ -487,12 +485,8 @@
             showToast('🔐 Connecting to server...', 'info');
             
             try {
-                console.log('Fetching from:', `${BACKEND_URL}/api/oauth/authorize`);
-                
                 const response = await fetch(`${BACKEND_URL}/api/oauth/authorize`);
                 const data = await response.json();
-                
-                console.log('Response:', data);
                 
                 if (!data.success) {
                     throw new Error(data.message || 'Failed to get authorization URL');
@@ -506,7 +500,7 @@
                 
             } catch (error) {
                 console.error('Login error:', error);
-                showToast(`❌ Failed to connect to server. Make sure backend is running at: ${BACKEND_URL}`, 'error');
+                showToast(`❌ Failed to connect to server: ${error.message}`, 'error');
             }
         }
 
@@ -550,18 +544,20 @@
                     
                     console.log('✅ Access token obtained');
                     
+                    // Save token to localStorage
                     localStorage.setItem('access_token', data.access_token);
                     localStorage.setItem('active_token', data.access_token);
                     localStorage.setItem('oauth_authorized', 'true');
                     localStorage.setItem('token_timestamp', Date.now().toString());
                     
+                    console.log('Token saved, redirecting to:', BOT_PAGE);
                     showToast('✅ Login successful! Redirecting to bot...', 'success');
                     
+                    // Clear URL parameters
                     window.history.replaceState({}, document.title, window.location.pathname);
                     
-                    setTimeout(() => {
-                        window.location.href = BOT_PAGE;
-                    }, 1500);
+                    // ✅ IMPORTANT: Redirect to bot page
+                    window.location.href = BOT_PAGE;
                     
                     return true;
                     
@@ -581,9 +577,11 @@
             const isAuthorized = localStorage.getItem('oauth_authorized');
             
             if (token && isAuthorized === 'true') {
+                // Update buttons to show "Access Bot"
                 const buttons = document.querySelectorAll('.btn-primary');
                 buttons.forEach(btn => {
-                    if (btn.textContent.includes('Login') || btn.textContent.includes('Connect')) {
+                    const btnText = btn.textContent || btn.innerText;
+                    if (btnText.includes('Login') || btnText.includes('Connect')) {
                         btn.textContent = '🚀 Access Bot';
                         btn.onclick = () => { window.location.href = BOT_PAGE; };
                     }
@@ -619,12 +617,22 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
-        // Initialize
-        const isCallback = handleOAuthCallback();
-        if (!isCallback) {
-            checkExistingLogin();
-        }
+        // Initialize - this runs immediately
+        (async function init() {
+            console.log('🚀 DigitMatch Pro Landing Page Loaded');
+            console.log('Backend URL:', BACKEND_URL);
+            console.log('Bot Page:', BOT_PAGE);
+            
+            // First, check if this is an OAuth callback
+            const isCallback = await handleOAuthCallback();
+            
+            // If not a callback, check for existing login
+            if (!isCallback) {
+                checkExistingLogin();
+            }
+        })();
         
+        // Close modal on outside click
         window.onclick = function(event) {
             const modals = ['termsModal', 'privacyModal', 'disclaimerModal'];
             modals.forEach(modalId => {
@@ -635,6 +643,7 @@
             });
         };
         
+        // Smooth scrolling
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -642,10 +651,6 @@
                 if (target) target.scrollIntoView({ behavior: 'smooth' });
             });
         });
-        
-        console.log('🚀 DigitMatch Pro Landing Page Loaded');
-        console.log('Backend URL:', BACKEND_URL);
-        console.log('Bot Page:', BOT_PAGE);
     </script>
 </body>
 </html>
