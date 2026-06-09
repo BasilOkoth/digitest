@@ -266,9 +266,10 @@
       AFFILIATE_URL: "https://partner-tracking.deriv.com/click?a=20638&o=1&c=3&link_id=1",
       REFERRAL_CODE: "3655J683S288",
 
-      // Replace these two with your real community links.
+      // Replace WHATSAPP_URL with your real WhatsApp group/community link.
       WHATSAPP_URL: "https://wa.me/254700000000?text=Hello%20DigitMatchStars%20Pro",
-      TELEGRAM_URL: "https://t.me/YOUR_TELEGRAM_USERNAME"
+      // Corrected Telegram link. Change only if your official handle is different.
+      TELEGRAM_URL: "https://t.me/digitmatchstar"
     };
 
     document.getElementById("year").textContent = new Date().getFullYear();
@@ -302,17 +303,20 @@
 
     function startOAuth() {
       if (!CONFIG.APP_ID || CONFIG.APP_ID === "PUT_VALID_DERIV_APP_ID_HERE") {
-        alert("Deriv login is not configured. Replace CONFIG.APP_ID with a valid Deriv App ID first. Your referral link still works for account signup.");
+        alert("Deriv login is not configured. Replace CONFIG.APP_ID with your valid Deriv App ID first.");
         return;
       }
 
-      const params = new URLSearchParams({
-        app_id: CONFIG.APP_ID,
-        response_type: 'token',
-        redirect_uri: CONFIG.REDIRECT_URI,
-        scope: 'read,trade,trading_information'
-      });
-      window.location.href = `https://oauth.deriv.com/oauth2/authorize?${params.toString()}`;
+      // IMPORTANT:
+      // Connect must open the Deriv OAuth authorization page, NOT Deriv dashboard/home.
+      // Referral/sign-up remains separate under createAccount().
+      const oauthUrl = new URL("https://oauth.deriv.com/oauth2/authorize");
+      oauthUrl.searchParams.set("app_id", CONFIG.APP_ID);
+      oauthUrl.searchParams.set("brand", "deriv");
+      oauthUrl.searchParams.set("l", "EN");
+      oauthUrl.searchParams.set("redirect_uri", CONFIG.REDIRECT_URI);
+
+      window.location.href = oauthUrl.toString();
     }
   </script>
 </body>
