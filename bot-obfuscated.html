@@ -4,6 +4,63 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Deriv DigitMatchStar Bot</title>
+
+    <!-- ================= 🔒 BOT ACCESS GUARD =================
+         This prevents normal users from opening the bot page before Deriv OAuth.
+         Note: for a purely static Vercel site, this is a front-end gate, not server-side security.
+    ============================================================ -->
+    <script>
+    (function () {
+        window.APP_ID = "33rp9Oy3CuZ2io6XAuLZ6";
+
+        const params = new URLSearchParams(window.location.search);
+
+        function captureTokensFromUrlIfPresent() {
+            const accounts = [];
+            for (let i = 1; i <= 5; i++) {
+                const account = params.get(`acct${i}`);
+                const token = params.get(`token${i}`);
+                const currency = params.get(`cur${i}`) || "USD";
+                if (account && token) accounts.push({ account, token, currency });
+            }
+            if (!accounts.length) return false;
+
+            localStorage.setItem("deriv_accounts", JSON.stringify(accounts));
+            const demoAccount = accounts.find(acc => acc.account.startsWith("VR"));
+            const realAccount = accounts.find(acc => !acc.account.startsWith("VR"));
+            const selected = demoAccount || accounts[0];
+
+            localStorage.setItem("active_token", selected.token);
+            localStorage.setItem("derivToken", selected.token);
+            localStorage.setItem("derivAccount", selected.account);
+            localStorage.setItem("derivCurrency", selected.currency);
+            localStorage.setItem("selectedAccountMode", selected.account.startsWith("VR") ? "DEMO" : "REAL");
+            localStorage.setItem("auth_method", "deriv_oauth");
+            localStorage.setItem("bot_authenticated", "true");
+            localStorage.setItem("bot_auth_time", String(Date.now()));
+
+            if (demoAccount) {
+                localStorage.setItem("derivTokenDemo", demoAccount.token);
+                localStorage.setItem("derivDemoAccount", demoAccount.account);
+            }
+            if (realAccount) {
+                localStorage.setItem("derivTokenReal", realAccount.token);
+                localStorage.setItem("derivRealAccount", realAccount.account);
+            }
+            return true;
+        }
+
+        captureTokensFromUrlIfPresent();
+
+        const hasToken = localStorage.getItem("active_token") || localStorage.getItem("derivToken") || localStorage.getItem("derivTokenDemo") || localStorage.getItem("derivTokenReal");
+        const isAuthenticated = localStorage.getItem("bot_authenticated") === "true";
+
+        if (!hasToken || !isAuthenticated) {
+            localStorage.removeItem("bot_authenticated");
+            window.location.replace("/?login_required=1");
+        }
+    })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
@@ -691,51 +748,6 @@
     </div>
 
     <script>
-        // ============================================================================
-        // AUTHENTICATION GUARD - users must authenticate before opening this bot file
-        // ============================================================================
-        function getStoredDerivToken() {
-            return localStorage.getItem('active_token') ||
-                   localStorage.getItem('derivToken') ||
-                   localStorage.getItem('derivTokenDemo') ||
-                   localStorage.getItem('derivTokenReal');
-        }
-
-        function getStoredDerivAccount() {
-            const mode = localStorage.getItem('selectedAccountMode');
-
-            if (mode === 'DEMO') {
-                return localStorage.getItem('active_account') ||
-                       localStorage.getItem('derivAccount') ||
-                       localStorage.getItem('derivDemoAccount');
-            }
-
-            if (mode === 'REAL') {
-                return localStorage.getItem('active_account') ||
-                       localStorage.getItem('derivAccount') ||
-                       localStorage.getItem('derivRealAccount');
-            }
-
-            return localStorage.getItem('active_account') ||
-                   localStorage.getItem('derivAccount') ||
-                   localStorage.getItem('derivDemoAccount') ||
-                   localStorage.getItem('derivRealAccount');
-        }
-
-        function getDerivAppIdForRest() {
-            return localStorage.getItem('deriv_app_id') ||
-                   localStorage.getItem('deriv_client_id') ||
-                   '019e8851-5a46-7e6c-888f-2b494d061494';
-        }
-
-        function isBotAuthenticated() {
-            return localStorage.getItem('bot_authenticated') === 'true' && !!getStoredDerivToken();
-        }
-
-        if (!isBotAuthenticated()) {
-            window.location.replace('/');
-        }
-
         // ============================================================================
         // DERIV DIGIT MATCH INTELLIGENCE ENGINE - FIXED FOR DIGIT 0
         // Warm-up (1000 ticks) → Live incremental → Regime + Smart digit selection
@@ -2541,21 +2553,17 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
         
         // Check for authentication token
         function checkAuthToken() {
-            const token = getStoredDerivToken();
-            const authenticated = localStorage.getItem('bot_authenticated') === 'true';
-
-            if (!authenticated || !token) {
-                log('⚠️ Please authenticate first before using the bot.', 'WARNING');
-                window.location.replace('/');
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken') || localStorage.getItem('derivTokenDemo') || localStorage.getItem('derivTokenReal');
+            if (!token) {
+                log('⚠️ No API token found. Please authenticate first.', 'WARNING');
                 return false;
             }
-
             return true;
         }
         
         // Initialize account toggle
         function initializeToggleState() {
-            const token = getStoredDerivToken();
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivTokenDemo') || localStorage.getItem('derivTokenReal');
             const allAccounts = JSON.parse(localStorage.getItem('deriv_accounts')) || [];
             
             if (token && allAccounts.length > 0) {
@@ -2963,130 +2971,77 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
             });
         }
         
-        // WEBSOCKET CONNECTION - UPDATED FOR NEW DERIV OTP WEBSOCKET FLOW
-        async function getAuthenticatedDerivWebSocketUrl() {
-            const token = getStoredDerivToken();
-            const account_id = getStoredDerivAccount();
-            const app_id = getDerivAppIdForRest();
-
-            if (!token) {
-                throw new Error('No Deriv access token found. Please login again.');
-            }
-
-            if (!account_id) {
-                throw new Error('No Deriv account ID found. Please login again.');
-            }
-
-            const response = await fetch('/api/deriv-ws-url', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    token,
-                    account_id,
-                    app_id
-                })
-            });
-
-            let data = {};
-            try {
-                data = await response.json();
-            } catch (e) {
-                throw new Error('Invalid response from /api/deriv-ws-url');
-            }
-
-            if (!response.ok || !data.websocket_url) {
-                throw new Error(data.error || 'Failed to get authenticated Deriv WebSocket URL');
-            }
-
-            return data.websocket_url;
-        }
-
-        async function connectWebSocket() {
+        // WEBSOCKET CONNECTION - UPDATED WITH NETWORK RECOVERY
+        function connectWebSocket() {
             if (window.ws) {
                 try {
                     window.ws.close();
                 } catch (e) {}
             }
-
+            
             window.isConnecting = true;
             updateConnectionStatus();
-
-            log('🔗 Getting authenticated Deriv WebSocket URL...', 'SYSTEM');
-
-            let wsUrl;
-            try {
-                wsUrl = await getAuthenticatedDerivWebSocketUrl();
-            } catch (error) {
-                window.isConnecting = false;
-                updateConnectionStatus();
-                log(`❌ ${error.message}`, 'ERROR');
-                updateTradeStatus('ERROR', error.message, 'Login again or check api/deriv-ws-url.js', 'loss');
-
-                if (window.isBotRunning && window.networkRecoveryEnabled) {
-                    attemptNetworkRecovery();
-                }
-                return;
-            }
-
-            log('🔗 Connecting to authenticated Deriv WebSocket...', 'SYSTEM');
-
+            
+            const wsUrl = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+            log('🔗 Connecting to Deriv API...', 'SYSTEM');
+            
             window.ws = new WebSocket(wsUrl);
-
+            
             window.ws.onopen = () => {
                 window.isConnecting = false;
                 resetReconnectionAttempts();
-                log('✅ Authenticated WebSocket connected', 'SYSTEM');
+                log('✅ WebSocket connected', 'SYSTEM');
                 updateConnectionStatus();
-
-                const token = getStoredDerivToken();
+                
+                const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken') || localStorage.getItem('derivTokenDemo') || localStorage.getItem('derivTokenReal');
                 if (!token) {
                     log('❌ No API token found in storage', 'ERROR');
                     stopBot();
                     return;
                 }
-
+                
                 sendRequest({ 
                     authorize: token, 
                     req_id: getNextReqId() 
                 });
             };
-
+            
             window.ws.onmessage = (msg) => {
                 try {
                     const data = JSON.parse(msg.data);
-                    console.log('API Response:', data.msg_type, data);
-
+                    console.log('API Response:', data.msg_type, data); // Debug logging
+                    
                     // 🔥 CRITICAL FIX: Handle tick messages
                     if (data.msg_type === 'tick') {
-                        console.log('Tick received:', data.tick);
-
+                        console.log('Tick received:', data.tick); // Debug
+                        
+                        // Log specifically for digit 0
                         updateTickFormatFromQuote(data.tick.quote);
                         const digit = getLastDigitFromQuote(data.tick.quote);
                         if (digit === 0) {
                             console.log('🎯 DIGIT 0 DETECTED in formatted tick:', formatQuoteForDigit(data.tick.quote));
                         }
-
+                        
                         handleTick(data.tick);
                         return;
                     }
-
+                    
                     handleAPIResponse(data);
                 } catch (e) {
                     console.error('WebSocket message error:', e);
                     log('❌ Error parsing WebSocket message', 'ERROR');
                 }
             };
-
+            
             window.ws.onclose = () => {
                 window.isConnecting = false;
                 updateConnectionStatus();
                 log('🔌 WebSocket disconnected', 'SYSTEM');
-
+                
                 if (window.isBotRunning) {
                     window.lastDisconnectTime = Date.now();
-
+                    
+                    // Attempt automatic reconnection if enabled
                     if (window.networkRecoveryEnabled) {
                         attemptNetworkRecovery();
                     } else {
@@ -3095,15 +3050,14 @@ const isRecommended = engine.currentRecommendation && engine.currentRecommendati
                     }
                 }
             };
-
+            
             window.ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
                 log('❌ WebSocket connection error', 'ERROR');
-                updateTradeStatus('ERROR', 'WebSocket connection failed', 'Check token/API route/network', 'loss');
+                updateTradeStatus('ERROR', 'WebSocket connection failed', 'Check network connection', 'loss');
             };
         }
-
-
+        
         // ============================================================================
         // ✅ FIXED: TICK HANDLER - PROPER DIGIT EXTRACTION INCLUDING DIGIT 0
         // ============================================================================
@@ -3478,7 +3432,7 @@ window.executionLock = true;
             window.maxTrades = parseInt(document.getElementById('maxTrades').value) || 10;
             window.maxCycleTrades = parseInt(document.getElementById('maxCycleTrades')?.value) || 10;
             
-            const token = getStoredDerivToken();
+            const token = localStorage.getItem('active_token') || localStorage.getItem('derivToken') || localStorage.getItem('derivTokenDemo') || localStorage.getItem('derivTokenReal');
             if (!token) {
                 log('❌ No API token found. Please authenticate first.', 'CRITICAL');
                 updateTradeStatus('ERROR', 'No API token found', 'Please authenticate first', 'loss');
