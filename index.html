@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>DigitMatchStars Pro™ - Official Deriv Trading Bot</title>
   <meta name="description" content="DigitMatchStars Pro™ trading bot landing page. Connect with Deriv, join WhatsApp or Telegram, and access the protected bot." />
 
@@ -11,7 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
   <style>
-    * { font-family: 'Inter', sans-serif; }
+    * {
+      font-family: 'Inter', sans-serif;
+    }
+
     body {
       background:
         radial-gradient(circle at top left, rgba(16,185,129,.20), transparent 30%),
@@ -21,11 +25,13 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
+
     .gradient-text {
       background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+
     .glass-card {
       background: rgba(255,255,255,0.055);
       backdrop-filter: blur(14px);
@@ -33,6 +39,7 @@
       border-radius: 22px;
       box-shadow: 0 18px 60px rgba(0,0,0,.28);
     }
+
     .btn-primary {
       background: linear-gradient(135deg,#10b981,#059669);
       padding: 14px 24px;
@@ -44,8 +51,14 @@
       gap: .65rem;
       box-shadow: 0 14px 35px rgba(16,185,129,.25);
       transition: .18s ease;
+      color: white;
     }
-    .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.05); }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
     .btn-secondary {
       background: rgba(255,255,255,.08);
       border: 1px solid rgba(255,255,255,.14);
@@ -57,10 +70,24 @@
       justify-content: center;
       gap: .65rem;
       transition: .18s ease;
+      color: white;
     }
-    .btn-secondary:hover { background: rgba(255,255,255,.13); transform: translateY(-1px); }
-    .btn-whatsapp { background: linear-gradient(135deg,#25D366,#128C7E); }
-    .btn-telegram { background: linear-gradient(135deg,#2AABEE,#229ED9); }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,.13);
+      transform: translateY(-1px);
+    }
+
+    .btn-whatsapp {
+      background: linear-gradient(135deg,#25D366,#128C7E);
+      border: none;
+    }
+
+    .btn-telegram {
+      background: linear-gradient(135deg,#2AABEE,#229ED9);
+      border: none;
+    }
+
     .modal {
       display: none;
       position: fixed;
@@ -71,6 +98,7 @@
       justify-content: center;
       padding: 18px;
     }
+
     .modal-content {
       background: linear-gradient(135deg,#0f172a,#0a0f1f);
       padding: 34px;
@@ -80,6 +108,7 @@
       border: 1px solid rgba(255,255,255,0.14);
       box-shadow: 0 25px 80px rgba(0,0,0,.5);
     }
+
     .floating-orb {
       position: absolute;
       border-radius: 999px;
@@ -87,21 +116,35 @@
       opacity: .35;
       pointer-events: none;
     }
+
+    .small-note {
+      font-size: 12px;
+      color: #94a3b8;
+    }
   </style>
 
-  <!-- RESTORED LANDING PAGE BEHAVIOUR: no automatic redirect to Deriv login. -->
+  <!-- OAuth callback handler only. This does NOT force Deriv login on page load. -->
   <script>
     (function () {
       const params = new URLSearchParams(window.location.search);
 
       function saveLegacyDerivOAuthTokens() {
         const accounts = [];
+
         for (let i = 1; i <= 5; i++) {
           const account = params.get(`acct${i}`);
           const token = params.get(`token${i}`);
           const currency = params.get(`cur${i}`) || "USD";
-          if (account && token) accounts.push({ account, token, currency });
+
+          if (account && token) {
+            accounts.push({
+              account,
+              token,
+              currency
+            });
+          }
         }
+
         if (!accounts.length) return false;
 
         const demoAccount = accounts.find(acc => acc.account && acc.account.startsWith("VR"));
@@ -122,10 +165,12 @@
           localStorage.setItem("derivTokenDemo", demoAccount.token);
           localStorage.setItem("derivDemoAccount", demoAccount.account);
         }
+
         if (realAccount) {
           localStorage.setItem("derivTokenReal", realAccount.token);
           localStorage.setItem("derivRealAccount", realAccount.account);
         }
+
         return true;
       }
 
@@ -140,6 +185,7 @@
   <div class="floating-orb w-72 h-72 bg-emerald-500 top-10 left-10"></div>
   <div class="floating-orb w-80 h-80 bg-blue-500 bottom-20 right-10"></div>
 
+  <!-- NAVIGATION -->
   <nav class="glass-card fixed top-5 left-1/2 -translate-x-1/2 w-[94%] max-w-7xl px-5 md:px-7 py-4 flex justify-between items-center z-50">
     <div class="flex items-center gap-3">
       <div class="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-blue-600 flex items-center justify-center shadow-lg">
@@ -150,14 +196,24 @@
         <p class="text-[11px] text-slate-400 hidden sm:block">Smart DigitMatch automation for Deriv users</p>
       </div>
     </div>
+
     <div class="hidden md:flex items-center gap-3">
-      <button onclick="openModal()" class="btn-secondary"><i class="fa-solid fa-right-to-bracket"></i> Connect</button>
-      <a id="navWhatsapp" class="btn-secondary btn-whatsapp" target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+      <button onclick="openModal()" class="btn-secondary">
+        <i class="fa-solid fa-right-to-bracket"></i> Connect
+      </button>
+
+      <a id="navWhatsapp" class="btn-secondary btn-whatsapp" target="_blank" rel="noopener">
+        <i class="fab fa-whatsapp"></i> WhatsApp
+      </a>
     </div>
-    <button onclick="openModal()" class="btn-primary md:hidden">Start</button>
+
+    <button onclick="openModal()" class="btn-primary md:hidden">
+      Start
+    </button>
   </nav>
 
   <main class="relative z-10">
+    <!-- HERO -->
     <section class="pt-40 md:pt-48 pb-16 px-5 text-center max-w-7xl mx-auto">
       <div class="inline-flex items-center gap-2 glass-card px-4 py-2 mb-7 text-sm text-emerald-300">
         <i class="fa-solid fa-shield-halved"></i>
@@ -165,91 +221,178 @@
       </div>
 
       <h1 class="text-5xl md:text-7xl lg:text-8xl font-black leading-tight mb-6">
-        <span class="gradient-text">Instant Tick</span><br />DigitMatch Bot
+        <span class="gradient-text">Instant Tick</span><br />
+        DigitMatch Bot
       </h1>
+
       <p class="max-w-3xl mx-auto text-slate-300 text-lg md:text-xl mb-9">
-        A clean, professional landing page for DigitMatchStars Pro™. Join the community, create a Deriv account through the referral link, or connect your Deriv account to access the protected bot.
+        A clean, professional landing page for DigitMatchStars Pro™. Join the community,
+        create a Deriv account through the referral link, or connect your Deriv account
+        to access the protected bot.
       </p>
 
       <div class="flex flex-col sm:flex-row justify-center gap-4 mb-12">
-        <button onclick="openModal()" class="btn-primary text-lg"><i class="fa-solid fa-plug"></i> Start Trading</button>
-        <a id="heroWhatsapp" class="btn-secondary btn-whatsapp text-lg" target="_blank"><i class="fab fa-whatsapp"></i> Join WhatsApp</a>
-        <a id="heroTelegram" class="btn-secondary btn-telegram text-lg" target="_blank"><i class="fab fa-telegram"></i> Join Telegram</a>
+        <button onclick="openModal()" class="btn-primary text-lg">
+          <i class="fa-solid fa-plug"></i> Start Trading
+        </button>
+
+        <a id="heroWhatsapp" class="btn-secondary btn-whatsapp text-lg" target="_blank" rel="noopener">
+          <i class="fab fa-whatsapp"></i> Join WhatsApp
+        </a>
+
+        <a id="heroTelegram" class="btn-secondary btn-telegram text-lg" target="_blank" rel="noopener">
+          <i class="fab fa-telegram"></i> Join Telegram
+        </a>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto text-left">
         <div class="glass-card p-6">
           <i class="fa-solid fa-bolt text-3xl text-emerald-400 mb-4"></i>
           <h3 class="font-black text-xl mb-2">Instant Tick Logic</h3>
-          <p class="text-slate-400">Designed for fast DigitMatch execution once the user is authenticated and the bot is connected.</p>
+          <p class="text-slate-400">
+            Designed for fast DigitMatch execution once the user is authenticated and the bot is connected.
+          </p>
         </div>
+
         <div class="glass-card p-6">
           <i class="fa-solid fa-brain text-3xl text-purple-400 mb-4"></i>
           <h3 class="font-black text-xl mb-2">AI Signal Panel</h3>
-          <p class="text-slate-400">Keeps your existing AI engine, market status, warm-up, and trade controls separate from the landing page.</p>
+          <p class="text-slate-400">
+            Keeps your existing AI engine, market status, warm-up, and trade controls separate from the landing page.
+          </p>
         </div>
+
         <div class="glass-card p-6">
           <i class="fa-solid fa-lock text-3xl text-blue-400 mb-4"></i>
           <h3 class="font-black text-xl mb-2">Protected Access</h3>
-          <p class="text-slate-400">The bot file remains protected; the landing page does not force visitors straight into Deriv login.</p>
+          <p class="text-slate-400">
+            The bot file remains protected; the landing page does not force visitors straight into Deriv login.
+          </p>
         </div>
       </div>
     </section>
 
+    <!-- SIGNUP SECTION -->
     <section class="px-5 pb-20 max-w-6xl mx-auto">
       <div class="glass-card p-7 md:p-10 grid md:grid-cols-2 gap-8 items-center">
         <div>
           <h2 class="text-3xl md:text-4xl font-black mb-4">New user?</h2>
-          <p class="text-slate-300 mb-6">Create a Deriv account using the referral link, then come back and connect your account to open the bot.</p>
+
+          <p class="text-slate-300 mb-6">
+            Create a Deriv account using the referral link, then come back and connect your account to open the bot.
+          </p>
+
           <div class="flex flex-col sm:flex-row gap-3">
-            <a id="signupLink" class="btn-primary" target="_blank"><i class="fa-solid fa-user-plus"></i> Create Deriv Account</a>
-            <button onclick="openModal()" class="btn-secondary"><i class="fa-solid fa-link"></i> Connect Existing Account</button>
+            <a id="signupLink" class="btn-primary" target="_blank" rel="noopener">
+              <i class="fa-solid fa-user-plus"></i> Create Deriv Account
+            </a>
+
+            <button onclick="openModal()" class="btn-secondary">
+              <i class="fa-solid fa-link"></i> Connect Existing Account
+            </button>
           </div>
-          <p class="text-xs text-slate-500 mt-4">Referral code: <span id="referralCodeText" class="text-slate-300 font-bold"></span></p>
+
+          <p class="text-xs text-slate-500 mt-4">
+            Referral code:
+            <span id="referralCodeText" class="text-slate-300 font-bold"></span>
+          </p>
         </div>
+
         <div class="grid grid-cols-2 gap-4">
-          <div class="glass-card p-5 text-center"><p class="text-3xl font-black gradient-text">24/7</p><p class="text-slate-400 text-sm">landing access</p></div>
-          <div class="glass-card p-5 text-center"><p class="text-3xl font-black gradient-text">OAuth</p><p class="text-slate-400 text-sm">account login</p></div>
-          <div class="glass-card p-5 text-center"><p class="text-3xl font-black gradient-text">AI</p><p class="text-slate-400 text-sm">signal engine</p></div>
-          <div class="glass-card p-5 text-center"><p class="text-3xl font-black gradient-text">Bot</p><p class="text-slate-400 text-sm">protected page</p></div>
+          <div class="glass-card p-5 text-center">
+            <p class="text-3xl font-black gradient-text">24/7</p>
+            <p class="text-slate-400 text-sm">landing access</p>
+          </div>
+
+          <div class="glass-card p-5 text-center">
+            <p class="text-3xl font-black gradient-text">OAuth</p>
+            <p class="text-slate-400 text-sm">account login</p>
+          </div>
+
+          <div class="glass-card p-5 text-center">
+            <p class="text-3xl font-black gradient-text">AI</p>
+            <p class="text-slate-400 text-sm">signal engine</p>
+          </div>
+
+          <div class="glass-card p-5 text-center">
+            <p class="text-3xl font-black gradient-text">Bot</p>
+            <p class="text-slate-400 text-sm">protected page</p>
+          </div>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- FOOTER -->
   <footer class="relative z-10 px-5 pb-10 text-center text-slate-500 text-sm">
     <div class="flex justify-center gap-4 mb-4">
-      <a id="footerWhatsapp" target="_blank" class="hover:text-emerald-300"><i class="fab fa-whatsapp"></i> WhatsApp</a>
-      <a id="footerTelegram" target="_blank" class="hover:text-blue-300"><i class="fab fa-telegram"></i> Telegram</a>
+      <a id="footerWhatsapp" target="_blank" rel="noopener" class="hover:text-emerald-300">
+        <i class="fab fa-whatsapp"></i> WhatsApp
+      </a>
+
+      <a id="footerTelegram" target="_blank" rel="noopener" class="hover:text-blue-300">
+        <i class="fab fa-telegram"></i> Telegram
+      </a>
     </div>
-    <p>© <span id="year"></span> DigitMatchStars Pro™. Trading involves risk. Use responsible risk management.</p>
+
+    <p>
+      © <span id="year"></span> DigitMatchStars Pro™.
+      Trading involves risk. Use responsible risk management.
+    </p>
   </footer>
 
+  <!-- CONNECT MODAL -->
   <div id="authModal" class="modal">
     <div class="modal-content">
       <button onclick="closeModal()" class="float-right text-white text-3xl leading-none">&times;</button>
-      <h2 class="text-3xl font-black mb-3 text-center gradient-text">Connect DigitMatchStars Pro™</h2>
-      <p class="text-center text-slate-400 mb-7">Choose how you want to continue.</p>
+
+      <h2 class="text-3xl font-black mb-3 text-center gradient-text">
+        Connect DigitMatchStars Pro™
+      </h2>
+
+      <p class="text-center text-slate-400 mb-7">
+        Choose how you want to continue.
+      </p>
 
       <div class="space-y-4">
         <button onclick="startOAuth()" class="glass-card p-5 w-full text-left hover:bg-white/10 transition">
-          <h3 class="font-black text-lg"><i class="fa-solid fa-plug text-emerald-400 mr-2"></i> Connect via Deriv OAuth</h3>
-          <p class="text-sm text-slate-400 mt-1">Use this only after setting a valid Deriv App ID / OAuth client in the code.</p>
+          <h3 class="font-black text-lg">
+            <i class="fa-solid fa-plug text-emerald-400 mr-2"></i>
+            Connect via Deriv OAuth
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            This should open the Deriv OAuth authorization page, not Deriv Home.
+          </p>
         </button>
 
         <button onclick="openBotIfAuthenticated()" class="glass-card p-5 w-full text-left hover:bg-white/10 transition">
-          <h3 class="font-black text-lg"><i class="fa-solid fa-robot text-blue-400 mr-2"></i> Open Bot</h3>
-          <p class="text-sm text-slate-400 mt-1">Only works after a valid Deriv token has been saved.</p>
+          <h3 class="font-black text-lg">
+            <i class="fa-solid fa-robot text-blue-400 mr-2"></i>
+            Open Bot
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            Only works after a valid Deriv token has been saved.
+          </p>
         </button>
 
         <button onclick="createAccount()" class="glass-card p-5 w-full text-left hover:bg-white/10 transition">
-          <h3 class="font-black text-lg"><i class="fa-solid fa-user-plus text-purple-400 mr-2"></i> Need a Deriv account?</h3>
-          <p class="text-sm text-slate-400 mt-1">Sign up using your referral link.</p>
+          <h3 class="font-black text-lg">
+            <i class="fa-solid fa-user-plus text-purple-400 mr-2"></i>
+            Need a Deriv account?
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            Sign up using your referral link.
+          </p>
         </button>
 
         <div class="grid grid-cols-2 gap-3 pt-2">
-          <a id="modalWhatsapp" class="btn-secondary btn-whatsapp" target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp</a>
-          <a id="modalTelegram" class="btn-secondary btn-telegram" target="_blank"><i class="fab fa-telegram"></i> Telegram</a>
+          <a id="modalWhatsapp" class="btn-secondary btn-whatsapp" target="_blank" rel="noopener">
+            <i class="fab fa-whatsapp"></i> WhatsApp
+          </a>
+
+          <a id="modalTelegram" class="btn-secondary btn-telegram" target="_blank" rel="noopener">
+            <i class="fab fa-telegram"></i> Telegram
+          </a>
         </div>
       </div>
     </div>
@@ -257,40 +400,70 @@
 
   <script>
     const CONFIG = {
-      // Use your valid legacy Deriv numeric app_id here if using old OAuth.
-      // Do NOT use the invalid UUID that produced invalid_client unless it exists in your Deriv dashboard.
+      /*
+        Your registered Deriv App ID from dashboard:
+        App name: digitmatchstar
+        App ID: 33rp9Oy3CuZ2io6XAuLZ6
+      */
       APP_ID: "33rp9Oy3CuZ2io6XAuLZ6",
-      REDIRECT_URI: window.location.origin + "/index.html",
+
+      /*
+        Use the exact redirect URL registered in Deriv:
+        https://www.digitmatchstar.com/
+        https://www.digitmatchstar.com/index.html
+
+        This code uses /index.html to match the second registered URL.
+      */
+      REDIRECT_URI: "https://www.digitmatchstar.com/index.html",
+
       BOT_URL: "/bot-obfuscated.html",
 
       AFFILIATE_URL: "https://partner-tracking.deriv.com/click?a=20638&o=1&c=3&link_id=1",
       REFERRAL_CODE: "3655J683S288",
 
-      // Replace WHATSAPP_URL with your real WhatsApp group/community link.
+      /*
+        Change these if needed.
+        Telegram was corrected from placeholder to the clean DigitMatchStar handle.
+      */
       WHATSAPP_URL: "https://wa.me/254700000000?text=Hello%20DigitMatchStars%20Pro",
-      // Corrected Telegram link. Change only if your official handle is different.
       TELEGRAM_URL: "https://t.me/digitmatchstar"
     };
 
     document.getElementById("year").textContent = new Date().getFullYear();
     document.getElementById("referralCodeText").textContent = CONFIG.REFERRAL_CODE;
 
-    ["navWhatsapp","heroWhatsapp","footerWhatsapp","modalWhatsapp"].forEach(id => {
-      const el = document.getElementById(id); if (el) el.href = CONFIG.WHATSAPP_URL;
+    ["navWhatsapp", "heroWhatsapp", "footerWhatsapp", "modalWhatsapp"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.href = CONFIG.WHATSAPP_URL;
     });
-    ["heroTelegram","footerTelegram","modalTelegram"].forEach(id => {
-      const el = document.getElementById(id); if (el) el.href = CONFIG.TELEGRAM_URL;
+
+    ["heroTelegram", "footerTelegram", "modalTelegram"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.href = CONFIG.TELEGRAM_URL;
     });
+
     document.getElementById("signupLink").href = CONFIG.AFFILIATE_URL;
 
-    function openModal() { document.getElementById('authModal').style.display = 'flex'; }
-    function closeModal() { document.getElementById('authModal').style.display = 'none'; }
+    function openModal() {
+      document.getElementById("authModal").style.display = "flex";
+    }
 
-    function createAccount() { window.open(CONFIG.AFFILIATE_URL, '_blank'); }
+    function closeModal() {
+      document.getElementById("authModal").style.display = "none";
+    }
+
+    function createAccount() {
+      window.open(CONFIG.AFFILIATE_URL, "_blank");
+    }
 
     function hasSavedToken() {
       return localStorage.getItem("bot_authenticated") === "true" &&
-        (localStorage.getItem("active_token") || localStorage.getItem("derivToken") || localStorage.getItem("derivTokenDemo") || localStorage.getItem("derivTokenReal"));
+        (
+          localStorage.getItem("active_token") ||
+          localStorage.getItem("derivToken") ||
+          localStorage.getItem("derivTokenDemo") ||
+          localStorage.getItem("derivTokenReal")
+        );
     }
 
     function openBotIfAuthenticated() {
@@ -302,15 +475,19 @@
     }
 
     function startOAuth() {
-      if (!CONFIG.APP_ID || CONFIG.APP_ID === "PUT_VALID_DERIV_APP_ID_HERE") {
-        alert("Deriv login is not configured. Replace CONFIG.APP_ID with your valid Deriv App ID first.");
+      if (!CONFIG.APP_ID) {
+        alert("Deriv App ID is missing.");
         return;
       }
 
-      // IMPORTANT:
-      // Connect must open the Deriv OAuth authorization page, NOT Deriv dashboard/home.
-      // Referral/sign-up remains separate under createAccount().
+      /*
+        IMPORTANT:
+        This button must open Deriv OAuth, not Deriv Home.
+        If it still opens https://home.deriv.com/dashboard/home,
+        then Deriv is redirecting your inactive or unsupported app from their side.
+      */
       const oauthUrl = new URL("https://oauth.deriv.com/oauth2/authorize");
+
       oauthUrl.searchParams.set("app_id", CONFIG.APP_ID);
       oauthUrl.searchParams.set("brand", "deriv");
       oauthUrl.searchParams.set("l", "EN");
